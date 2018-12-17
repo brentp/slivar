@@ -138,7 +138,10 @@ proc sum(counts: array[4, int]): int {.inline.} =
 
 template aaf*(counts:array[4, int]): float64 =
   ## alternate allele frequency
-  float64(2 * counts[2] + counts[1]) / float64(2 * counts.sum - 2 * counts[3])
+  if counts[3] != counts.sum():
+    float64(2 * counts[2] + counts[1]) / float64(2 * counts.sum - 2 * counts[3])
+  else:
+    0
 
 proc hwe_score*(counts: array[4, int], aaf:float64): float64 {.inline.} =
   ## calculate the hardy-weinberg chi-sq deviation from expected. values > 6 are unlikely.
