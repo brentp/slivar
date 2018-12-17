@@ -9,8 +9,8 @@ variant.FILTER == 'PASS' && \                         #
 variant.call_rate > 0.95 && \                         # genotype must be known for most of cohort.
 INFO.gnomad_af < 0.001 && \                           # rare in gnomad (must be in INFO)
 kid.alts == 1 && mom.alts == 0 && dad.alts == 0 && \  # alts are 0:hom_ref, 1:het, 2:hom_alt, -1:unknown
-kid.DP > 7 && mom.DP > 7 && dad.DP > 7 \              # sufficient depth in all
-&& (mom.AD[0] + dad.AD[0]) < 10                       # no evidence in the parents
+kid.DP > 7 && mom.DP > 7 && dad.DP > 7 && \           # sufficient depth in all
+(mom.AD[0] + dad.AD[0]) == 0                          # no evidence in the parents
 ```
 
 This requires passing variants that are rare in gnomad that have the expected genotypes and do
