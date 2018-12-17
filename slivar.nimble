@@ -30,6 +30,7 @@ import ospaths,strutils
 
 task test, "run the tests":
   exec "nim c --lineDir:on --debuginfo -r --threads:on src/slivarpkg/duko"
+  exec "bash tests/functional-tests.sh"
 
 task docs, "Builds documentation":
   mkDir("docs"/"slivar")

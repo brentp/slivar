@@ -41,6 +41,13 @@ slivar \
 Note that `slivar` does not give direct access to the genotypes, instead exposing `alts` where 0 is homozygous reference, 1 is heterozygous, 2 is
 homozygous alternate and -1 when the genotype is unknown. It is recommended to **decompose** a VCF before sending to `slivar`
 
+
+## Installation
+
+get the latest binary from: https://github.com/brentp/slivar/releases/latest
+
+or use via docker from: [brentp/slivar:latest](https://cloud.docker.com/repository/docker/brentp/slivar)
+
 ### Attributes
 
  + anything in the INFO is available as e.g. INFO.CSQ

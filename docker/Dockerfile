@@ -27,14 +27,18 @@ RUN cd / && \
     cd nim && \
     chmod +x ./build_all.sh && \
     scl enable devtoolset-2 ./build_all.sh && \
-    export PATH=/nim/bin:$PATH && \
-    echo 'PATH=/nim/bin:$PATH' >> ~/.bashrc && \
-    echo 'PATH=/nim/bin:$PATH' >> ~/.bash_profile && \
-    cd / && \
+    echo 'PATH=/nim/bin:/root/.nimble/bin:$PATH' >> ~/.bashrc && \
+    echo 'PATH=/nim/bin:/root/.nimble/bin:$PATH' >> ~/.bash_profile
+
+RUN cd / && \
+    export PATH=/nim/bin:/root/.nimble/bin:$PATH && \
+    source scl_source enable devtoolset-2  && \
+    nimble install -y nimgen && \
+    cd / && git clone -b dev https://github.com/brentp/duktape-nim && \
+    cd duktape-nim && \
+    nimble install --verbose -y && \
     git clone --depth 1 git://github.com/brentp/slivar.git && \
     cd slivar && \
-    nimble install -y hts && \
-    source scl_source enable devtoolset-2  && \
+    nimble install --verbose -y && \
     nim c -d:release -o:/usr/bin/slivar --passC:-flto src/slivar && \
-    rm -rf /slivar && slivar -h
-
+    rm -rf /slivar /duktape-nim && slivar -h

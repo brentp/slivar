@@ -56,10 +56,9 @@ proc newEvaluator*(kids: seq[Sample], expression: TableRef[string, string], info
     quit $msg
   )
 
-
   result = TrioEvaluator(ctx:duk_create_heap(nil, nil, nil, nil, my_fatal))
   result.ctx.duk_require_stack_top(500000)
-  var idx = result.ctx.duk_push_c_function(debug, -1.cint)
+  discard = result.ctx.duk_push_c_function(debug, -1.cint)
   discard result.ctx.duk_put_global_string("debug")
   for k, v in expression:
     result.trio_expressions.add(result.ctx.compile(v))
