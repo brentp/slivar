@@ -51,7 +51,7 @@ or use via docker from: [brentp/slivar:latest](https://cloud.docker.com/reposito
 ### Attributes
 
  + anything in the INFO is available as e.g. INFO.CSQ
- + if FORMAT.AB is not present, it is added so one can filter with kid.AB > 0.25 && kid.AB < 0.25
+ + if FORMAT.AB is not present, it is added so one can filter with kid.AB > 0.25 && kid.AB < 0.75
  + variant attributes are: `CHROM`, `POS`, `start`, `end`, `ID`, `REF`, `ALT`, `QUAL`, `FILTER`
  + calculated variant attributes include: `aaf`, `hwe_score`, `call_rate`, `num_hom_ref`, `num_het`, `num_hom_alt`, `num_unknown`
 
