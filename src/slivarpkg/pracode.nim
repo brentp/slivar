@@ -1,13 +1,15 @@
 import hashes
+import algorithm
 
 type pra = object
-  pos {.bitsize: 28} : uint64 # 28
-  flag {.bitsize: 4} : uint64 # 32
-  rlen {.bitsize: 4} : uint64 # 36
-  alen {.bitsize: 4} : uint64 # 40
-  ra {.bitsize: 24} : uint64 # 64
+  flag {.bitsize: 4} : uint64 # 56
+  ra {.bitsize: 24} : uint64 # 52
+  rlen {.bitsize: 4} : uint64 # 60
+  alen {.bitsize: 4} : uint64 # 64
 
-type pfra* = ref object
+  pos {.bitsize: 28} : uint64 # 28
+
+type pfra* = object
   # position,flag,ref,alt
   position*: uint32
   flag*: uint8
@@ -23,12 +25,9 @@ proc cmp_pfra*(a, b:pfra): int =
     return cmp(a.alternate, b.alternate)
   return cmp(a.flag, b.flag)
 
-proc `$`*(p:pfra): string {.inline.} =
-  return $p[]
+const lookup:array[256, uint8] = [3'u8,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,0,3,1,3,3,3,2,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3]
 
-const lookup:array[256, uint8] = [0'u8,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2,0,1,0,0,0,3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
-
-const rlookup:array[4, char] = ['T', 'C', 'A', 'G']
+const rlookup:array[4, char] = ['A', 'C', 'G', 'T']
 
 proc hash(a: string, b:string): uint64 {.inline.} =
   ## Computes a Hash from `x`.
@@ -51,7 +50,7 @@ proc encode*(pos: uint32, ref_allele: string, alt_allele: string, flag:uint8=0):
   p.rlen = ref_allele.len.uint64
   p.alen = alt_allele.len.uint64
 
-  var ra = 0'u64
+  var ra = 0'u32
   for k in 0..<ref_allele.len:
     ra = ra * 4
     var c = lookup[ref_allele[k].int]
@@ -61,8 +60,19 @@ proc encode*(pos: uint32, ref_allele: string, alt_allele: string, flag:uint8=0):
     ra = ra * 4
     var c = lookup[alt_allele[k].int]
     ra += c
-  p.ra = ra
+  p.ra = ra.uint64
   return cast[uint64](p)
+
+template encode*(p:pfra): uint64 =
+  encode(p.position, p.reference, p.alternate, p.flag)
+
+proc long_or_short(p:pfra): bool {.inline.} =
+  return (p.reference.len == 0 and p.alternate.len == 0) or (p.reference.len + p.alternate.len > 12)
+
+proc match(q:pfra, t:pfra): bool {.inline.} =
+  if q.position != t.position: return false
+  if long_or_short(q) and long_or_short(t): return true
+  return q.reference == t.reference and q.alternate == t.alternate
 
 proc decode*(e:uint64): pfra {.inline.} =
   var tmp = cast[pra](e)
@@ -84,18 +94,54 @@ proc decode*(e:uint64): pfra {.inline.} =
     e = e shr 2
     result.reference[result.reference.high - i] = rlookup[index]
 
+proc find*(encoded:seq[uint64], q:pfra): pfra {.inline.} =
+  var e = encode(q)
+  var i = lowerBound[uint64](encoded, e)
+  if i > encoded.high:
+    i = encoded.high
+  while i > 0:
+    if encoded[i] == e:
+      return encoded[i].decode
+    # have to go past so that we can get the lowest of this position.
+    if (cast[pra](encoded[i])).pos.uint32 >= q.position:
+      i -= 1
+      continue
+    else: break
+
+  while i < encoded.len and cast[pra](encoded[i]).pos.uint32 < q.position:
+    i += 1
+  if cast[pra](encoded[i]).pos.uint32 > q.position:
+    return
+
+  var te = encoded[i].decode
+  while i < encoded.len:
+    if te.position > q.position: return
+    if te.position < q.position:
+      if i == encoded.high: return
+      i += 1
+      te = encoded[i].decode
+      continue
+    if q.match(te):
+      return te
+
+    if i == encoded.high: return
+    i += 1
+    te = encoded[i].decode
+
+  return
+
 when isMainModule:
   import unittest
   import times
   import random
 
   when defined(release):
-      doAssert pra().sizeof == 8
+    doAssert pra().sizeof == 8
 
   suite "pra test suite":
 
     test "that long ref alt works":
-      check encode(1232434'u32, "AAAAAAAAAAAAAAAAA", "TTTTTTTTTTTTTTTTTTT") == 15766199596378934834'u64
+      check encode(1232434'u32, "AAAAAAAAAAAAAAAAA", "TTTTTTTTTTTTTTTTTTT") > 0'u64
 
     test "that flag with long ref alt gets set":
       var v = encode(1232434'u32, "AAAAAAAAAAAAAAAAA", "TTTTTTTTTTTTTTTTTTT", 3)
@@ -116,6 +162,83 @@ when isMainModule:
       var d = v.decode
       echo d
 
+    test "ordering":
+      var aL = encode(1232434'u32, "AAAAAAAAAAAAAAAAA", "TTTTTTTTTTTTTTTTTTT", 3)
+      var bL = encode(1232434'u32, "AAAAAAAAAAAAAAAAA", "TTTTTTTTTTTTTTTTTTT", 0)
+
+      var a = encode(1232434'u32, "A", "T", 3)
+      var b = encode(1232434'u32, "A", "T", 0)
+
+      var cL = encode(1232434'u32, "A", "TTTTTTTTTTTTTTTTTTT", 0)
+
+      check bL < aL
+      check b < a
+
+      check cmp_pfra(a.decode, b.decode) == 1
+      check cmp_pfra(aL.decode, bL.decode) == 1
+
+      check cL < a
+
+    test "find with all exact":
+
+      var haystack = @[
+        encode(123'u32, "A", "T", 0'u8),
+        encode(123'u32, "A", "T", 2'u8),
+        encode(123'u32, "A", "CTTT", 0'u8),
+        encode(123'u32, "A", "T", 3'u8),
+        encode(123'u32, "G", "T", 3'u8),
+        encode(123'u32, "A", "G", 0'u8),
+        encode(124'u32, "A", "G", 0'u8),
+        encode(124'u32, "A", "T", 0'u8)]
+      sort(haystack, cmp[uint64])
+
+      for i, h in haystack:
+        check haystack.find(h.decode) == h.decode
+    test "find with changed flag ":
+
+      var haystack = @[
+        encode(123'u32, "A", "T", 0'u8),
+        encode(123'u32, "A", "T", 2'u8),
+        encode(123'u32, "A", "CTTT", 0'u8),
+        encode(123'u32, "A", "T", 3'u8),
+        encode(123'u32, "G", "T", 3'u8),
+        encode(123'u32, "A", "G", 0'u8),
+        encode(124'u32, "A", "G", 0'u8),
+        encode(124'u32, "A", "T", 0'u8)]
+      sort(haystack, cmp[uint64])
+      for h in haystack:
+        var v = h.decode
+        v.flag = 6
+        var found = haystack.find(v)
+        var exp = h.decode
+        check found.position == exp.position
+        check found.reference == exp.reference
+        check found.alternate == exp.alternate
+
+    test "find with large events":
+
+      var haystack = @[
+        encode(124'u32, "GGGCGGGGGGG", "TTTTTTTTTT", 0'u8),
+        encode(124'u32, "GGGCGGGGGGG", "T", 0'u8)]
+      sort(haystack, cmp[uint64])
+      echo "["
+      for e in haystack:
+        echo e.decode, "->", e
+      echo "]"
+
+      var obs = haystack.find(pfra(position: 124'u32, reference: "GGGCGGGGGGG", alternate:"TTTTTTTTTT", flag: 0'u8))
+      check obs.reference == ""
+      check obs.alternate == ""
+
+      obs = haystack.find(pfra(position: 124'u32, reference: "", alternate:"", flag: 0'u8))
+      check obs.position == 124
+      check obs.reference == ""
+      check obs.alternate == ""
+
+      obs = haystack.find(pfra(position: 124'u32, reference: "GGGCGGGGG", alternate:"TT", flag: 0'u8))
+      check obs.position == 0
+
+
     var t = cpuTime()
     var n = 5_000_000
     when not defined(release):
@@ -134,3 +257,28 @@ when isMainModule:
       doAssert d.alternate == aalt
 
     echo int(n.float64 / (cpuTime() - t)), " encode/decodes per second"
+
+
+    var haystack = newSeq[uint64]()
+    for i in 0..n:
+      var p = rand(250_000_000).uint32
+      var aref = rand(refs)
+      var aalt = rand(alts)
+      var e = encode(p, aref, aalt)
+      haystack.add(e)
+
+    sort(haystack)
+
+    for h in haystack:
+      check haystack.find(h.decode) == h.decode
+    t = cpuTime()
+    for h in haystack:
+      check haystack.find(h.decode).position != 0
+    echo int(n.float64 / (cpuTime() - t)), " finds per second"
+
+
+    var needle = encode(1233333, "AAA", "T")
+    t = cpuTime()
+    for i in 0..haystack.high:
+      check haystack.find(needle.decode).position == 0
+    echo int(n.float64 / (cpuTime() - t)), " non finds per second"

@@ -51,8 +51,8 @@ proc write_to(positions:var seq[PosValue], fname:string) =
       result = cmp(b.value, a.value)
 
   positions.sort(icmp_position)
+  var last = pfra()
   var fh: File
-  var last: pfra
   if not open(fh, fname, fmWrite):
     quit "couldn't open:" & fname
 
@@ -115,19 +115,19 @@ for i in 0..<vcf_paths.len:
         filters.add(fil)
         fidx = filters.high
 
-      var e = encode(uint32(v.start), v.REF, v.ALT[0])
+      var e = encode(uint32(v.start), v.REF, v.ALT[0], fidx.uint8)
 
       if v.info.get(field, floats) != Status.OK:
         if fidx == 0 and v.info.get("AF", floats) == Status.OK and floats[0] > 0.01 and v.info.get("AN", ints) == Status.OK and ints[0] > 2000:
-            quit "got wierd't get field for:" & v.tostring()
+          quit "got wierd't get field for:" & v.tostring()
         floats = @[0'f32]
 
-      var val = fidx.float32 + floats[0]
+      var val = floats[0]
       if v.REF.len + v.ALT.len > 11:
-          var p = e.decode()
-          p.reference = v.REF
-          p.alternate = v.ALT[0]
-          longs.add(($v.CHROM, p, val))
+        var p = e.decode()
+        p.reference = v.REF
+        p.alternate = v.ALT[0]
+        longs.add(($v.CHROM, p, val))
       kvs.add((e, val))
       if kvs.len mod 500_000 == 0:
         stderr.write_line &"{kvs.len} variants completed. at: {v.CHROM}:{v.start+1}. non-exact: {longs.len} in {vcf_paths[i]}"
@@ -157,8 +157,8 @@ for rid in 0..kvs_by_rid.high:
   kvs.sort(proc (a:evalue, b:evalue): int =
     result = cmp[uint64](a.encoded, b.encoded)
     if result == 0:
-     # on ties, take the largest (yes largest) value.
-     result = cmp(b.value, a.value)
+      # on ties, take the largest (yes largest) value.
+      result = cmp(b.value, a.value)
   )
 
   var keystream = newFileStream(prefix & "vk.bin", fmWrite)
