@@ -1,3 +1,4 @@
+import hashes
 
 type pra = object
   pos {.bitsize: 28} : uint64 # 28
@@ -7,10 +8,20 @@ type pra = object
   ra {.bitsize: 24} : uint64 # 64
 
 type pfra* = ref object
+  # position,flag,ref,alt
   position*: uint32
+  flag*: uint8
   reference*: string
   alternate*: string
-  flag*: uint8
+
+proc cmp_pfra*(a, b:pfra): int =
+  if a.position != b.position:
+    return cmp[uint32](a.position, b.position)
+  if a.reference != b.reference:
+    return cmp(a.reference, b.reference)
+  if a.alternate != b.alternate:
+    return cmp(a.alternate, b.alternate)
+  return cmp(a.flag, b.flag)
 
 proc `$`*(p:pfra): string {.inline.} =
   return $p[]
@@ -19,10 +30,24 @@ const lookup:array[256, uint8] = [0'u8,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
 
 const rlookup:array[4, char] = ['T', 'C', 'A', 'G']
 
+proc hash(a: string, b:string): uint64 {.inline.} =
+  ## Computes a Hash from `x`.
+  var h: Hash = 0
+  # Iterate over parts of `x`.
+  for xAtom in a:
+    # Mix the atom with the partial hash.
+    h = h !& xAtom.int
+  # Finish the hash.
+  for xAtom in b:
+    h = h !& xAtom.int
+  result = (!$h).uint32.uint64
+
 proc encode*(pos: uint32, ref_allele: string, alt_allele: string, flag:uint8=0): uint64 {.inline.} =
   var p = pra(pos:pos, flag: flag)
   if ref_allele.len + alt_allele.len > 12:
+    p.ra = hash(ref_allele, alt_allele)
     return cast[uint64](p)
+
   p.rlen = ref_allele.len.uint64
   p.alen = alt_allele.len.uint64
 
@@ -70,7 +95,7 @@ when isMainModule:
   suite "pra test suite":
 
     test "that long ref alt works":
-      check encode(1232434'u32, "AAAAAAAAAAAAAAAAA", "TTTTTTTTTTTTTTTTTTT") == 1232434'u64
+      check encode(1232434'u32, "AAAAAAAAAAAAAAAAA", "TTTTTTTTTTTTTTTTTTT") == 15766199596378934834'u64
 
     test "that flag with long ref alt gets set":
       var v = encode(1232434'u32, "AAAAAAAAAAAAAAAAA", "TTTTTTTTTTTTTTTTTTT", 3)
@@ -79,6 +104,11 @@ when isMainModule:
       check (cast[pra](v)).flag == 5
       check (cast[pra](v)).pos == 1232434'u64
       check (cast[pra](v)).rlen == 0
+
+      var d = v.decode
+      check d.reference == ""
+      check d.alternate == ""
+      check d.position == 1232434
 
     test "that encode/decode roundtrip works":
       var v = encode(122434'u32, "AAAAAA", "TTTT", 3)
