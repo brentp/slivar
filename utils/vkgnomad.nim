@@ -24,11 +24,11 @@ Arguments:
 """
 
 var args = docopt(doc)
-var original_prefix = $args["--prefix"]
-if original_prefix[original_prefix.high] == '.':
-  original_prefix = original_prefix[0..<original_prefix.high]
-
-var prefix = original_prefix & "-" & $getTime().toUnix()
+var prefix = $args["--prefix"]
+if prefix[prefix.high] == '/':
+  prefix &= "vkgnomad"
+if prefix[prefix.high] != '.':
+  prefix &= "."
 
 proc cleanup() {.noconv.} =
   removeDir(prefix)
@@ -61,6 +61,7 @@ proc write_to(positions:var seq[PosValue], fname:string) =
       v = pv.value
     last = p
     fh.write(&"{p.chrom}\t{p.position}\t{p.reference}\t{p.alternate}\t{v}\n")
+  fh.close()
 
 var population_vcf:VCF
 
@@ -109,7 +110,7 @@ for i in 0..<vcf_paths.len:
 
 stderr.write_line &"{kvs.len} variants completed. non-exact: {longs.len}"
 
-longs.write_to(prefix & "long-alleles.txt")
+longs.write_to(prefix & &"long-alleles.{field}.txt")
 
 kvs.sort(proc (a:evalue, b:evalue): int =
   result = cmp[uint64](a.encoded, b.encoded)
@@ -118,7 +119,7 @@ kvs.sort(proc (a:evalue, b:evalue): int =
    result = cmp(b.value, a.value)
 )
 
-var keystream = newFileStream(prefix & "vk-key.bin", fmWrite)
+var keystream = newFileStream(prefix & "vk.bin", fmWrite)
 var valstream = newFileStream(prefix & &"vk-{field}.bin", fmWrite)
 
 var last : uint64
@@ -136,13 +137,19 @@ stderr.write_line &"removed {dups} duplicated entries by using the largest value
 keystream.close()
 valstream.close()
 
-
 var fh:File
 if not open(fh, prefix & "filters.txt", fmWrite):
   quit "couldn't open file:" & prefix & "filters.txt"
 fh.write(join(filters, "\n"))
+fh.close()
 
 var zip: Zip
 
-if not open(zip, original_prefix & ".zip", fmWrite):
+if not open(zip, prefix & "zip", fmWrite):
   quit "could not open zip file"
+
+for f in @["filters.txt", "vk.bin", &"vk-{field}.bin", &"long-alleles.{field}.txt"]:
+  zip.addFile(prefix & f, archiveDir="./")
+  removeFile(prefix & f)
+
+zip.close()
