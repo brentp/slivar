@@ -94,14 +94,14 @@ proc decode*(e:uint64): pfra {.inline.} =
     e = e shr 2
     result.reference[result.reference.high - i] = rlookup[index]
 
-proc find*(encoded:seq[uint64], q:pfra): pfra {.inline.} =
+proc find*(encoded:seq[uint64], q:pfra): int {.inline.} =
   var e = encode(q)
   var i = lowerBound[uint64](encoded, e)
   if i > encoded.high:
     i = encoded.high
   while i > 0:
     if encoded[i] == e:
-      return encoded[i].decode
+      return i
     # have to go past so that we can get the lowest of this position.
     if (cast[pra](encoded[i])).pos.uint32 >= q.position:
       i -= 1
@@ -111,24 +111,24 @@ proc find*(encoded:seq[uint64], q:pfra): pfra {.inline.} =
   while i < encoded.len and cast[pra](encoded[i]).pos.uint32 < q.position:
     i += 1
   if cast[pra](encoded[i]).pos.uint32 > q.position:
-    return
+    return -1
 
   var te = encoded[i].decode
   while i < encoded.len:
-    if te.position > q.position: return
+    if te.position > q.position: return -1
     if te.position < q.position:
-      if i == encoded.high: return
+      if i == encoded.high: return -1
       i += 1
       te = encoded[i].decode
       continue
     if q.match(te):
-      return te
+      return i
 
-    if i == encoded.high: return
+    if i == encoded.high: return - 1
     i += 1
     te = encoded[i].decode
 
-  return
+  return - 1
 
 when isMainModule:
   import unittest
@@ -193,7 +193,7 @@ when isMainModule:
       sort(haystack, cmp[uint64])
 
       for i, h in haystack:
-        check haystack.find(h.decode) == h.decode
+        check haystack[haystack.find(h.decode)].decode == h.decode
     test "find with changed flag ":
 
       var haystack = @[
@@ -209,7 +209,7 @@ when isMainModule:
       for h in haystack:
         var v = h.decode
         v.flag = 6
-        var found = haystack.find(v)
+        var found = haystack[haystack.find(v)].decode
         var exp = h.decode
         check found.position == exp.position
         check found.reference == exp.reference
@@ -226,17 +226,19 @@ when isMainModule:
         echo e.decode, "->", e
       echo "]"
 
-      var obs = haystack.find(pfra(position: 124'u32, reference: "GGGCGGGGGGG", alternate:"TTTTTTTTTT", flag: 0'u8))
+      var obsi = haystack.find(pfra(position: 124'u32, reference: "GGGCGGGGGGG", alternate:"TTTTTTTTTT", flag: 0'u8))
+      var obs = haystack[obsi].decode
       check obs.reference == ""
       check obs.alternate == ""
 
-      obs = haystack.find(pfra(position: 124'u32, reference: "", alternate:"", flag: 0'u8))
+      obsi = haystack.find(pfra(position: 124'u32, reference: "", alternate:"", flag: 0'u8))
+      obs = haystack[obsi].decode
       check obs.position == 124
       check obs.reference == ""
       check obs.alternate == ""
 
-      obs = haystack.find(pfra(position: 124'u32, reference: "GGGCGGGGG", alternate:"TT", flag: 0'u8))
-      check obs.position == 0
+      obsi = haystack.find(pfra(position: 124'u32, reference: "GGGCGGGGG", alternate:"TT", flag: 0'u8))
+      check haystack[obsi].decode.position == 0
 
 
     var t = cpuTime()
@@ -270,15 +272,15 @@ when isMainModule:
     sort(haystack)
 
     for h in haystack:
-      check haystack.find(h.decode) == h.decode
+      check haystack[haystack.find(h.decode)].decode == h.decode
     t = cpuTime()
     for h in haystack:
-      check haystack.find(h.decode).position != 0
+      check haystack.find(h.decode) != -1
     echo int(n.float64 / (cpuTime() - t)), " finds per second"
 
 
     var needle = encode(1233333, "AAA", "T")
     t = cpuTime()
     for i in 0..haystack.high:
-      check haystack.find(needle.decode).position == 0
+      check haystack.find(needle.decode) == -1
     echo int(n.float64 / (cpuTime() - t)), " non finds per second"

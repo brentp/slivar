@@ -2,7 +2,8 @@ import hts/vcf
 import times
 import algorithm
 import strformat
-import nimminiz
+#import zip/zipfiles
+import minizip
 import slivarpkg/pracode
 import docopt
 import os
@@ -14,7 +15,7 @@ Usage: vkgnomad [--prefix=<prefix> options] <vcfs>...
 
 Options:
 
-  --prefix <string>    prefix for output [default: vkgnomad]
+  --prefix <string>    prefix for output [default: vkaf]
   --field <string>     field to use for value [default: AF_popmax]
 
 Arguments:
@@ -75,10 +76,11 @@ var kvs_by_rid = newSeqOfCap[seq[evalue]](10000)
 var longs: seq[PosValue]
 var kvs: seq[evalue]
 
-var filters = @["PASS"]
+var filters = @["PASS", "UNUSED"]
 
 var floats = newSeq[float32](1)
 var ints = newSeq[float32](1)
+echo prefix & "zip"
 
 var ridToChrom = newSeqOfCap[string](100000)
 
@@ -122,7 +124,7 @@ for i in 0..<vcf_paths.len:
           quit "got wierd't get field for:" & v.tostring()
         floats = @[0'f32]
 
-      var val = floats[0]
+      var val = floats[0] + fidx.float32
       if v.REF.len + v.ALT.len > 11:
         var p = e.decode()
         p.reference = v.REF
@@ -138,19 +140,26 @@ for i in 0..<vcf_paths.len:
   population_vcf.close()
 
 
-
+#var zip: ZipArchive
 var zip: Zip
 if not open(zip, prefix & "zip", fmWrite):
   quit "could not open zip file"
 
+var fchrom:File
+if not open(fchrom, prefix & "chroms.txt", fmWrite):
+  quit "could not open chroms file"
+
 for rid in 0..kvs_by_rid.high:
   var chrom = ridToChrom[rid]
+  if chrom == "": continue
   if chrom.startsWith("chr"): chrom = chrom[3..chrom.high]
   if chrom == "MT": chrom = "M"
 
   kvs = kvs_by_rid[rid]
   longs = longs_by_rid[rid]
+  if kvs.len == 0 and longs.len == 0: continue
   stderr.write_line &"sorting and writing... {kvs.len} variants completed. non-exact: {longs.len} for chromosome: {chrom}"
+  fchrom.write(chrom & '\n')
 
   longs.write_to(prefix & &"long-alleles.{field}.txt")
 
@@ -180,9 +189,11 @@ for rid in 0..kvs_by_rid.high:
   valstream.close()
 
   for f in @["vk.bin", &"vk-{field}.bin", &"long-alleles.{field}.txt"]:
-    zip.addFile(prefix & f, archivePath= &"sli.var/{chrom}/{f}")
+    echo "adding:",  f
+    var dest = &"sli.var/{chrom}/{f}"
+    #zip.addFile(dest, prefix & f)
+    zip.addFile(prefix & f, dest)
     removeFile(prefix & f)
-
 
 var fh:File
 if not open(fh, prefix & "filters.txt", fmWrite):
@@ -190,8 +201,11 @@ if not open(fh, prefix & "filters.txt", fmWrite):
 fh.write(join(filters, "\n") & '\n')
 fh.close()
 
-zip.addFile(prefix & "filters.txt", archivePath= &"sli.var/filters.txt")
+zip.addFile(prefix & "filters.txt", "sli.var/filters.txt")
 removeFile(prefix & "filters.txt")
-
+fchrom.close()
+zip.addFile(prefix & "chroms.txt", "sli.var/chroms.txt")
+removeFile(prefix & "chroms.txt")
 
 zip.close()
+echo "closed"
