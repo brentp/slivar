@@ -74,7 +74,10 @@ var population_vcf:VCF
 type evalue = tuple[encoded:uint64, value:float32]
 
 var longs_by_rid = newSeqOfCap[seq[PosValue]](1000)
-var kvs_by_rid = newSeqOfCap[seq[evalue]](10000)
+var kvs_by_rid = newSeqOfCap[seq[evalue]](1000)
+
+shallow(kvs_by_rid)
+shallow(longs_by_rid)
 
 var longs: seq[PosValue]
 var kvs: seq[evalue]
@@ -158,12 +161,13 @@ if not open(fchrom, prefix & "chroms.txt", fmWrite):
 
 for rid in 0..kvs_by_rid.high:
   var chrom = ridToChrom[rid]
+  echo chrom
   if chrom == "": continue
   if chrom.startsWith("chr"): chrom = chrom[3..chrom.high]
   if chrom == "MT": chrom = "M"
 
-  kvs = kvs_by_rid[rid]
-  longs = longs_by_rid[rid]
+  var kvs = kvs_by_rid[rid]
+  var longs = longs_by_rid[rid]
   if kvs.len == 0 and longs.len == 0: continue
   stderr.write_line &"sorting and writing... {kvs.len} variants completed. non-exact: {longs.len} for chromosome: {chrom}"
   fchrom.write(chrom & '\n')
