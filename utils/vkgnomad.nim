@@ -15,7 +15,7 @@ Usage: vkgnomad [--prefix=<prefix> options] <vcfs>...
 
 Options:
 
-  --prefix <string>    prefix for output [default: vkaf]
+  --prefix <string>    prefix for output [default: vksm]
   --field <string>     field to use for value [default: AF_popmax]
 
 Arguments:
@@ -48,6 +48,7 @@ proc write_to(positions:var seq[PosValue], fname:string) =
     if a.chrom != b.chrom:
       return cmp(a.chrom, b.chrom)
     result = cmp_pfra(a.position, b.position)
+
     if result == 0:
       result = cmp(b.value, a.value)
 
@@ -57,13 +58,15 @@ proc write_to(positions:var seq[PosValue], fname:string) =
   if not open(fh, fname, fmWrite):
     quit "couldn't open:" & fname
 
+  var chrom = positions[0].chrom
   for pv in positions:
     if pv.position == last: continue
     var
       p = pv.position
       v = pv.value
+    doAssert chrom == pv.chrom, "expecting only a single chromosome in call to write_to"
     last = p
-    fh.write(&"{pv.chrom}\t{p.position}\t{p.reference}\t{p.alternate}\t{v}\n")
+    fh.write(&"{p.position}\t{p.reference}\t{p.alternate}\t{v}\n")
   fh.close()
 
 var population_vcf:VCF
@@ -117,16 +120,20 @@ for i in 0..<vcf_paths.len:
         filters.add(fil)
         fidx = filters.high
 
-      var e = encode(uint32(v.start), v.REF, v.ALT[0], fidx.uint8)
+      var e = encode(uint32(v.start), v.REF, v.ALT[0])
 
       if v.info.get(field, floats) != Status.OK:
         if fidx == 0 and v.info.get("AF", floats) == Status.OK and floats[0] > 0.01 and v.info.get("AN", ints) == Status.OK and ints[0] > 2000:
           quit "got wierd't get field for:" & v.tostring()
         floats = @[0'f32]
 
+      # need to differentiate from 1 because we use the int to store flags.
+      floats[0] = min(floats[0], 1-(5e-7))
+
       var val = floats[0] + fidx.float32
-      if v.REF.len + v.ALT.len > 11:
+      if v.REF.len + v.ALT[0].len > 14:
         var p = e.decode()
+        doAssert p.position == v.start.uint32
         p.reference = v.REF
         p.alternate = v.ALT[0]
         longs.add(($v.CHROM, p, val))

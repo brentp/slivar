@@ -36,10 +36,9 @@ proc cmp_long*(a, b:Long): int =
   if a.position != b.position:
     return cmp[uint32](a.position, b.position)
   if a.reference != b.reference:
-    return cmp(a.reference, b.reference)
-  if a.alternate != b.alternate:
-    return cmp(a.alternate, b.alternate)
-  return cmp(b.af, a.af)
+    return cmp(a.reference.len, b.reference.len)
+  # can't compare .af here because it screws up lower bound
+  return cmp(a.alternate.len, b.alternate.len)
 
 proc open*(g:var Gnotater, path: string, name:string="gnomad_af", tmpDir="/tmp"): bool =
   g.tmpDir = tmpDir
@@ -66,10 +65,10 @@ proc open*(g:var Gnotater, path: string, name:string="gnomad_af", tmpDir="/tmp")
 
 proc parseLong(line: string): Long {.inline.} =
   var t = line.strip().split(seps={'\t'})
-  result.position = parseInt(t[1]).uint32
-  result.reference = t[2]
-  result.alternate = t[3]
-  result.af = parseFloat(t[4])
+  result.position = parseInt(t[0]).uint32
+  result.reference = t[1]
+  result.alternate = t[2]
+  result.af = parseFloat(t[3])
 
 proc readLongs(g:var Gnotater, chrom: string) =
   var path = g.tmpDir / "long-alleles.AF_popmax.txt"
@@ -134,24 +133,50 @@ proc load(g:var Gnotater, chrom: cstring): bool =
   doAssert g.afs.len == g.encs.len
   return true
 
-proc annotate*(g:var Gnotater, v:Variant): bool =
+proc show(g:var Gnotater, chrom:string, start:int, stop:int) =
+  if g.chrom != chrom:
+   discard g.load(chrom)
+
+  var q = pfra(position:start.uint32, reference:"A", alternate:"A")
+  var i = g.encs.lowerBound(q.encode)
+  q.position = stop.uint32
+  var j = max(0, g.encs.lowerBound(q.encode))
+  i = max(0, i - 5)
+  j = min(j + 5, g.encs.high)
+
+  for k in i..j:
+    echo g.encs[k].decode, " # ", g.encs[k]
+
+proc annotate*(g:var Gnotater, v:Variant): bool {.inline.} =
   if len(v.ALT) > 1:
     echo "only annotating a single allele for the multiallelic variants"
   if g.chrom != v.CHROM:
     discard g.load(v.CHROM)
 
-  var q = pfra(position:v.start.uint32, reference:v.REF, alternate:v.ALT[0])
+  if g.encs.len == 0: return false
+
+  var q:pfra
+  if unlikely(v.REF.len + v.ALT[0].len > 14):
+    q = pfra(position:v.start.uint32)
+  else:
+    q = pfra(position:v.start.uint32, reference:v.REF, alternate:v.ALT[0])
   var i = g.encs.find(q)
+  if i == -1: return false
   var value = g.afs[i]
   var filter:string
 
-  if i == -1: return false
   var match = g.encs[i].decode
   if match.reference.len == 0:
     # should find this position in the longs
     var l = Long(position:v.start.uint32, reference:v.REF, alternate:v.ALT[0])
     var i = lowerBound(g.longs, l, cmp_long)
-    if i >= g.longs.len or g.longs[i].position != q.position or g.longs[i].reference != q.reference or g.longs[i].alternate != q.alternate: return false
+    # since these can be ordered differently, we have to check until we get to a different position or a match.
+    while i < g.longs.high:
+      if i > g.longs.high or g.longs[i].position != q.position: return false
+      if g.longs[i].reference == l.reference and g.longs[i].alternate == l.alternate:
+        break
+      i += 1
+
     value = g.longs[i].af
 
   if value > 1:
@@ -173,8 +198,10 @@ proc annotate*(g:var Gnotater, v:Variant): bool =
   if filter.len > 0 and filter != "PASS":
     if v.info.set(g.name & "_filter", filter) != Status.OK:
       quit &"couldn't set info of {g.name & \"_filter\"} to {filter}"
+  return true
 
 when isMainModule:
+  import times
   var vcf_path = commandLineParams()[0]
 
   var ivcf:VCF
@@ -196,8 +223,64 @@ when isMainModule:
   doAssert g.open(zip_path)
   g.name = "gnomad_af"
 
-  for v in ivcf:
-    discard g.annotate(v)
-    doAssert ovcf.write_variant(v)
 
+  #g.show("1", 874815, 874816)
+  #var qq = pfra(position:13602, reference:"G", alternate:"C")
+  #echo qq
+  #echo g.encs.find(qq)
+  #if true:
+  #    quit "debugging"
+
+  var nv = 0
+  var t0 = cpuTime()
+  for v in ivcf:
+    doAssert g.annotate(v), v.tostring()[0..<150]
+    doAssert ovcf.write_variant(v)
+    nv += 1
+
+  var vps = nv.float64 / (cpuTime() - t0)
+  echo &"annotated {nv} variants in {cpuTime() - t0:.0f} seconds: {vps.int} variants/sec"
   ovcf.close()
+  ivcf.close()
+
+  ## now open the output file and check that values match.
+  var floats = newSeq[float32]()
+  var strings = ""
+  if not open(ivcf, "t.bcf", threads=3):
+    quit "couldn't open file to check"
+
+  var n = 0
+  var nmiss = 0
+  var max_diff = 0'f32
+  for v in ivcf:
+    if v.info.get(g.name, floats) != Status.OK:
+      quit "FAIL. not annotated:" & v.tostring()
+    var aaf = floats[0]
+    var filt = v.FILTER
+
+    var oaf = 0'f32
+    if v.info.get("AF_popmax", floats) != Status.OK:
+      if filt == "PASS":
+        if nmiss < 10:
+          echo "missing AF_popmax not annotated:" & v.tostring()[0..150]
+        nmiss += 1
+    else:
+      oaf = floats[0]
+
+    if abs(aaf - oaf) > max_diff:
+        max_diff = abs(aaf - oaf)
+        if max_diff < 0.001:
+          echo "current maximum difference:", $max_diff
+        else:
+          echo "FAIL: differing values for:" & v.tostring()
+          quit "got:" & $aaf & " expected:" & $oaf
+
+    if v.info.get("gnomad_af_filter", strings) != Status.OK and filt != "PASS":
+        quit "FAIL: no filter found for " & v.tostring()
+
+    if filt == "PASS": filt = ""
+    if filt != strings:
+      echo  "FAIL: differing filters found for " & v.tostring()
+      quit "got:" & strings & " expected:" & filt
+    n += 1
+  echo "PASS:", $n, " variants tested with max difference:", max_diff

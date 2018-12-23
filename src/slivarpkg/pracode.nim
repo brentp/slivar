@@ -3,8 +3,8 @@ import algorithm
 
 type pra = object
   ra {.bitsize: 28} : uint64
-  rlen {.bitsize: 4} : uint64
   alen {.bitsize: 4} : uint64
+  rlen {.bitsize: 4} : uint64
   pos {.bitsize: 28} : uint64
 
 type pfra* = object
@@ -16,9 +16,16 @@ type pfra* = object
 proc cmp_pfra*(a, b:pfra): int =
   if a.position != b.position:
     return cmp[uint32](a.position, b.position)
+
   if a.reference != b.reference:
+    if a.reference.len != b.reference.len:
+      return cmp[int](a.reference.len, b.reference.len)
     return cmp(a.reference, b.reference)
+
+  if a.alternate.len != b.alternate.len:
+    return cmp[int](a.alternate.len, b.alternate.len)
   return cmp(a.alternate, b.alternate)
+
 
 const lookup:array[256, uint8] = [3'u8,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,0,3,1,3,3,3,2,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3]
 
@@ -37,15 +44,14 @@ proc hash(a: string, b:string): uint64 {.inline.} =
   result = (!$h).uint32.uint64
 
 proc encode*(pos: uint32, ref_allele: string, alt_allele: string): uint64 {.inline.} =
-  var p = pra(pos:pos)
+  var p = pra(pos:pos, rlen:ref_allele.len.uint64, alen:alt_allele.len.uint64)
   if ref_allele.len + alt_allele.len > 14:
-    p.ra = hash(ref_allele, alt_allele)
+    p.rlen = 0; p.alen = 0
+    #p.ra = hash(ref_allele, alt_allele)
     return cast[uint64](p)
 
-  p.rlen = ref_allele.len.uint64
-  p.alen = alt_allele.len.uint64
-
   var ra = 0'u32
+
   for k in 0..<ref_allele.len:
     ra = ra * 4
     var c = lookup[ref_allele[k].int]
@@ -55,6 +61,7 @@ proc encode*(pos: uint32, ref_allele: string, alt_allele: string): uint64 {.inli
     ra = ra * 4
     var c = lookup[alt_allele[k].int]
     ra += c
+
   p.ra = ra.uint64
   return cast[uint64](p)
 
@@ -89,40 +96,27 @@ proc decode*(e:uint64): pfra {.inline.} =
     e = e shr 2
     result.reference[result.reference.high - i] = rlookup[index]
 
+
 proc find*(encoded:seq[uint64], q:pfra): int {.inline.} =
   var e = encode(q)
   var i = lowerBound[uint64](encoded, e)
   if i == -1: return -1
   if i > encoded.high:
     i = encoded.high
-  while i > 0:
-    if encoded[i] == e:
-      return i
-    # have to go past so that we can get the lowest of this position.
-    if (cast[pra](encoded[i])).pos.uint32 >= q.position:
-      i -= 1
-      continue
-    break
-  if i == -1: i = 0
 
-  while i < encoded.len and cast[pra](encoded[i]).pos.uint32 < q.position:
-    i += 1
-  if cast[pra](encoded[i]).pos.uint32 > q.position:
+  if cast[pra](encoded[i]).pos.uint32 != q.position:
     return -1
+  if encoded[i] == e:
+    return i
 
   var te = encoded[i].decode
   while i < encoded.len:
-    if te.position > q.position: return -1
-    if te.position < q.position:
-      if i == encoded.high: return -1
-      i += 1
-      te = encoded[i].decode
-      continue
     if q.match(te):
       return i
-
     if i == encoded.high: return - 1
     i += 1
+    if cast[pra](encoded[i]).pos.uint32 != q.position:
+      return -1
     te = encoded[i].decode
 
   return - 1
@@ -254,6 +248,13 @@ when isMainModule:
        check d.alternate == aalt
        check d.position == p
 
+    test "with large and small same":
+       var haystack = @[
+         pfra(position: 874816, reference: "", alternate: "").encode,   # 60116897909992206
+         pfra(position: 874816, reference: "", alternate: "").encode,   # 60116897957286235
+         pfra(position: 874816, reference: "C", alternate: "T").encode # 60116902323683335
+       ]
+       check haystack.find(pfra(position: 874816, reference: "C", alternate: "T")) == 2
 
     var t = cpuTime()
     var n = 5_000_000
