@@ -1,4 +1,3 @@
-import hashes
 import algorithm
 
 type pra = object
@@ -8,7 +7,7 @@ type pra = object
   pos {.bitsize: 28} : uint64
 
 type pfra* = object
-  # position,flag,ref,alt
+  # position,ref,alt
   position*: uint32
   reference*: string
   alternate*: string
@@ -31,23 +30,10 @@ const lookup:array[256, uint8] = [3'u8,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3
 
 const rlookup:array[4, char] = ['A', 'C', 'G', 'T']
 
-proc hash(a: string, b:string): uint64 {.inline.} =
-  ## Computes a Hash from `x`.
-  var h: Hash = 0
-  # Iterate over parts of `x`.
-  for xAtom in a:
-    # Mix the atom with the partial hash.
-    h = h !& xAtom.int
-  # Finish the hash.
-  for xAtom in b:
-    h = h !& xAtom.int
-  result = (!$h).uint32.uint64
-
 proc encode*(pos: uint32, ref_allele: string, alt_allele: string): uint64 {.inline.} =
   var p = pra(pos:pos, rlen:ref_allele.len.uint64, alen:alt_allele.len.uint64)
   if ref_allele.len + alt_allele.len > 14:
     p.rlen = 0; p.alen = 0
-    #p.ra = hash(ref_allele, alt_allele)
     return cast[uint64](p)
 
   var ra = 0'u32
@@ -68,8 +54,8 @@ proc encode*(pos: uint32, ref_allele: string, alt_allele: string): uint64 {.inli
 template encode*(p:pfra): uint64 =
   encode(p.position, p.reference, p.alternate)
 
-proc long_or_short(p:pfra): bool {.inline.} =
-  return (p.reference.len == 0 and p.alternate.len == 0) or (p.reference.len + p.alternate.len > 14)
+template long_or_short(p:pfra): bool =
+  (p.reference.len == 0 and p.alternate.len == 0) or (p.reference.len + p.alternate.len > 14)
 
 proc match(q:pfra, t:pfra): bool {.inline.} =
   if q.position != t.position: return false
@@ -83,7 +69,6 @@ proc decode*(e:uint64): pfra {.inline.} =
     return
 
   var e = tmp.ra
-
   result.alternate = newString(tmp.alen)
   for i in 0..<result.alternate.len:
     var index = e and 3

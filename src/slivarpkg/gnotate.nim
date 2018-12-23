@@ -98,7 +98,6 @@ proc readEncs(g:Gnotater, chrom: string) =
 proc readAfs(g: var Gnotater, chrom: string) =
   var path = g.tmpDir / "vk-AF.bin"
   g.zip.extract_file(&"sli.var/{chrom}/vk-AF_popmax.bin", path)
-  #var path = g.zip.extract_file(&"sli.var/{chrom}/vk-AF_popmax.bin", g.tmpDir)
   var size = path.getFileSize.int
   var L = int(size / float32(0).sizeof)
   g.afs = newSeqUninitialized[float32](L)
@@ -129,11 +128,10 @@ proc load(g:var Gnotater, chrom: cstring): bool =
   g.readEncs(chrom)
   g.readAfs(chrom)
   g.readLongs(chrom)
-  ## TODO: read the zip file for this chrom and fill afs, encs
   doAssert g.afs.len == g.encs.len
   return true
 
-proc show(g:var Gnotater, chrom:string, start:int, stop:int) =
+proc show*(g:var Gnotater, chrom:string, start:int, stop:int) =
   if g.chrom != chrom:
    discard g.load(chrom)
 
@@ -202,6 +200,11 @@ proc annotate*(g:var Gnotater, v:Variant): bool {.inline.} =
 
 when isMainModule:
   import times
+
+  proc update_header(g:Gnotater, ivcf:VCF) =
+    doAssert ivcf.header.add_info(g.name, "1", "Float", "field from from gnomad VCF") == Status.OK
+    doAssert ivcf.header.add_info(g.name & "_filter", "1", "String", "flag from gnomad VCF") == Status.OK
+
   var vcf_path = commandLineParams()[0]
 
   var ivcf:VCF
@@ -212,24 +215,15 @@ when isMainModule:
   if not open(ovcf, "t.bcf", mode="w", threads=2):
     quit "couldn't open output file"
 
-  doAssert ivcf.header.add_info("gnomad_af", "1", "Float", "popmax from gnomad") == Status.OK
-  doAssert ivcf.header.add_info("gnomad_af_filter", "1", "String", "flag from gnomad") == Status.OK
+  var g = Gnotater(name: "gnomad_af")
+  g.update_header(ivcf)
+
   ovcf.copy_header(ivcf.header)
 
   doAssert ovcf.write_header
 
   var zip_path = commandLineParams()[1]
-  var g = Gnotater()
   doAssert g.open(zip_path)
-  g.name = "gnomad_af"
-
-
-  #g.show("1", 874815, 874816)
-  #var qq = pfra(position:13602, reference:"G", alternate:"C")
-  #echo qq
-  #echo g.encs.find(qq)
-  #if true:
-  #    quit "debugging"
 
   var nv = 0
   var t0 = cpuTime()

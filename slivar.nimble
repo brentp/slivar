@@ -18,7 +18,7 @@ license       = "MIT"
 
 # Dependencies
 
-requires "hts >= 0.2.7",  "https://github.com/brentp/duktape-nim#dev", "https://github.com/brentp/bpbio"
+requires "hts >= 0.2.7",  "https://github.com/brentp/duktape-nim#dev", "https://github.com/brentp/bpbio", "https://github.com/brentp/nim-minizip"
 srcDir = "src"
 installExt = @["nim"]
 
@@ -30,6 +30,7 @@ import ospaths,strutils
 
 task test, "run the tests":
   exec "nim c --lineDir:on --debuginfo -r --threads:on src/slivarpkg/duko"
+  exec "nim c --lineDir:on --debuginfo -r --threads:on src/slivarpkg/pracode"
   exec "bash tests/functional-tests.sh"
 
 task docs, "Builds documentation":
