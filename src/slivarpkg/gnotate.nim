@@ -1,6 +1,7 @@
 import strutils
 import streams
 import os
+import times
 import algorithm
 import strformat
 
@@ -64,50 +65,59 @@ proc open*(g:var Gnotater, path: string, name:string="gnomad_af", tmpDir="/tmp")
   return true
 
 proc parseLong(line: string): Long {.inline.} =
-  var t = line.strip().split(seps={'\t'})
-  result.position = parseInt(t[0]).uint32
-  result.reference = t[1]
-  result.alternate = t[2]
-  result.af = parseFloat(t[3])
+  var i = -1
+  for t in line.strip().split(seps={'\t'}, maxsplit=3):
+    i += 1
+    if i == 0:
+      result.position = parseInt(t).uint32
+    elif i == 1:
+      result.reference = t
+    elif i == 2:
+      result.alternate = t
+    elif i == 3:
+      result.af = parseFloat(t)
 
 proc readLongs(g:var Gnotater, chrom: string) =
-  var path = g.tmpDir / "long-alleles.AF_popmax.txt"
-  g.zip.extract_file(&"sli.var/{chrom}/long-alleles.AF_popmax.txt", path)
-  #var z = g.zip
-  #var path = z.extract_file(&"sli.var/{chrom}/long-alleles.AF_popmax.txt", g.tmpDir)
-
+  let st = g.zip.getStream(&"sli.var/{chrom}/long-alleles.AF_popmax.txt")
   g.longs.setLen(0)
-  for l in path.lines:
-    g.longs.add(parseLong(l))
-  removeFile(path)
+  # reading into memory here is the fastest way I could find. I think the calls
+  # to streams are not inlined and therefore can be expensive. reading this
+  # file is still slower than reading the encoded binary data.
+  let big = st.readAll
+  for l in big.split(seps={'\n'}):
+    if unlikely(l.len == 0): continue
+    g.longs.add(parseLong(l.strip(chars={'\n'})))
+  st.close()
 
 proc readEncs(g:Gnotater, chrom: string) =
-  var path = g.tmpDir / "vk.bin"
-  g.zip.extract_file(&"sli.var/{chrom}/vk.bin", path)
-  #var z = g.zip
-  #var path = z.extract_file(&"sli.var/{chrom}/vk.bin", g.tmpDir)
-  var size = path.getFileSize.int
-  g.encs = newSeq[uint64](int(size / uint64(0).sizeof))
-  var fs = newFileStream(path, fmRead)
-  if fs == nil:
-    quit "couldn't open pop max file from:" & path
-  doAssert fs.readData(g.encs[0].addr.pointer, size) == size
-  fs.close()
-  removeFile(path)
+  var st = g.zip.getStream(&"sli.var/{chrom}/vk.bin")
+  var chunk = 21660531 # this is the exact number of elements in chr1 so it makes this the fastest 
+  if g.encs.len > chunk:
+    g.encs.setLen(chunk)
+  else:
+    g.encs = newSeqUninitialized[uint64](chunk)
+  while true:
+    let bytesRead = st.readData(g.encs[g.encs.len - chunk].addr, chunk * uint64.sizeof)
+    if bytesRead < chunk * uint64.sizeof:
+      g.encs.setLen(g.encs.len - chunk + int(bytesRead / uint64.sizeof))
+      break
+    g.encs.setLen(g.encs.len + chunk)
+  st.close()
 
 proc readAfs(g: var Gnotater, chrom: string) =
-  var path = g.tmpDir / "vk-AF.bin"
-  g.zip.extract_file(&"sli.var/{chrom}/vk-AF_popmax.bin", path)
-  var size = path.getFileSize.int
-  var L = int(size / float32(0).sizeof)
-  g.afs = newSeqUninitialized[float32](L)
-
-  var fs = newFileStream(path, fmRead)
-  if fs == nil:
-    quit "couldn't open pop max file from:" & path
-  doAssert fs.readData(g.afs[0].addr.pointer, size) == size
-  fs.close()
-  removeFile(path)
+  var st = g.zip.getStream(&"sli.var/{chrom}/vk-AF_popmax.bin")
+  var chunk = 21660531
+  shallow(g.afs)
+  if g.afs.len > chunk:
+    g.afs.setLen(chunk)
+  else:
+    g.afs = newSeqUninitialized[float32](chunk)
+  while true:
+    let bytesRead = st.readData(g.afs[g.afs.len - chunk].addr, chunk * float32.sizeof)
+    if bytesRead < chunk * float32.sizeof:
+      g.afs.setLen(g.afs.len - chunk + int(bytesRead / float32.sizeof))
+      break
+    g.afs.setLen(g.afs.len + chunk)
 
 proc sanitize_chrom(c:string): string {.inline.} =
   if c.len == 1: return c
@@ -125,9 +135,16 @@ proc load(g:var Gnotater, chrom: cstring): bool =
     g.longs.setLen(0)
     return false
 
+  var t = cpuTime()
   g.readEncs(chrom)
+  var etime = cpuTime() - t
+  var t2 = cpuTime()
   g.readAfs(chrom)
+  var atime = cpuTime() - t2
+  t2 = cpuTime()
   g.readLongs(chrom)
+  var ltime = cpuTime() - t2
+  echo &"len: {g.encs.len}. time to extract encs: {etime:.3f} afs: {atime:.3f} longs: {ltime:.3f} total:{cpuTime() - t:.3f}"
   doAssert g.afs.len == g.encs.len
   return true
 
@@ -228,7 +245,7 @@ when isMainModule:
   var nv = 0
   var t0 = cpuTime()
   for v in ivcf:
-    doAssert g.annotate(v), v.tostring()[0..<150]
+    discard g.annotate(v) #, v.tostring()[0..<150]
     doAssert ovcf.write_variant(v)
     nv += 1
 
