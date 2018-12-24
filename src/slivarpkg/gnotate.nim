@@ -21,7 +21,7 @@ type Long* = object
 
 type Gnotater* = ref object
   zip: ZipArchive
-  name: string
+  name*: string
   chrom: cstring
   encs: seq[uint64]
   afs: seq[float32]
@@ -30,7 +30,7 @@ type Gnotater* = ref object
   chroms: seq[string]
   tmpDir: string
 
-proc close(g:var Gnotater) =
+proc close*(g:var Gnotater) =
   g.zip.close()
 
 proc cmp_long*(a, b:Long): int =
@@ -42,7 +42,7 @@ proc cmp_long*(a, b:Long): int =
   return cmp(a.alternate.len, b.alternate.len)
 
 proc open*(g:var Gnotater, path: string, name:string="gnomad_af", tmpDir="/tmp"): bool =
-  g.tmpDir = tmpDir
+  g = Gnotater(name:name, tmpDir:tmpDir)
   if not open(g.zip, path):
     return false
   var path = g.tmpDir / "filters.txt"
@@ -164,7 +164,8 @@ proc show*(g:var Gnotater, chrom:string, start:int, stop:int) =
 
 proc annotate*(g:var Gnotater, v:Variant): bool {.inline.} =
   if len(v.ALT) > 1:
-    echo "only annotating a single allele for the multiallelic variants"
+    discard
+    #echo "only annotating a single allele for the multiallelic variants"
   if g.chrom != v.CHROM:
     discard g.load(v.CHROM)
 
@@ -215,12 +216,13 @@ proc annotate*(g:var Gnotater, v:Variant): bool {.inline.} =
       quit &"couldn't set info of {g.name & \"_filter\"} to {filter}"
   return true
 
+
+proc update_header*(g:Gnotater, ivcf:VCF) =
+  doAssert ivcf.header.add_info(g.name, "1", "Float", "field from from gnomad VCF") == Status.OK
+  doAssert ivcf.header.add_info(g.name & "_filter", "1", "String", "flag from gnomad VCF") == Status.OK
+
 when isMainModule:
   import times
-
-  proc update_header(g:Gnotater, ivcf:VCF) =
-    doAssert ivcf.header.add_info(g.name, "1", "Float", "field from from gnomad VCF") == Status.OK
-    doAssert ivcf.header.add_info(g.name & "_filter", "1", "String", "flag from gnomad VCF") == Status.OK
 
   var vcf_path = commandLineParams()[0]
 
