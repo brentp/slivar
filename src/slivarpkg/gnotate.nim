@@ -21,13 +21,14 @@ type Long* = object
 
 type Gnotater* = ref object
   zip: ZipArchive
-  name*: string
-  chrom: cstring
-  encs: seq[uint64]
-  afs: seq[float32]
-  longs: seq[Long]
-  filters: seq[string]
-  chroms: seq[string]
+  name*: string ## this is what gets set in the INFO. e.g. 'gnomad_af'.
+  include_missing: bool ## annotate variants absent from gnomad with an allele frequency of -1.0
+  chrom: cstring ## this tracks the current chromosome.
+  encs: seq[uint64] ## encoded position,ref,alt. alts > 1 are encoding a FILTER as well.
+  afs: seq[float32] ## allele frequencies from gnomad.
+  longs: seq[Long] ## pos, ref, alt, af for long variants
+  filters: seq[string] ## FILTER fields from gnomad
+  chroms: seq[string] ## list of chroms available in the index.
   tmpDir: string
 
 proc close*(g:var Gnotater) =
@@ -41,8 +42,8 @@ proc cmp_long*(a, b:Long): int =
   # can't compare .af here because it screws up lower bound
   return cmp(a.alternate.len, b.alternate.len)
 
-proc open*(g:var Gnotater, path: string, name:string="gnomad_af", tmpDir="/tmp"): bool =
-  g = Gnotater(name:name, tmpDir:tmpDir)
+proc open*(g:var Gnotater, path: string, name:string="gnomad_af", tmpDir:string="/tmp", include_missing:bool=true): bool =
+  g = Gnotater(name:name, tmpDir:tmpDir, include_missing:include_missing)
   if not open(g.zip, path):
     return false
   var path = g.tmpDir / "filters.txt"
@@ -61,12 +62,11 @@ proc open*(g:var Gnotater, path: string, name:string="gnomad_af", tmpDir="/tmp")
   g.afs = newSeq[float32]()
   g.longs = newSeq[Long]()
 
-
   return true
 
 proc parseLong(line: string): Long {.inline.} =
   var i = -1
-  for t in line.strip().split(seps={'\t'}, maxsplit=3):
+  for t in line.split(seps={'\t', '\n'}, maxsplit=3):
     i += 1
     if i == 0:
       result.position = parseInt(t).uint32
@@ -76,6 +76,9 @@ proc parseLong(line: string): Long {.inline.} =
       result.alternate = t
     elif i == 3:
       result.af = parseFloat(t)
+      return
+  if i < 3:
+    quit "bad line:" & line
 
 proc readLongs(g:var Gnotater, chrom: string) =
   let st = g.zip.getStream(&"sli.var/{chrom}/long-alleles.AF_popmax.txt")
@@ -86,12 +89,12 @@ proc readLongs(g:var Gnotater, chrom: string) =
   let big = st.readAll
   for l in big.split(seps={'\n'}):
     if unlikely(l.len == 0): continue
-    g.longs.add(parseLong(l.strip(chars={'\n'})))
+    g.longs.add(parseLong(l))#.strip(chars={'\n'})))
   st.close()
 
 proc readEncs(g:Gnotater, chrom: string) =
   var st = g.zip.getStream(&"sli.var/{chrom}/vk.bin")
-  var chunk = 21660531 # this is the exact number of elements in chr1 so it makes this the fastest 
+  var chunk = 21660531 # this is the exact number of elements in chr1 so it makes this the fastest
   if g.encs.len > chunk:
     g.encs.setLen(chunk)
   else:
@@ -162,14 +165,26 @@ proc show*(g:var Gnotater, chrom:string, start:int, stop:int) =
   for k in i..j:
     echo g.encs[k].decode, " # ", g.encs[k]
 
+proc annotate_missing(g:Gnotater, v:Variant): bool {.inline.} =
+  if g.include_missing:
+    var values = @[-1.0'f32]
+    if v.info.set(g.name, values) != Status.OK:
+      quit &"couldn't set info of {g.name} to {values[0]}"
+    return true
+  return false
+
 proc annotate*(g:var Gnotater, v:Variant): bool {.inline.} =
+  ## annotate the variant INFO field with the allele frequencies and flags in g
+  ## if include_missing is true. the allele frequency will be set to -1 if the variant
+  ## is not found.
   if len(v.ALT) > 1:
     discard
     #echo "only annotating a single allele for the multiallelic variants"
   if g.chrom != v.CHROM:
     discard g.load(v.CHROM)
 
-  if g.encs.len == 0: return false
+  if g.encs.len == 0:
+    return g.annotate_missing(v)
 
   var q:pfra
   if unlikely(v.REF.len + v.ALT[0].len > 14):
@@ -177,7 +192,9 @@ proc annotate*(g:var Gnotater, v:Variant): bool {.inline.} =
   else:
     q = pfra(position:v.start.uint32, reference:v.REF, alternate:v.ALT[0])
   var i = g.encs.find(q)
-  if i == -1: return false
+  if i == -1:
+    return g.annotate_missing(v)
+
   var value = g.afs[i]
   var filter:string
 
@@ -188,7 +205,8 @@ proc annotate*(g:var Gnotater, v:Variant): bool {.inline.} =
     var i = lowerBound(g.longs, l, cmp_long)
     # since these can be ordered differently, we have to check until we get to a different position or a match.
     while i < g.longs.high:
-      if i > g.longs.high or g.longs[i].position != q.position: return false
+      if i > g.longs.high or g.longs[i].position != q.position:
+        return g.annotate_missing(v)
       if g.longs[i].reference == l.reference and g.longs[i].alternate == l.alternate:
         break
       i += 1
@@ -216,7 +234,6 @@ proc annotate*(g:var Gnotater, v:Variant): bool {.inline.} =
       quit &"couldn't set info of {g.name & \"_filter\"} to {filter}"
   return true
 
-
 proc update_header*(g:Gnotater, ivcf:VCF) =
   doAssert ivcf.header.add_info(g.name, "1", "Float", "field from from gnomad VCF") == Status.OK
   doAssert ivcf.header.add_info(g.name & "_filter", "1", "String", "flag from gnomad VCF") == Status.OK
@@ -234,7 +251,7 @@ when isMainModule:
   if not open(ovcf, "t.bcf", mode="w", threads=2):
     quit "couldn't open output file"
 
-  var g = Gnotater(name: "gnomad_af")
+  var g = Gnotater(name: "gnomad_af", include_missing: true)
   g.update_header(ivcf)
 
   ovcf.copy_header(ivcf.header)
