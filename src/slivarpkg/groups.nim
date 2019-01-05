@@ -43,7 +43,8 @@ import tables
 type Group* = object
   header: seq[string]
   plural: seq[bool]
-  groups: seq[seq[Sample]]
+  # even a single colum is a @[Sample] so we need the triply nested level here.
+  groups: seq[seq[seq[Sample]]]
 
 proc parse_group_header_line(groups:var seq[Group], line:string) =
   var group = Group(header: line.split(seps={'\t'}))
@@ -58,8 +59,9 @@ proc parse_group_line(groups:var seq[Group], line:string, sample_lookup:TableRef
   var toks = line.split(seps={'\t'})
   if toks.len != groups[groups.high].header.len:
     var sheader = join(groups[groups.high].header, "\t")
-    raise newException(ValueError, "unexpected number of samples for line:" & line & " with header:" & sheader)
+    raise newException(ValueError, "unexpected number of samples for line:'" & line & "' with header:'" & sheader & "'")
   # even a single column goes in as a seq for uniformity.
+  var g = newSeqOfCap[seq[Sample]](len(toks))
   for i, snames in toks:
     var col_samples = newSeq[Sample]()
     for sname in snames.split(seps={','}):
@@ -68,8 +70,9 @@ proc parse_group_line(groups:var seq[Group], line:string, sample_lookup:TableRef
       col_samples.add(sample_lookup[sname])
 
     if col_samples.len > 1 and not groups[groups.high].plural[i]:
-      quit &"slivar/groups:got > 1 sample in line {line}, column {i}. {col_samples}"
-    groups[groups.high].groups.add(col_samples)
+      raise newException(ValueError, &"slivar/groups:got > 1 sample in line {line}, column {i}. {col_samples}")
+    g.add(col_samples)
+  groups[groups.high].groups.add(g)
 
 proc to_lookup(samples:seq[Sample]): TableRef[string, Sample] =
   ## allow to lookup by sample name.
@@ -84,6 +87,82 @@ proc parse_groups*(path: string, samples:seq[Sample]): seq[Group] =
     var line = l.strip()
     if line.len == 0: continue
     if line[0] == '#':
-      result.parse_group_header_line(line)
+      result.parse_group_header_line(line.strip(chars={'#'}, trailing=false))
       continue
     result.parse_group_line(line, sample_lookup)
+
+when isMainModule:
+
+  const tmpFile = "__tmp.groups"
+
+  proc toFile(s:string) =
+    var f:File
+    if not open(f, tmpFile, fmWrite): quit "couldn't open test file"
+    f.write(s)
+    f.close()
+
+
+  import unittest
+
+  suite "groups suite":
+    test "that file without header gives error":
+      "asdf\t123".toFile
+      expect ValueError:
+        var samples = @[Sample(id:"asdf")]
+        discard parse_groups(tmpFile, samples)
+
+    test "that file with non-matching column numbers gives error":
+      "#mom\tdad\tkid\na\tb".toFile
+      expect ValueError:
+        var samples = @[Sample(id:"asdf")]
+        discard parse_groups(tmpFile, samples)
+
+    test "that file with matching columns but unknown sample errors":
+      "#mom\tdad\tkid\na\tb\tc\n".toFile
+      expect ValueError:
+        var samples = @[Sample(id:"a"), Sample(id:"b")]
+        var groups = parse_groups(tmpFile, samples)
+        echo groups
+
+    test "that file with matching columns and samples passes":
+      "#mom\tdad\tkid\na\tb\tc\n".toFile
+      var samples = @[Sample(id:"a"), Sample(id:"b"), Sample(id:"c")]
+      var groups = parse_groups(tmpFile, samples)
+      check groups[0].header == @["mom", "dad", "kid"]
+      check groups[0].plural == @[false, false, false]
+      echo groups[0]
+      check groups[0].groups.len == 1
+      check groups[0].groups[0].len == 3
+      check groups[0].groups[0][0].len == 1
+
+
+    test "that multiple groups errors on bad number of samples":
+      "#mom\tdad\tkid\na\tb\tc\n#tumor\tnormal\nt1\tt2\tn1".toFile
+      var samples = @[Sample(id:"a"), Sample(id:"b"), Sample(id:"c"), Sample(id:"t1"), Sample(id:"t2"), Sample(id:"n1")]
+      expect ValueError:
+        var groups = parse_groups(tmpFile, samples)
+
+    test "that multiple groups works correctly":
+      "#mom\tdad\tkid\na\tb\tc\n#tumor\tnormal\nt1a\tt1b\nt2a\tt2b".toFile
+      var samples = @[Sample(id:"a"), Sample(id:"b"), Sample(id:"c"), Sample(id:"t1a"), Sample(id:"t1b"), Sample(id:"t2a"), Sample(id:"t2b")]
+      var groups = parse_groups(tmpFile, samples)
+      check groups.len == 2
+      check groups[0].header == @["mom", "dad", "kid"]
+      check groups[0].groups.len == 1
+
+      check groups[1].plural == @[false, false]
+      check groups[1].header == @["tumor", "normal"]
+      check groups[1].groups.len == 2
+
+    test "that plurality works correctly":
+      "#moms\tdad\tkids\na,b\tb\tc\n".toFile
+      var samples = @[Sample(id:"a"), Sample(id:"b"), Sample(id:"c")]
+      var groups = parse_groups(tmpFile, samples)
+      check groups[0].plural == @[true, false, true]
+      echo groups
+
+    test "that plural without proper header gives error":
+      "#mom\tdad\tkid\na,b\tb\tc\n".toFile
+      var samples = @[Sample(id:"a"), Sample(id:"b"), Sample(id:"c")]
+      expect ValueError:
+        discard parse_groups(tmpFile, samples)
