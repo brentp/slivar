@@ -30,8 +30,7 @@ RUN cd / && \
     echo 'PATH=/nim/bin:/root/.nimble/bin:$PATH' >> ~/.bashrc && \
     echo 'PATH=/nim/bin:/root/.nimble/bin:$PATH' >> ~/.bash_profile
 
-RUN cd / && \
-    export PATH=/nim/bin:/root/.nimble/bin:$PATH && \
+RUN export PATH=/nim/bin:/root/.nimble/bin:$PATH && \
     source scl_source enable devtoolset-2  && \
     nimble install -y nimgen && \
     cd / && git clone -b dev https://github.com/brentp/duktape-nim && \
