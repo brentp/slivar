@@ -1,5 +1,7 @@
 import bpbiopkg/pedfile
 import ./slivarpkg/duko
+import ./slivarpkg/gnotate
+import ./slivarpkg/groups
 import strutils
 import math
 import tables
@@ -17,12 +19,16 @@ type ISample = object
 
 type Trio = array[3, ISample] ## kid, dad, mom
 
-type TrioEvaluator* = ref object
+## Note that this group differs from groups.Group which defines how the groups are specified.
+type Group = seq[ISample]
+
+type Evaluator* = ref object
   ctx: DTContext
   trios: seq[Trio]
   samples: Duko
   INFO: Duko
   variant: Duko
+  gno:Gnotater
   trio_expressions: seq[Dukexpr]
   info_expression: Dukexpr
   names: seq[string]
@@ -49,15 +55,16 @@ var debug: DTCFunction = (proc (ctx: DTContext): cint {.stdcall.} =
   stderr.write_line $ctx.duk_require_string(-1)
 )
 
-proc newEvaluator*(kids: seq[Sample], expression: TableRef[string, string], info_expr: string): TrioEvaluator =
+proc newEvaluator*(kids: seq[Sample], expression: TableRef[string, string], info_expr: string, g:Gnotater): Evaluator =
   ## make a new evaluation context for the given string
   var my_fatal: duk_fatal_function = (proc (udata: pointer, msg:cstring) {.stdcall.} =
     stderr.write_line "slivar fatal error:"
     quit $msg
   )
 
-  result = TrioEvaluator(ctx:duk_create_heap(nil, nil, nil, nil, my_fatal))
+  result = Evaluator(ctx:duk_create_heap(nil, nil, nil, nil, my_fatal))
   result.ctx.duk_require_stack_top(500000)
+  result.gno = g
   discard result.ctx.duk_push_c_function(debug, -1.cint)
   discard result.ctx.duk_put_global_string("debug")
   for k, v in expression:
@@ -76,7 +83,7 @@ proc newEvaluator*(kids: seq[Sample], expression: TableRef[string, string], info
   result.INFO = result.ctx.newObject("INFO")
   result.variant = result.ctx.newObject("variant")
 
-proc clear*(ctx:var TrioEvaluator) {.inline.} =
+proc clear*(ctx:var Evaluator) {.inline.} =
   for trio in ctx.trios.mitems:
     trio[0].duk.clear()
     trio[1].duk.clear()
@@ -84,7 +91,7 @@ proc clear*(ctx:var TrioEvaluator) {.inline.} =
   ctx.INFO.clear()
   # don't need to clear variant as it always has the same stuff.
 
-proc set_ab(ctx: TrioEvaluator, fmt:FORMAT, ints: var seq[int32], floats: var seq[float32]) =
+proc set_ab(ctx: Evaluator, fmt:FORMAT, ints: var seq[int32], floats: var seq[float32]) =
   if fmt.get("AD", ints) != Status.OK:
     return
   floats.setLen(int(ints.len / 2))
@@ -97,7 +104,7 @@ proc set_ab(ctx: TrioEvaluator, fmt:FORMAT, ints: var seq[int32], floats: var se
     for s in trio:
       s.duk["AB"] = floats[s.ped_sample.i]
 
-proc set_format_field(ctx: TrioEvaluator, f:FormatField, fmt:FORMAT, ints: var seq[int32], floats: var seq[float32]) =
+proc set_format_field(ctx: Evaluator, f:FormatField, fmt:FORMAT, ints: var seq[int32], floats: var seq[float32]) =
 
   if f.vtype == BCF_TYPE.FLOAT:
     if fmt.get(f.name, floats) != Status.OK:
@@ -114,7 +121,7 @@ proc set_format_field(ctx: TrioEvaluator, f:FormatField, fmt:FORMAT, ints: var s
   else:
     quit "Unknown field type:" & $f.vtype & " in field:" & f.name
 
-proc set_variant_fields(ctx:TrioEvaluator, variant:Variant) =
+proc set_variant_fields(ctx:Evaluator, variant:Variant) =
   ctx.variant["CHROM"] = $variant.CHROM
   ctx.variant["start"] = variant.start
   ctx.variant["stop"] = variant.stop
@@ -125,7 +132,7 @@ proc set_variant_fields(ctx:TrioEvaluator, variant:Variant) =
   ctx.variant["FILTER"] = variant.FILTER
   ctx.variant["ID"] = $variant.ID
 
-proc set_sample_attributes(ctx:TrioEvaluator) =
+proc set_sample_attributes(ctx:Evaluator) =
   for trio in ctx.trios:
       for sample in trio:
         sample.duk["affected"] = sample.ped_sample.affected
@@ -156,7 +163,7 @@ proc hwe_score*(counts: array[4, int], aaf:float64): float64 {.inline.} =
   result += ((counts[1].float64 - exp_het) ^ 2) / max(1, exp_het)
   result += ((counts[2].float64 - exp_hom_alt) ^ 2) / max(1, exp_hom_alt)
 
-proc set_calculated_variant_fields(ctx:TrioEvaluator, alts: var seq[int8]) =
+proc set_calculated_variant_fields(ctx:Evaluator, alts: var seq[int8]) =
   # homref, het, homalt, unknown (-1)
   var counts = [0, 0, 0, 0]
   for a in alts:
@@ -174,7 +181,7 @@ proc set_calculated_variant_fields(ctx:TrioEvaluator, alts: var seq[int8]) =
   ctx.variant["num_hom_alt"] = counts[2]
   ctx.variant["num_unknown"] = counts[3]
 
-proc set_infos(ctx:var TrioEvaluator, variant:Variant, ints: var seq[int32], floats: var seq[float32]) =
+proc set_infos(ctx:var Evaluator, variant:Variant, ints: var seq[int32], floats: var seq[float32]) =
   var istr: string = ""
   var info = variant.info
   for field in info.fields:
@@ -201,8 +208,11 @@ proc set_infos(ctx:var TrioEvaluator, variant:Variant, ints: var seq[int32], flo
 
 type exResult = tuple[name:string, sampleList:seq[string]]
 
-iterator evaluate*(ctx:var TrioEvaluator, variant:Variant, samples:seq[string], nerrors:var int): exResult =
+iterator evaluate*(ctx:var Evaluator, variant:Variant, samples:seq[string], nerrors:var int): exResult =
   ctx.clear()
+
+  if ctx.gno != nil:
+    discard ctx.gno.annotate(variant)
   var ints = newSeq[int32](3 * variant.n_samples)
   var floats = newSeq[float32](3 * variant.n_samples)
 
@@ -310,6 +320,7 @@ Options:
   --info <string>       apply a filter using only variables from  the info field and variant attributes. If this filter
                         does not pass, the trio filters will not be applied.
 
+  -g --gnomad <path>    optional path compressed gnomad allele frequencies distributed at: https://github.com/brentp/slivar/releases
   """
 
   var args: Table[string, docopt.Value]
@@ -331,6 +342,7 @@ Options:
   var
     ivcf:VCF
     ovcf:VCF
+    gno:Gnotater
 
   if not open(ivcf, $args["--vcf"], threads=1):
     quit "couldn't open:" & $args["--vcf"]
@@ -350,12 +362,17 @@ Options:
   if not open(ovcf, $args["--out-vcf"], mode="w"):
     quit "couldn't open:" & $args["--out-vcf"]
 
+  if $args["--gnomad"] != "nil":
+    doAssert gno.open($args["--gnomad"])
+    gno.update_header(ivcf)
+
   ovcf.copy_header(ivcf.header)
 
   var tbl = ovcf.getExpressionTable(@(args["--trio"]), $args["--vcf"])
   doAssert ovcf.write_header
 
-  var ev = newEvaluator(kids, tbl, $args["--info"])
+  var ev = newEvaluator(kids, tbl, $args["--info"], gno)
+
   if $args["--js"] != "nil":
     var js = $readFile($args["--js"])
     discard ev.ctx.duk_push_string(js)
