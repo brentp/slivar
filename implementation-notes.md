@@ -24,7 +24,7 @@ The data is stored in a .zip file with 1 directory per chromosome and a list of 
 `slivar` annotates with the gnomad filters as well.
 
 It defaults to using `popmax_AF` but this can sometimes be empty even when no FILTER is set.
-It might be useful to look at popmax_AC and make sure that value is large enough. This could
+It might be useful to look at `popmax_AC` and make sure that value is large enough. This could
 get hairy. Ideally, instead of isolating this in utils/vkgnomad.nim, it would be nice to be
 able to specify this behavior via the javascript expressions. For now, probably a few simple
 exceptions suffice.

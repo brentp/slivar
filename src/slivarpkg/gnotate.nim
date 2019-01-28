@@ -177,8 +177,7 @@ proc annotate*(g:var Gnotater, v:Variant): bool {.inline.} =
   ## annotate the variant INFO field with the allele frequencies and flags in g
   ## if include_missing is true. the allele frequency will be set to -1 if the variant
   ## is not found.
-  if len(v.ALT) > 1:
-    discard
+  #if len(v.ALT) > 1:
     #echo "only annotating a single allele for the multiallelic variants"
   if g.chrom != v.CHROM:
     discard g.load(v.CHROM)
@@ -187,10 +186,11 @@ proc annotate*(g:var Gnotater, v:Variant): bool {.inline.} =
     return g.annotate_missing(v)
 
   var q:pfra
-  if unlikely(v.REF.len + v.ALT[0].len > 14):
+  var alt = if len(v.ALT) > 0: v.ALT[0] else: "."
+  if unlikely(v.REF.len + alt.len > 14):
     q = pfra(position:v.start.uint32)
   else:
-    q = pfra(position:v.start.uint32, reference:v.REF, alternate:v.ALT[0])
+    q = pfra(position:v.start.uint32, reference:v.REF, alternate:alt)
   var i = g.encs.find(q)
   if i == -1:
     return g.annotate_missing(v)
@@ -201,7 +201,7 @@ proc annotate*(g:var Gnotater, v:Variant): bool {.inline.} =
   var match = g.encs[i].decode
   if match.reference.len == 0:
     # should find this position in the longs
-    var l = Long(position:v.start.uint32, reference:v.REF, alternate:v.ALT[0])
+    var l = Long(position:v.start.uint32, reference:v.REF, alternate:alt)
     var i = lowerBound(g.longs, l, cmp_long)
     # since these can be ordered differently, we have to check until we get to a different position or a match.
     while i < g.longs.high:

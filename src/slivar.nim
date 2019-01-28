@@ -1,6 +1,9 @@
 import bpbiopkg/pedfile
 import ./slivarpkg/duko
+from ./slivarpkg/version import slivarVersion
+
 import ./slivarpkg/gnotate
+import ./slivarpkg/sl_gnotate
 import ./slivarpkg/groups
 import strutils
 import math
@@ -285,12 +288,11 @@ iterator variants(vcf:VCF, region:string): Variant =
   else:
     for v in vcf.query(region): yield v
 
-
-proc main*(dropfirst:bool=false) =
+proc trio_main*(dropfirst:bool=false) =
   let doc = """
 slivar -- variant expression for great good
 
-Usage: slivar [options --pass-only --out-vcf <path> --vcf <path> --ped <path> --trio=<expression>... --info=<expression>]
+Usage: slivar trio [options --pass-only --out-vcf <path> --vcf <path> --ped <path> --trio=<expression>... --info=<expression>]
 
 About:
 
@@ -415,6 +417,32 @@ Options:
 
   ovcf.close()
   ivcf.close()
+
+proc main*() =
+  type pair = object
+    f: proc(dropfirst:bool)
+    description: string
+
+  var dispatcher = {
+    "trio": pair(f:trio_main, description:"trio expressions and filtering"),
+    "gnotate": pair(f:sl_gnotate.main, description:"very rapidly annotate a VCF/BCF with gnomad"),
+    #"variexpr": pair(f:variexpr.main, description:"simple expression to filter or annotate VCFs"),
+    #"homsv": pair(f:homsv.main, description:"look for depth changes in self-chains or homologous regions"),
+    #"homsv-merge": pair(f:homsv.merge, description:"merge output from homsv"),
+    }.toTable
+
+  stderr.write_line "slivar version: " & slivarVersion
+  var args = commandLineParams()
+
+  if len(args) == 0 or not (args[0] in dispatcher):
+    stderr.write_line "Commands: "
+    for k, v in dispatcher:
+      echo &"  {k:<12}:   {v.description}"
+    if len(args) > 0 and not (args[0] in dispatcher):
+      echo &"unknown program '{args[0]}'"
+    quit 1
+
+  dispatcher[args[0]].f(false)
 
 when isMainModule:
   main()
