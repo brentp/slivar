@@ -30,7 +30,7 @@ RUN cd / && \
     echo 'PATH=/nim/bin:/root/.nimble/bin:$PATH' >> ~/.bashrc && \
     echo 'PATH=/nim/bin:/root/.nimble/bin:$PATH' >> ~/.bash_profile
 
-RUN export PATH=/nim/bin:/root/.nimble/bin:$PATH && \
+RUN cd / && export PATH=/nim/bin:/root/.nimble/bin:$PATH && \
     source scl_source enable devtoolset-2  && \
     nimble install -y nimgen && \
     cd / && git clone -b dev https://github.com/brentp/duktape-nim && \
@@ -40,4 +40,4 @@ RUN export PATH=/nim/bin:/root/.nimble/bin:$PATH && \
     cd slivar && \
     nimble install --verbose -y && \
     nim c -d:release -o:/usr/bin/slivar --passC:-flto src/slivar && \
-    rm -rf /slivar /duktape-nim && slivar -h
+    rm -rf /slivar /duktape-nim && slivar trio -h
