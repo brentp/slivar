@@ -8,6 +8,7 @@ import strformat
 import strutils
 
 proc getExpressionTable*(ovcf:VCF, expressions:seq[string], invcf:string): TableRef[string, string] =
+  ## parse (split on :) the expressions, return a table, and update the vcf header with a reasonable description.
   result = newTable[string, string]()
   for e in expressions:
     var t = e.split(seps={':'}, maxsplit=1)
@@ -37,6 +38,7 @@ type Group = seq[ISample]
 type Evaluator* = ref object
   ctx: DTContext
   trios: seq[Trio]
+  # samples is a name-space to store the samples.
   samples: Duko
   INFO: Duko
   variant: Duko
@@ -67,6 +69,13 @@ var debug: DTCFunction = (proc (ctx: DTContext): cint {.stdcall.} =
   stderr.write_line $ctx.duk_require_string(-1)
 )
 
+proc set_sample_attributes(ctx:Evaluator) =
+  for trio in ctx.trios:
+      for sample in trio:
+        sample.duk["affected"] = sample.ped_sample.affected
+        var sex = sample.ped_sample.sex
+        sample.duk["sex"] = if sex == 2: "female" elif sex == 1: "male" else: "unknown"
+
 proc newEvaluator*(kids: seq[Sample], expression: TableRef[string, string], info_expr: string, g:Gnotater): Evaluator =
   ## make a new evaluation context for the given string
   var my_fatal: duk_fatal_function = (proc (udata: pointer, msg:cstring) {.stdcall.} =
@@ -94,6 +103,7 @@ proc newEvaluator*(kids: seq[Sample], expression: TableRef[string, string], info
                         ISample(ped_sample:kid.mom, duk:result.samples.newObject(kid.mom.id))])
   result.INFO = result.ctx.newObject("INFO")
   result.variant = result.ctx.newObject("variant")
+  result.set_sample_attributes()
 
 proc clear*(ctx:var Evaluator) {.inline.} =
   for trio in ctx.trios.mitems:
@@ -150,13 +160,6 @@ proc set_variant_fields(ctx:Evaluator, variant:Variant) =
   ctx.variant["ALT"] = variant.ALT
   ctx.variant["FILTER"] = variant.FILTER
   ctx.variant["ID"] = $variant.ID
-
-proc set_sample_attributes(ctx:Evaluator) =
-  for trio in ctx.trios:
-      for sample in trio:
-        sample.duk["affected"] = sample.ped_sample.affected
-        var sex = sample.ped_sample.sex
-        sample.duk["sex"] = if sex == 2: "female" elif sex == 1: "male" else: "unknown"
 
 proc sum(counts: array[4, int]): int {.inline.} =
     return counts[0] + counts[1] + counts[2] + counts[3]
@@ -227,41 +230,7 @@ proc set_infos(ctx:var Evaluator, variant:Variant, ints: var seq[int32], floats:
 
 type exResult = tuple[name:string, sampleList:seq[string]]
 
-iterator evaluate*(ctx:var Evaluator, variant:Variant, samples:seq[string], nerrors:var int): exResult =
-  ctx.clear()
-
-  if ctx.gno != nil:
-    discard ctx.gno.annotate(variant)
-  var ints = newSeq[int32](3 * variant.n_samples)
-  var floats = newSeq[float32](3 * variant.n_samples)
-
-  ## the most expensive part is pulling out the format fields so we pull all fields
-  ## and set values for all samples in the trio list.
-  ## once all that is done, we evaluate the expressions.
-  ctx.set_infos(variant, ints, floats)
-  ctx.set_variant_fields(variant)
-  var alts = variant.format.genotypes(ints).alts
-  ctx.set_calculated_variant_fields(alts)
-
-  if ctx.info_expression.ctx == nil or ctx.info_expression.check:
-
-    ctx.set_sample_attributes()
-    # file the format fields
-    var fmt = variant.format
-    var has_ad = false
-    var has_ab = false
-    for f in fmt.fields:
-      if f.name == "GT": continue
-      if f.name == "AD": has_ad = true
-      if f.name == "AB": has_ab = true
-      ctx.set_format_field(f, fmt, ints, floats)
-    if has_ad and not has_ab:
-      ctx.set_ab(fmt, ints, floats)
-
-    for trio in ctx.trios:
-        trio.fill("alts", alts, 1)
-    var err = ""
-
+iterator evaluate_trio(ctx:Evaluator, err:var string, nerrors: var int, samples: seq[string], variant:Variant): exResult =
     for i, dukex in ctx.trio_expressions:
       var matching_samples = newSeq[string]()
       for trio in ctx.trios:
@@ -286,3 +255,40 @@ iterator evaluate*(ctx:var Evaluator, variant:Variant, samples:seq[string], nerr
         # set INFO of this result so subsequent expressions can use it.
         ctx.INFO[ctx.names[i]] = join(matching_samples, ",")
         yield (ctx.names[i], matching_samples)
+
+iterator evaluate*(ctx:var Evaluator, variant:Variant, samples:seq[string], nerrors:var int): exResult =
+  ctx.clear()
+
+  if ctx.gno != nil:
+    discard ctx.gno.annotate(variant)
+  var ints = newSeq[int32](3 * variant.n_samples)
+  var floats = newSeq[float32](3 * variant.n_samples)
+
+  ## the most expensive part is pulling out the format fields so we pull all fields
+  ## and set values for all samples in the trio list.
+  ## once all that is done, we evaluate the expressions.
+  ctx.set_infos(variant, ints, floats)
+  ctx.set_variant_fields(variant)
+  var alts = variant.format.genotypes(ints).alts
+  ctx.set_calculated_variant_fields(alts)
+
+  if ctx.info_expression.ctx == nil or ctx.info_expression.check:
+
+    # file the format fields
+    var fmt = variant.format
+    var has_ad = false
+    var has_ab = false
+    for f in fmt.fields:
+      if f.name == "GT": continue
+      if f.name == "AD": has_ad = true
+      elif f.name == "AB": has_ab = true
+      ctx.set_format_field(f, fmt, ints, floats)
+    if has_ad and not has_ab:
+      ctx.set_ab(fmt, ints, floats)
+
+    for trio in ctx.trios:
+        trio.fill("alts", alts, 1)
+    var err = ""
+
+    for r in ctx.evaluate_trio(err, nerrors, samples, variant): yield r
+
