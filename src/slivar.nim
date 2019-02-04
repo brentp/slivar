@@ -2,6 +2,7 @@ import bpbiopkg/pedfile
 import ./slivarpkg/duko
 from ./slivarpkg/version import slivarVersion
 import ./slivarpkg/evaluator
+import ./slivarpkg/groups
 
 import ./slivarpkg/gnotate
 import ./slivarpkg/sl_gnotate
@@ -37,17 +38,19 @@ About:
 
 Options:
 
-  -v --vcf <path>       VCF/BCF
-  --region <string>     optional region to limit evaluation. e.g. chr1 or 1:222-333
-  -j --js <path>        path to javascript functions to expose to user
-  -p --ped <path>       pedigree file with trio relations
-  -o --out-vcf <path>   VCF/BCF
-  --pass-only           only output variants that pass at least one of the filters [default: false]
-  --trio <string>...    each trio expressions is applied to each trio where "mom", "dad", "kid" labels are available
-  --info <string>       apply a filter using only variables from  the info field and variant attributes. If this filter
-                        does not pass, the trio filters will not be applied.
-
-  -g --gnomad <path>    optional path compressed gnomad allele frequencies distributed at: https://github.com/brentp/slivar/releases
+  -v --vcf <path>            VCF/BCF
+  --region <string>          optional region to limit evaluation. e.g. chr1 or 1:222-333
+  -j --js <path>             path to javascript functions to expose to user
+  -p --ped <path>            pedigree file with trio relations
+  -a --alias <path>          path to file of group aliases
+  -o --out-vcf <path>        VCF/BCF
+  --pass-only                only output variants that pass at least one of the filters [default: false]
+  --trio <string>...         an expression applied to each trio where "mom", "dad", "kid" labels are available from trios inferred from
+                             a ped file.
+  --group-expr <string>...   an expression applied to the groups defined in the alias option.
+  --info <string>            a filter expression using only variables from  the info field and variant attributes. If this filter
+                             does not pass, the trio and alias expressions will not be applied.
+  -g --gnomad <path>          optional path compressed gnomad allele frequencies distributed at: https://github.com/brentp/slivar/releases
   """
 
   var args: Table[string, docopt.Value]
@@ -69,6 +72,7 @@ Options:
   var
     ivcf:VCF
     ovcf:VCF
+    groups: seq[Group]
     gno:Gnotater
 
   if not open(ivcf, $args["--vcf"], threads=1):
@@ -78,16 +82,13 @@ Options:
 
   var samples = parse_ped($args["--ped"])
   samples = samples.match(ivcf)
-  var kids = newSeq[Sample]()
-
-  for sample in samples:
-    if sample.mom == nil or sample.dad == nil: continue
-    kids.add(sample)
-
-  stderr.write_line &"{kids.len} kids to be evaluated"
+  stderr.write_line &"{samples.len} samples matched in VCF and PED to be evaluated"
 
   if not open(ovcf, $args["--out-vcf"], mode="w"):
     quit "couldn't open:" & $args["--out-vcf"]
+
+  if $args["--alias"] != "nil":
+    groups = parse_groups($args["--alias"], samples)
 
   if $args["--gnomad"] != "nil":
     doAssert gno.open($args["--gnomad"])
@@ -95,10 +96,11 @@ Options:
 
   ovcf.copy_header(ivcf.header)
 
-  var tbl = ovcf.getExpressionTable(@(args["--trio"]), $args["--vcf"])
+  var trioTbl = ovcf.getExpressionTable(@(args["--trio"]), $args["--vcf"])
+  var grpTbl = ovcf.getExpressionTable(@(args["--group-expr"]), $args["--vcf"])
   doAssert ovcf.write_header
 
-  var ev = newEvaluator(kids, tbl, $args["--info"], gno)
+  var ev = newEvaluator(samples, groups, trioTbl, grpTbl, $args["--info"], gno)
 
   if $args["--js"] != "nil":
     var js = $readFile($args["--js"])
@@ -148,9 +150,6 @@ proc main*() =
     "trio": pair(f:trio_main, description:"trio expressions and filtering"),
     "gnotate": pair(f:sl_gnotate.main, description:"very rapidly annotate a VCF/BCF with gnomad"),
     "filter": pair(f:filter.main, description:"filter a vcf with javascript expressions"),
-    #"variexpr": pair(f:variexpr.main, description:"simple expression to filter or annotate VCFs"),
-    #"homsv": pair(f:homsv.main, description:"look for depth changes in self-chains or homologous regions"),
-    #"homsv-merge": pair(f:homsv.merge, description:"merge output from homsv"),
     }.toTable
 
   stderr.write_line "slivar version: " & slivarVersion

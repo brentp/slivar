@@ -41,10 +41,10 @@ import strformat
 import tables
 
 type Group* = object
-  header: seq[string]
-  plural: seq[bool]
+  header*: seq[string]
+  plural*: seq[bool]
   # even a single colum is a @[Sample] so we need the triply nested level here.
-  groups: seq[seq[seq[Sample]]]
+  rows*: seq[seq[seq[Sample]]]
 
 proc parse_group_header_line(groups:var seq[Group], line:string) =
   var group = Group(header: line.split(seps={'\t'}))
@@ -72,7 +72,7 @@ proc parse_group_line(groups:var seq[Group], line:string, sample_lookup:TableRef
     if col_samples.len > 1 and not groups[groups.high].plural[i]:
       raise newException(ValueError, &"slivar/groups:got > 1 sample in line {line}, column {i}. {col_samples}")
     g.add(col_samples)
-  groups[groups.high].groups.add(g)
+  groups[groups.high].rows.add(g)
 
 proc to_lookup(samples:seq[Sample]): TableRef[string, Sample] =
   ## allow to lookup by sample name.
@@ -131,9 +131,9 @@ when isMainModule:
       check groups[0].header == @["mom", "dad", "kid"]
       check groups[0].plural == @[false, false, false]
       echo groups[0]
-      check groups[0].groups.len == 1
-      check groups[0].groups[0].len == 3
-      check groups[0].groups[0][0].len == 1
+      check groups[0].rows.len == 1
+      check groups[0].rows[0].len == 3
+      check groups[0].rows[0][0].len == 1
 
 
     test "that multiple groups errors on bad number of samples":
@@ -148,11 +148,11 @@ when isMainModule:
       var groups = parse_groups(tmpFile, samples)
       check groups.len == 2
       check groups[0].header == @["mom", "dad", "kid"]
-      check groups[0].groups.len == 1
+      check groups[0].rows.len == 1
 
       check groups[1].plural == @[false, false]
       check groups[1].header == @["tumor", "normal"]
-      check groups[1].groups.len == 2
+      check groups[1].rows.len == 2
 
     test "that plurality works correctly":
       "#moms\tdad\tkids\na,b\tb\tc\n".toFile

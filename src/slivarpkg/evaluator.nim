@@ -3,6 +3,7 @@ import math
 import bpbiopkg/pedfile
 import ./duko
 import ./gnotate
+import ./groups
 import tables
 import strformat
 import strutils
@@ -26,26 +27,37 @@ iterator variants*(vcf:VCF, region:string): Variant =
     for v in vcf.query(region): yield v
 
 
-type ISample = object
+type ISample = ref object
   ped_sample: pedfile.Sample
   duk: Duko
 
 type Trio = array[3, ISample] ## kid, dad, mom
 
-## Note that this group differs from groups.Group which defines how the groups are specified.
-type Group = seq[ISample]
+type IGroup* = object
+  ## this is a copy of groups.Group, except we use ISample in place of Sample.
+  header*: seq[string]
+  plural*: seq[bool]
+  # even a single colum is a @[Sample] so we need the triply nested level here.
+  rows*: seq[seq[seq[ISample]]]
+
+
+type NamedExpression = object
+  name: string
+  expr: Dukexpr
 
 type Evaluator* = ref object
   ctx: DTContext
   trios: seq[Trio]
+  groups: seq[IGroup]
+  samples: seq[Isample]
   # samples is a name-space to store the samples.
-  samples: Duko
+  samples_ns: Duko
   INFO: Duko
   variant: Duko
   gno:Gnotater
-  trio_expressions: seq[Dukexpr]
+  trio_expressions: seq[NamedExpression]
+  group_expressions: seq[NamedExpression]
   info_expression: Dukexpr
-  names: seq[string]
 
 template fill[T: int8 | int32 | float32 | string](sample:ISample, name:string, values:var seq[T], nper:int) =
   if nper == 1:
@@ -57,6 +69,12 @@ template fill[T: int8 | int32 | float32 | string](trio:Trio, name:string, values
   for s in trio:
     s.fill(name, values, nper)
 
+## iterate over all nested samples and set the sample values.
+template fill[T: int8 | int32 | float32 | string](group:var IGroup, name:string, values:var seq[T], nper:int) =
+  for row in group.rows:
+    for col in row:
+      for s in col:
+          s.fill(name, values, nper)
 
 var debug: DTCFunction = (proc (ctx: DTContext): cint {.stdcall.} =
   var nargs = ctx.duk_get_top()
@@ -70,13 +88,36 @@ var debug: DTCFunction = (proc (ctx: DTContext): cint {.stdcall.} =
 )
 
 proc set_sample_attributes(ctx:Evaluator) =
-  for trio in ctx.trios:
-      for sample in trio:
-        sample.duk["affected"] = sample.ped_sample.affected
-        var sex = sample.ped_sample.sex
-        sample.duk["sex"] = if sex == 2: "female" elif sex == 1: "male" else: "unknown"
+  for sample in ctx.samples:
+    sample.duk["affected"] = sample.ped_sample.affected
+    var sex = sample.ped_sample.sex
+    sample.duk["sex"] = if sex == 2: "female" elif sex == 1: "male" else: "unknown"
 
-proc newEvaluator*(kids: seq[Sample], expression: TableRef[string, string], info_expr: string, g:Gnotater): Evaluator =
+proc trio_kids(samples: seq[Sample]): seq[Sample] =
+  ## return all samples that have a mom and dad.
+  result = newSeqOfCap[Sample](16)
+  for sample in samples:
+    if sample.mom == nil or sample.dad == nil: continue
+    result.add(sample)
+
+proc make_one_row(ev:Evaluator, grps: seq[seq[Sample]]): seq[seq[ISample]] =
+  for col in grps:
+    var v = newSeq[Isample](col.len)
+    for i, sample in col:
+      v[i] = ISample(ped_sample: sample, duk:ev.samples_ns.newObject(sample.id))
+    result.add(v)
+
+proc make_igroups(ev:Evaluator, groups: seq[Group]): seq[IGroup] =
+  ## just copy the groups, but turn each sample into an ISample
+  for g in groups:
+    var ig = IGroup(header:g.header, plural:g.plural)
+
+    for row in g.rows:
+      ig.rows.add(ev.make_one_row(row))
+
+    result.add(ig)
+
+proc newEvaluator*(samples: seq[Sample], groups: seq[Group], trio_expressions: TableRef[string, string], group_expressions: TableRef[string, string], info_expr: string, g:Gnotater): Evaluator =
   ## make a new evaluation context for the given string
   var my_fatal: duk_fatal_function = (proc (udata: pointer, msg:cstring) {.stdcall.} =
     stderr.write_line "slivar fatal error:"
@@ -85,31 +126,37 @@ proc newEvaluator*(kids: seq[Sample], expression: TableRef[string, string], info
 
   result = Evaluator(ctx:duk_create_heap(nil, nil, nil, nil, my_fatal))
   result.ctx.duk_require_stack_top(500000)
+  result.samples_ns = result.ctx.newObject("samples")
+
+  for sample in samples:
+    result.samples.add(ISample(ped_sample:sample, duk:result.samples_ns.newObject(sample.id)))
+
+  var kids = samples.trio_kids
+
   result.gno = g
   discard result.ctx.duk_push_c_function(debug, -1.cint)
   discard result.ctx.duk_put_global_string("debug")
-  for k, v in expression:
-    result.trio_expressions.add(result.ctx.compile(v))
-    result.names.add(k)
-
-  result.samples = result.ctx.newObject("samples")
+  for k, v in trio_expressions:
+    result.trio_expressions.add(NamedExpression(expr: result.ctx.compile(v), name: k))
+  for k, v in group_expressions:
+    result.group_expressions.add(NamedExpression(expr: result.ctx.compile(v), name: k))
 
   if info_expr != "" and info_expr != "nil":
     result.info_expression = result.ctx.compile(info_expr)
 
+  result.groups = result.make_igroups(groups)
+
   for kid in kids:
-      result.trios.add([ISample(ped_sample:kid, duk:result.samples.newObject(kid.id)),
-                        ISample(ped_sample:kid.dad, duk:result.samples.newObject(kid.dad.id)),
-                        ISample(ped_sample:kid.mom, duk:result.samples.newObject(kid.mom.id))])
+      result.trios.add([ISample(ped_sample:kid, duk:result.samples_ns.newObject(kid.id)),
+                        ISample(ped_sample:kid.dad, duk:result.samples_ns.newObject(kid.dad.id)),
+                        ISample(ped_sample:kid.mom, duk:result.samples_ns.newObject(kid.mom.id))])
   result.INFO = result.ctx.newObject("INFO")
   result.variant = result.ctx.newObject("variant")
   result.set_sample_attributes()
 
 proc clear*(ctx:var Evaluator) {.inline.} =
-  for trio in ctx.trios.mitems:
-    trio[0].duk.clear()
-    trio[1].duk.clear()
-    trio[2].duk.clear()
+  for s in ctx.samples:
+    s.duk.clear()
   ctx.INFO.clear()
   # don't need to clear variant as it always has the same stuff.
 
@@ -126,6 +173,12 @@ proc set_ab(ctx: Evaluator, fmt:FORMAT, ints: var seq[int32], floats: var seq[fl
     for s in trio:
       s.duk["AB"] = floats[s.ped_sample.i]
 
+  for g in ctx.groups:
+    for row in g.rows:
+      for col in row:
+        for s in col:
+          s.duk["AB"] = floats[s.ped_sample.i]
+
 proc load_js*(ev:Evaluator, code:string) =
     discard ev.ctx.duk_push_string(code)
     if ev.ctx.duk_peval() != 0:
@@ -140,6 +193,8 @@ proc set_format_field(ctx: Evaluator, f:FormatField, fmt:FORMAT, ints: var seq[i
       quit "couldn't get format field:" & f.name
     for trio in ctx.trios:
       trio.fill(f.name, floats, f.n_per_sample)
+    for g in ctx.groups.mitems:
+      g.fill(f.name, floats, f.n_per_sample)
   elif f.vtype == BCF_TYPE.CHAR:
     discard
   elif f.vtype in {BCF_TYPE.INT32, BCF_TYPE.INT16, BCF_TYPE.INT8}:
@@ -147,6 +202,8 @@ proc set_format_field(ctx: Evaluator, f:FormatField, fmt:FORMAT, ints: var seq[i
       quit "couldn't get format field:" & f.name
     for trio in ctx.trios:
       trio.fill(f.name, ints, f.n_per_sample)
+    for g in ctx.groups.mitems:
+      g.fill(f.name, ints, f.n_per_sample)
   else:
     quit "Unknown field type:" & $f.vtype & " in field:" & f.name
 
@@ -230,15 +287,15 @@ proc set_infos(ctx:var Evaluator, variant:Variant, ints: var seq[int32], floats:
 
 type exResult = tuple[name:string, sampleList:seq[string]]
 
-iterator evaluate_trio(ctx:Evaluator, err:var string, nerrors: var int, samples: seq[string], variant:Variant): exResult =
-    for i, dukex in ctx.trio_expressions:
+iterator evaluate_trios(ctx:Evaluator, nerrors: var int, samples: seq[string], variant:Variant): exResult =
+    for i, namedexpr in ctx.trio_expressions:
       var matching_samples = newSeq[string]()
       for trio in ctx.trios:
         trio[0].duk.alias("kid")
         trio[1].duk.alias("dad")
         trio[2].duk.alias("mom")
         try:
-            if dukex.check():
+            if namedexpr.expr.check():
               matching_samples.add(samples[trio[0].ped_sample.i])
         except:
           nerrors += 1
@@ -250,11 +307,42 @@ iterator evaluate_trio(ctx:Evaluator, err:var string, nerrors: var int, samples:
           if nerrors == 10:
             stderr.write_line "[slivar] not reporting further errors."
           nerrors += 1
-          err = ""
       if len(matching_samples) > 0:
         # set INFO of this result so subsequent expressions can use it.
-        ctx.INFO[ctx.names[i]] = join(matching_samples, ",")
-        yield (ctx.names[i], matching_samples)
+        ctx.INFO[namedexpr.name] = join(matching_samples, ",")
+        yield (namedexpr.name, matching_samples)
+
+iterator evaluate_groups(ctx:Evaluator, nerrors: var int, samples: seq[string], variant:Variant): exResult =
+    for i, namedexpr in ctx.group_expressions:
+      var matching_groups = newSeq[string]()
+      for group in ctx.groups:
+        for row in group.rows:
+          for k, col in row:
+            var pl = group.plural[k]
+            if not pl:
+              col[0].duk.alias(group.header[k])
+            else:
+              # TODO: how to alias > 1 sample to a plural thing.
+              discard
+
+          try:
+            if namedexpr.expr.check():
+              matching_groups.add(samples[row[0][0].ped_sample.i])
+          except:
+            nerrors += 1
+          if nerrors <= 10:
+            stderr.write_line "[slivar] javascript error. this can some times happen when a field is missing."
+            stderr.write_line  getCurrentExceptionMsg()
+            stderr.write "[slivar] occured with variant:", variant.tostring()
+            stderr.write_line "[slivar] continuing execution."
+          if nerrors == 10:
+            stderr.write_line "[slivar] not reporting further errors."
+          nerrors += 1
+      if len(matching_groups) > 0:
+        # set INFO of this result so subsequent expressions can use it.
+        ctx.INFO[namedexpr.name] = join(matching_groups, ",")
+        yield (namedexpr.name, matching_groups)
+
 
 iterator evaluate*(ctx:var Evaluator, variant:Variant, samples:seq[string], nerrors:var int): exResult =
   ctx.clear()
@@ -288,7 +376,15 @@ iterator evaluate*(ctx:var Evaluator, variant:Variant, samples:seq[string], nerr
 
     for trio in ctx.trios:
         trio.fill("alts", alts, 1)
+
+    for grp in ctx.groups:
+      for row in grp.rows:
+        for col in row:
+          for sample in col:
+            sample.fill("alts", alts, 1)
+
     var err = ""
 
-    for r in ctx.evaluate_trio(err, nerrors, samples, variant): yield r
+    for r in ctx.evaluate_trios(nerrors, samples, variant): yield r
+    for r in ctx.evaluate_groups(nerrors, samples, variant): yield r
 
