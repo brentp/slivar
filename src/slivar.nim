@@ -14,11 +14,11 @@ import times
 import strformat
 import docopt
 
-proc trio_main*(dropfirst:bool=false) =
+proc expr_main*(dropfirst:bool=false) =
   let doc = """
 slivar -- variant expression for great good
 
-Usage: slivar trio [options --pass-only --out-vcf <path> --vcf <path> --ped <path> --trio=<expression>... --info=<expression>]
+Usage: slivar expr [options --pass-only --out-vcf <path> --vcf <path> --ped <path> --trio=<expression>... --info=<expression>]
 
 About:
 
@@ -47,7 +47,7 @@ Options:
   --pass-only                only output variants that pass at least one of the filters [default: false]
   --trio <string>...         an expression applied to each trio where "mom", "dad", "kid" labels are available from trios inferred from
                              a ped file.
-  --group-expr <string>...   an expression applied to the groups defined in the alias option.
+  --group-expr <string>...   expressions applied to the groups defined in the alias option.
   --info <string>            a filter expression using only variables from  the info field and variant attributes. If this filter
                              does not pass, the trio and alias expressions will not be applied.
   -g --gnomad <path>          optional path compressed gnomad allele frequencies distributed at: https://github.com/brentp/slivar/releases
@@ -107,7 +107,6 @@ Options:
     ev.load_js(js)
   var t = cpuTime()
   var n = 10000
-  var vcf_samples: seq[string] = ivcf.samples
 
   var i = 0
   var nerrors = 0
@@ -124,7 +123,7 @@ Options:
       if i >= 500000:
         n = 500000
     var any_pass = false
-    for ns in ev.evaluate(variant, vcf_samples, nerrors):
+    for ns in ev.evaluate(variant, nerrors):
       if pass_only and ns.sampleList.len == 0: continue
       any_pass = true
       var ssamples = join(ns.sampleList, ",")
@@ -147,8 +146,8 @@ proc main*() =
     description: string
 
   var dispatcher = {
-    "trio": pair(f:trio_main, description:"trio expressions and filtering"),
-    "gnotate": pair(f:sl_gnotate.main, description:"very rapidly annotate a VCF/BCF with gnomad"),
+    "expr": pair(f:expr_main, description:"trio and group expressions and filtering"),
+    "gnotate": pair(f:sl_gnotate.main, description:"rapidly annotate a VCF/BCF with gnomad"),
     "filter": pair(f:filter.main, description:"filter a vcf with javascript expressions"),
     }.toTable
 

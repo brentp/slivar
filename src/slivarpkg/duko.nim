@@ -5,7 +5,7 @@ export js
 type Duko* = object
     ctx*: DTContext
     name*: string
-    vptr: pointer
+    vptr*: pointer
 
 type Dukexpr* = object
     ## a compiled expression

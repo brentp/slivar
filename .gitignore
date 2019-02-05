@@ -1,2 +1,9 @@
 src/slivarpkg/duko
 src/slivar
+src/slivarpkg/evaluator
+src/slivarpkg/gnotate
+src/slivarpkg/groups
+src/slivarpkg/pracode
+src/slivarpkg/sl_gnotate
+__tmp.groups
+

@@ -54,10 +54,10 @@ type Evaluator* = ref object
   samples_ns: Duko
   INFO: Duko
   variant: Duko
-  gno:Gnotater
+  gno*:Gnotater
   trio_expressions: seq[NamedExpression]
   group_expressions: seq[NamedExpression]
-  info_expression: Dukexpr
+  info_expression*: Dukexpr
 
 template fill[T: int8 | int32 | float32 | string](sample:ISample, name:string, values:var seq[T], nper:int) =
   if nper == 1:
@@ -131,25 +131,27 @@ proc newEvaluator*(samples: seq[Sample], groups: seq[Group], trio_expressions: T
   for sample in samples:
     result.samples.add(ISample(ped_sample:sample, duk:result.samples_ns.newObject(sample.id)))
 
-  var kids = samples.trio_kids
-
   result.gno = g
   discard result.ctx.duk_push_c_function(debug, -1.cint)
   discard result.ctx.duk_put_global_string("debug")
-  for k, v in trio_expressions:
-    result.trio_expressions.add(NamedExpression(expr: result.ctx.compile(v), name: k))
-  for k, v in group_expressions:
-    result.group_expressions.add(NamedExpression(expr: result.ctx.compile(v), name: k))
+
+  if trio_expressions != nil:
+    for n, ex in trio_expressions:
+      result.trio_expressions.add(NamedExpression(expr: result.ctx.compile(ex), name: n))
+  if group_expressions != nil:
+    for n, ex in group_expressions:
+      result.group_expressions.add(NamedExpression(expr: result.ctx.compile(ex), name: n))
 
   if info_expr != "" and info_expr != "nil":
     result.info_expression = result.ctx.compile(info_expr)
 
   result.groups = result.make_igroups(groups)
 
-  for kid in kids:
+  for kid in samples.trio_kids:
       result.trios.add([ISample(ped_sample:kid, duk:result.samples_ns.newObject(kid.id)),
                         ISample(ped_sample:kid.dad, duk:result.samples_ns.newObject(kid.dad.id)),
                         ISample(ped_sample:kid.mom, duk:result.samples_ns.newObject(kid.mom.id))])
+
   result.INFO = result.ctx.newObject("INFO")
   result.variant = result.ctx.newObject("variant")
   result.set_sample_attributes()
@@ -207,7 +209,7 @@ proc set_format_field(ctx: Evaluator, f:FormatField, fmt:FORMAT, ints: var seq[i
   else:
     quit "Unknown field type:" & $f.vtype & " in field:" & f.name
 
-proc set_variant_fields(ctx:Evaluator, variant:Variant) =
+proc set_variant_fields*(ctx:Evaluator, variant:Variant) =
   ctx.variant["CHROM"] = $variant.CHROM
   ctx.variant["start"] = variant.start
   ctx.variant["stop"] = variant.stop
@@ -242,14 +244,14 @@ proc hwe_score*(counts: array[4, int], aaf:float64): float64 {.inline.} =
   result += ((counts[1].float64 - exp_het) ^ 2) / max(1, exp_het)
   result += ((counts[2].float64 - exp_hom_alt) ^ 2) / max(1, exp_hom_alt)
 
-proc set_calculated_variant_fields(ctx:Evaluator, alts: var seq[int8]) =
+proc set_calculated_variant_fields*(ctx:Evaluator, alts: var seq[int8]) =
   # homref, het, homalt, unknown (-1)
   var counts = [0, 0, 0, 0]
   for a in alts:
     if unlikely(a < 0 or a > 2):
-      counts[3].inc
+      counts[3] += 1
     else:
-      counts[a].inc
+      counts[a] += 1
 
   var aaf = counts.aaf
   ctx.variant["aaf"] = aaf
@@ -260,7 +262,7 @@ proc set_calculated_variant_fields(ctx:Evaluator, alts: var seq[int8]) =
   ctx.variant["num_hom_alt"] = counts[2]
   ctx.variant["num_unknown"] = counts[3]
 
-proc set_infos(ctx:var Evaluator, variant:Variant, ints: var seq[int32], floats: var seq[float32]) =
+proc set_infos*(ctx:var Evaluator, variant:Variant, ints: var seq[int32], floats: var seq[float32]) =
   var istr: string = ""
   var info = variant.info
   for field in info.fields:
@@ -276,7 +278,7 @@ proc set_infos(ctx:var Evaluator, variant:Variant, ints: var seq[int32], floats:
       if ret != Status.OK:
         quit "couldn't get field:" & field.name & " status:" & $ret
         # NOTE: all set as a single string for now.
-      ctx.INFO[field.name] = $istr
+      ctx.INFO[field.name] = istr
     elif field.vtype in {BCF_TYPE.INT32, BCF_TYPE.INT16, BCF_TYPE.INT8}:
       if info.get(field.name, ints) != Status.OK:
         quit "couldn't get field:" & field.name
@@ -287,7 +289,7 @@ proc set_infos(ctx:var Evaluator, variant:Variant, ints: var seq[int32], floats:
 
 type exResult = tuple[name:string, sampleList:seq[string]]
 
-iterator evaluate_trios(ctx:Evaluator, nerrors: var int, samples: seq[string], variant:Variant): exResult =
+iterator evaluate_trios(ctx:Evaluator, nerrors: var int, variant:Variant): exResult =
     for i, namedexpr in ctx.trio_expressions:
       var matching_samples = newSeq[string]()
       for trio in ctx.trios:
@@ -296,7 +298,7 @@ iterator evaluate_trios(ctx:Evaluator, nerrors: var int, samples: seq[string], v
         trio[2].duk.alias("mom")
         try:
             if namedexpr.expr.check():
-              matching_samples.add(samples[trio[0].ped_sample.i])
+              matching_samples.add(trio[0].ped_sample.id)
         except:
           nerrors += 1
           if nerrors <= 10:
@@ -312,22 +314,31 @@ iterator evaluate_trios(ctx:Evaluator, nerrors: var int, samples: seq[string], v
         ctx.INFO[namedexpr.name] = join(matching_samples, ",")
         yield (namedexpr.name, matching_samples)
 
-iterator evaluate_groups(ctx:Evaluator, nerrors: var int, samples: seq[string], variant:Variant): exResult =
-    for i, namedexpr in ctx.group_expressions:
+proc alias_objects*(ctx:DTContext, os: seq[ISample], copyname:string) {.inline.} =
+  ## add an array of objects and alias them to a new name.
+  var idx = ctx.duk_push_array()
+  for i, o in os:
+    doAssert ctx.duk_push_heapptr(o.duk.vptr) >= 0
+    discard ctx.duk_put_prop_index(idx, i.duk_uarridx_t)
+  doAssert ctx.duk_put_global_literal_raw(copyname, copyname.len.duk_size_t)
+
+
+iterator evaluate_groups(ev:Evaluator, nerrors: var int, variant:Variant): exResult =
+    ## note that every group expression is currently applied to every group.
+    ## we may want certain expressions applied to certain groups, but how to let the user
+    ## specify the connection?
+    for i, namedexpr in ev.group_expressions:
       var matching_groups = newSeq[string]()
-      for group in ctx.groups:
+      for group in ev.groups:
         for row in group.rows:
           for k, col in row:
-            var pl = group.plural[k]
-            if not pl:
+            if not group.plural[k]:
               col[0].duk.alias(group.header[k])
             else:
-              # TODO: how to alias > 1 sample to a plural thing.
-              discard
-
+              ev.ctx.alias_objects(col, group.header[k])
           try:
             if namedexpr.expr.check():
-              matching_groups.add(samples[row[0][0].ped_sample.i])
+              matching_groups.add(row[0][0].ped_sample.id)
           except:
             nerrors += 1
           if nerrors <= 10:
@@ -340,11 +351,26 @@ iterator evaluate_groups(ctx:Evaluator, nerrors: var int, samples: seq[string], 
           nerrors += 1
       if len(matching_groups) > 0:
         # set INFO of this result so subsequent expressions can use it.
-        ctx.INFO[namedexpr.name] = join(matching_groups, ",")
+        ev.INFO[namedexpr.name] = join(matching_groups, ",")
         yield (namedexpr.name, matching_groups)
 
+proc set_format_fields*(ctx:var Evaluator, v:Variant, alts: var seq[int8], ints: var seq[int32], floats: var seq[float32]) =
+  # fill the format fields
+  var fmt = v.format
+  var has_ad = false
+  var has_ab = false
+  for f in fmt.fields:
+    if f.name == "GT": continue
+    if f.name == "AD": has_ad = true
+    elif f.name == "AB": has_ab = true
+    ctx.set_format_field(f, fmt, ints, floats)
+  if has_ad and not has_ab:
+    ctx.set_ab(fmt, ints, floats)
 
-iterator evaluate*(ctx:var Evaluator, variant:Variant, samples:seq[string], nerrors:var int): exResult =
+  for sample in ctx.samples:
+    sample.fill("alts", alts, 1)
+
+iterator evaluate*(ctx:var Evaluator, variant:Variant, nerrors:var int): exResult =
   ctx.clear()
 
   if ctx.gno != nil:
@@ -361,30 +387,7 @@ iterator evaluate*(ctx:var Evaluator, variant:Variant, samples:seq[string], nerr
   ctx.set_calculated_variant_fields(alts)
 
   if ctx.info_expression.ctx == nil or ctx.info_expression.check:
-
-    # file the format fields
-    var fmt = variant.format
-    var has_ad = false
-    var has_ab = false
-    for f in fmt.fields:
-      if f.name == "GT": continue
-      if f.name == "AD": has_ad = true
-      elif f.name == "AB": has_ab = true
-      ctx.set_format_field(f, fmt, ints, floats)
-    if has_ad and not has_ab:
-      ctx.set_ab(fmt, ints, floats)
-
-    for trio in ctx.trios:
-        trio.fill("alts", alts, 1)
-
-    for grp in ctx.groups:
-      for row in grp.rows:
-        for col in row:
-          for sample in col:
-            sample.fill("alts", alts, 1)
-
-    var err = ""
-
-    for r in ctx.evaluate_trios(nerrors, samples, variant): yield r
-    for r in ctx.evaluate_groups(nerrors, samples, variant): yield r
+    ctx.set_format_fields(variant, alts, ints, floats)
+    for r in ctx.evaluate_trios(nerrors, variant): yield r
+    for r in ctx.evaluate_groups(nerrors, variant): yield r
 

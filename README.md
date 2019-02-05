@@ -1,15 +1,18 @@
 # slivar: filter/annotate variants in VCF/BCF format with simple expressions
 
 slivar has sub-commands:
-+ trio: filter a vcf with `mom`, `dad`, `kid` expressions.
-+ gnotate: annotate a vcf with gnomad allele frequency extremely fast.
++ expr: trio and group expressions and filtering
++ gnotate: rapidly annotate a VCF/BCF with gnomad
++ filter: filter a VCF with an expression
 
 
 ## Commands
 
-### Trio
+### expr
 
-slivar trio finds all trios in a VCF, PED pair and let's the user specify an expression with indentifiers
+#### trio
+
+when --trio is used, `slivar` finds all trios in a VCF, PED pair and let's the user specify an expression with indentifiers
 of `kid`, `mom`, `dad` that is applied to each possible trio. For example, a simple expression to call
 *de novo* variants:
 
@@ -30,7 +33,7 @@ The expressions are javascript so the user can make these as complex as needed.
 
 
 ```
-slivar trio \
+slivar expr \
    --pass-only \ # output only variants that pass one of the filters (default is to output all variants)
    --vcf $vcf \
    --ped $ped \
