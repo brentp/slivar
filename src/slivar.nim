@@ -95,9 +95,14 @@ Options:
     gno.update_header(ivcf)
 
   ovcf.copy_header(ivcf.header)
+  var
+    trioTbl: TableRef[string,string]
+    grpTbl: TableRef[string, string]
 
-  var trioTbl = ovcf.getExpressionTable(@(args["--trio"]), $args["--vcf"])
-  var grpTbl = ovcf.getExpressionTable(@(args["--group-expr"]), $args["--vcf"])
+  if $args["--trio"] != "nil":
+    trioTbl = ovcf.getExpressionTable(@(args["--trio"]), $args["--vcf"])
+  if $args["--group-expr"] != "nil":
+    grpTbl = ovcf.getExpressionTable(@(args["--group-expr"]), $args["--vcf"])
   doAssert ovcf.write_header
 
   var ev = newEvaluator(samples, groups, trioTbl, grpTbl, $args["--info"], gno)

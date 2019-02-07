@@ -77,8 +77,8 @@ or use via docker from: [brentp/slivar:latest](https://cloud.docker.com/reposito
  + calculated variant attributes include: `aaf`, `hwe_score`, `call_rate`, `num_hom_ref`, `num_het`, `num_hom_alt`, `num_unknown`
 
  + sample attributes (via `kid`, `mom`, `dad`) include in the FORMAT. available as e.g. kid.AD[1]
- + sample attributes from the ped for `affected`, `sex` are available as, e.g. kid.sex.
-
+ + sample attributes from the ped for `affected`, `sex`, `id` are available as, e.g. kid.sex.
+ + sample relations are available as `mom`, `dad`, `kids`. `mom` and `dad` will be undefined if not available and kids will be an empty array.
 
 ## How it works
 

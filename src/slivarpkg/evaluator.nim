@@ -87,11 +87,23 @@ var debug: DTCFunction = (proc (ctx: DTContext): cint {.stdcall.} =
   stderr.write_line $ctx.duk_require_string(-1)
 )
 
-proc set_sample_attributes(ctx:Evaluator) =
-  for sample in ctx.samples:
+proc set_sample_attributes(ev:Evaluator, by_name: TableRef[string, ISample]) =
+  for sample in ev.samples:
     sample.duk["affected"] = sample.ped_sample.affected
     var sex = sample.ped_sample.sex
     sample.duk["sex"] = if sex == 2: "female" elif sex == 1: "male" else: "unknown"
+    sample.duk["id"] = sample.ped_sample.id
+    if sample.ped_sample.dad != nil:
+      if ev.ctx.duk_peval_string_noresult(&"samples[\"{sample.ped_sample.id}\"].dad = samples[\"{sample.ped_sample.dad.id}\"]") != 0:
+        quit "error setting sample dad"
+    if sample.ped_sample.mom != nil:
+      if ev.ctx.duk_peval_string_noresult(&"samples[\"{sample.ped_sample.id}\"].mom = samples[\"{sample.ped_sample.mom.id}\"]") != 0:
+        quit "error setting sample mom"
+    if ev.ctx.duk_peval_string_noresult(&"samples[\"{sample.ped_sample.id}\"].kids = []") != 0:
+        quit "error setting sample kids"
+    for kid in sample.ped_sample.kids:
+      if ev.ctx.duk_peval_string_noresult(&"samples[\"{sample.ped_sample.id}\"].kids.push(samples[\"{kid.id}\"])") != 0:
+        quit "error setting sample kids"
 
 proc trio_kids(samples: seq[Sample]): seq[Sample] =
   ## return all samples that have a mom and dad.
@@ -100,20 +112,20 @@ proc trio_kids(samples: seq[Sample]): seq[Sample] =
     if sample.mom == nil or sample.dad == nil: continue
     result.add(sample)
 
-proc make_one_row(ev:Evaluator, grps: seq[seq[Sample]]): seq[seq[ISample]] =
+proc make_one_row(ev:Evaluator, grps: seq[seq[Sample]], by_name: TableRef[string, ISample]): seq[seq[ISample]] =
   for col in grps:
     var v = newSeq[Isample](col.len)
     for i, sample in col:
-      v[i] = ISample(ped_sample: sample, duk:ev.samples_ns.newObject(sample.id))
+      v[i] = by_name[sample.id] #ISample(ped_sample: sample, duk:ev.samples_ns.newObject(sample.id))
     result.add(v)
 
-proc make_igroups(ev:Evaluator, groups: seq[Group]): seq[IGroup] =
+proc make_igroups(ev:Evaluator, groups: seq[Group], by_name:TableRef[string, ISample]): seq[IGroup] =
   ## just copy the groups, but turn each sample into an ISample
   for g in groups:
     var ig = IGroup(header:g.header, plural:g.plural)
 
     for row in g.rows:
-      ig.rows.add(ev.make_one_row(row))
+      ig.rows.add(ev.make_one_row(row, by_name))
 
     result.add(ig)
 
@@ -128,8 +140,12 @@ proc newEvaluator*(samples: seq[Sample], groups: seq[Group], trio_expressions: T
   result.ctx.duk_require_stack_top(500000)
   result.samples_ns = result.ctx.newObject("samples")
 
+  # need this because we can only have 1 object per sample id. this allows fast lookup by id.
+  var by_name = newTable[string,ISample]()
+
   for sample in samples:
     result.samples.add(ISample(ped_sample:sample, duk:result.samples_ns.newObject(sample.id)))
+    by_name[sample.id] = result.samples[result.samples.high]
 
   result.gno = g
   discard result.ctx.duk_push_c_function(debug, -1.cint)
@@ -145,16 +161,14 @@ proc newEvaluator*(samples: seq[Sample], groups: seq[Group], trio_expressions: T
   if info_expr != "" and info_expr != "nil":
     result.info_expression = result.ctx.compile(info_expr)
 
-  result.groups = result.make_igroups(groups)
+  result.groups = result.make_igroups(groups, by_name)
 
   for kid in samples.trio_kids:
-      result.trios.add([ISample(ped_sample:kid, duk:result.samples_ns.newObject(kid.id)),
-                        ISample(ped_sample:kid.dad, duk:result.samples_ns.newObject(kid.dad.id)),
-                        ISample(ped_sample:kid.mom, duk:result.samples_ns.newObject(kid.mom.id))])
+      result.trios.add([by_name[kid.id], by_name[kid.dad.id], by_name[kid.mom.id]])
 
   result.INFO = result.ctx.newObject("INFO")
   result.variant = result.ctx.newObject("variant")
-  result.set_sample_attributes()
+  result.set_sample_attributes(by_name)
 
 proc clear*(ctx:var Evaluator) {.inline.} =
   for s in ctx.samples:
