@@ -221,11 +221,11 @@ when isMainModule:
 
        var aref = ""
        for i in 0..<rlen:
-         aref &= rand("ACTG")
+         aref &= sample("ACTG")
 
        var aalt = ""
        for i in 0..<alen:
-         aalt &= rand("ACTG")
+         aalt &= sample("ACTG")
        var p = rand(250_000_000).uint32
        var e = encode(p, aref, aalt)
        var d = e.decode
@@ -250,8 +250,8 @@ when isMainModule:
     var alts = ["T", "C", "GGGGG", "AAA", "GGC", "TTCAT", "AAAG", "GGG"]
     for i in 0..n:
       var p = rand(250_000_000).uint32
-      var aref = rand(refs)
-      var aalt = rand(alts)
+      var aref = sample(refs)
+      var aalt = sample(alts)
       var e = encode(p, aref, aalt)
       var d = e.decode
       doAssert d.position == p
@@ -264,8 +264,8 @@ when isMainModule:
     var haystack = newSeq[uint64]()
     for i in 0..n:
       var p = rand(250_000_000).uint32
-      var aref = rand(refs)
-      var aalt = rand(alts)
+      var aref = sample(refs)
+      var aalt = sample(alts)
       var e = encode(p, aref, aalt)
       haystack.add(e)
 

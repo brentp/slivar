@@ -110,7 +110,7 @@ proc newObject*(d:Duko, name: string): Duko =
   doAssert result.ctx.duk_put_prop_lstring(idx, name, name.len.duk_size_t)
   d.ctx.duk_pop
 
-proc alias*(dfrom: Duko, dto:Duko, copyname:string="") {.inline.} =
+template alias*(dfrom: Duko, dto:Duko, copyname:string="") =
   ## create an alias of a Duko to another e.g. kid.alias(mom, "mom")
   var name = if copyname.len == 0: dto.name else: copyname
   var idx = dfrom.ctx.duk_push_heapptr(dfrom.vptr)
@@ -118,21 +118,21 @@ proc alias*(dfrom: Duko, dto:Duko, copyname:string="") {.inline.} =
   doAssert dfrom.ctx.duk_put_prop_lstring(idx, name, name.len.duk_size_t)
   dfrom.ctx.duk_pop
 
-proc `[]=`*(o:Duko, key:string, value: bool) {.inline.} =
+template `[]=`*(o:Duko, key:string, value: bool) =
     ## set the property at key to a value
     var idx = o.ctx.duk_push_heapptr(o.vptr)
     o.ctx.duk_push_boolean(value.duk_bool_t)
     doAssert o.ctx.duk_put_prop_lstring(idx, key, key.len.duk_size_t)
     o.ctx.pop()
 
-proc `[]=`*(o:Duko, key:string, value: SomeFloat) {.inline.} =
+template `[]=`*(o:Duko, key:string, value: SomeFloat) =
     ## set the property at key to a value
     var idx = o.ctx.duk_push_heapptr(o.vptr)
     o.ctx.duk_push_number(value.duk_double_t)
     doAssert o.ctx.duk_put_prop_lstring(idx, key, key.len.duk_size_t)
     o.ctx.pop()
 
-proc `[]=`*(o:Duko, key:string, value: SomeInteger) {.inline.} =
+template `[]=`*(o:Duko, key:string, value: SomeInteger) =
     ## set the property at key to a value
     var idx = o.ctx.duk_push_heapptr(o.vptr)
     o.ctx.duk_push_int(value.duk_int_t)
@@ -140,7 +140,7 @@ proc `[]=`*(o:Duko, key:string, value: SomeInteger) {.inline.} =
       quit "problem setting:" & key & " -> " & $value
     o.ctx.pop()
 
-proc `[]=`*(o:Duko, key:string, value: string) {.inline.} =
+template `[]=`*(o:Duko, key:string, value: string) =
     ## set the property at key to a value
     var idx = o.ctx.duk_push_heapptr(o.vptr)
     discard o.ctx.duk_push_lstring(value, value.len.duk_size_t)
@@ -148,7 +148,7 @@ proc `[]=`*(o:Duko, key:string, value: string) {.inline.} =
       quit "problem setting:" & key & " -> " & $value
     o.ctx.pop()
 
-proc clear*(o: var Duko) {.inline.} =
+template clear*(o: var Duko) =
   # TODO make this more efficient
   #o.ctx.duk_eval_string(o.name & "= null")
   discard o.ctx.duk_push_object()

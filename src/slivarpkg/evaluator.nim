@@ -103,7 +103,7 @@ proc set_sample_attributes(ev:Evaluator, by_name: TableRef[string, ISample]) =
         quit "error setting sample kids"
     for kid in sample.ped_sample.kids:
       if ev.ctx.duk_peval_string_noresult(&"samples[\"{sample.ped_sample.id}\"].kids.push(samples[\"{kid.id}\"])") != 0:
-        quit "error setting sample kids"
+        quit "error setting sample kid"
 
 proc trio_kids(samples: seq[Sample]): seq[Sample] =
   ## return all samples that have a mom and dad.
@@ -322,7 +322,6 @@ iterator evaluate_trios(ctx:Evaluator, nerrors: var int, variant:Variant): exRes
             stderr.write_line "[slivar] continuing execution."
           if nerrors == 10:
             stderr.write_line "[slivar] not reporting further errors."
-          nerrors += 1
       if len(matching_samples) > 0:
         # set INFO of this result so subsequent expressions can use it.
         ctx.INFO[namedexpr.name] = join(matching_samples, ",")
@@ -355,14 +354,13 @@ iterator evaluate_groups(ev:Evaluator, nerrors: var int, variant:Variant): exRes
               matching_groups.add(row[0][0].ped_sample.id)
           except:
             nerrors += 1
-          if nerrors <= 10:
-            stderr.write_line "[slivar] javascript error. this can some times happen when a field is missing."
-            stderr.write_line  getCurrentExceptionMsg()
-            stderr.write "[slivar] occured with variant:", variant.tostring()
-            stderr.write_line "[slivar] continuing execution."
-          if nerrors == 10:
-            stderr.write_line "[slivar] not reporting further errors."
-          nerrors += 1
+            if nerrors <= 10:
+              stderr.write_line "[slivar] javascript error. this can some times happen when a field is missing."
+              stderr.write_line  getCurrentExceptionMsg()
+              stderr.write "[slivar] occured with variant:", variant.tostring()
+              stderr.write_line "[slivar] continuing execution."
+            if nerrors == 10:
+              stderr.write_line "[slivar] not reporting further errors."
       if len(matching_groups) > 0:
         # set INFO of this result so subsequent expressions can use it.
         ev.INFO[namedexpr.name] = join(matching_groups, ",")

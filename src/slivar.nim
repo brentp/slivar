@@ -18,7 +18,7 @@ proc expr_main*(dropfirst:bool=false) =
   let doc = """
 slivar -- variant expression for great good
 
-Usage: slivar expr [options --pass-only --out-vcf <path> --vcf <path> --ped <path> --trio=<expression>... --info=<expression>]
+Usage: slivar expr [options --pass-only --out-vcf <path> --vcf <path> --ped <path> --trio=<expression>... --group-expr=<expression>... --info=<expression>]
 
 About:
 
@@ -63,8 +63,8 @@ Options:
   if $args["--vcf"] == "nil":
     stderr.write_line "must specify the --vcf"
     quit doc
-  if $args["--ped"] == "nil":
-      stderr.write_line "must specify the --ped"
+  if $args["--ped"] == "nil" and $args["--alias"] == "nil":
+      stderr.write_line "must specify either --ped or --alias"
       quit doc
   if $args["--out-vcf"] == "nil":
     stderr.write_line "must specify the --out-vcf"
@@ -74,14 +74,19 @@ Options:
     ovcf:VCF
     groups: seq[Group]
     gno:Gnotater
+    samples:seq[Sample]
 
   if not open(ivcf, $args["--vcf"], threads=1):
     quit "couldn't open:" & $args["--vcf"]
 
   var pass_only = bool(args["--pass-only"])
 
-  var samples = parse_ped($args["--ped"])
-  samples = samples.match(ivcf)
+  if $args["--ped"] != "nil":
+    samples = parse_ped($args["--ped"])
+    samples = samples.match(ivcf)
+  else:
+    for i, s in ivcf.samples:
+      samples.add(Sample(id: s, i:i))
   stderr.write_line &"{samples.len} samples matched in VCF and PED to be evaluated"
 
   if not open(ovcf, $args["--out-vcf"], mode="w"):
@@ -135,8 +140,8 @@ Options:
       if variant.info.set(ns.name, ssamples) != Status.OK:
         quit "error setting field:" & ns.name
 
-    if nerrors / i > 0.2 and i > 1000:
-        quit "too many errors. please check your expression"
+    if nerrors / i > 0.2 and i >= 1000:
+        quit &"too many errors {nerrors} out of {i}. please check your expression"
 
     if any_pass:
       doAssert ovcf.write_variant(variant)
