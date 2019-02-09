@@ -138,18 +138,23 @@ proc newEvaluator*(samples: seq[Sample], groups: seq[Group], trio_expressions: T
 
   result = Evaluator(ctx:duk_create_heap(nil, nil, nil, nil, my_fatal))
   result.ctx.duk_require_stack_top(500000)
-  result.samples_ns = result.ctx.newObject("samples")
 
   # need this because we can only have 1 object per sample id. this allows fast lookup by id.
   var by_name = newTable[string,ISample]()
 
+  if result.ctx.duk_peval_string_no_result(strictO):
+    var err = $result.ctx.duk_safe_to_string(-1)
+    raise newException(ValueError, err)
+  result.samples_ns = result.ctx.newStrictObject("samples")
+
   for sample in samples:
-    result.samples.add(ISample(ped_sample:sample, duk:result.samples_ns.newObject(sample.id)))
+    result.samples.add(ISample(ped_sample:sample, duk:result.samples_ns.newStrictObject(sample.id)))
     by_name[sample.id] = result.samples[result.samples.high]
 
   result.gno = g
   discard result.ctx.duk_push_c_function(debug, -1.cint)
   discard result.ctx.duk_put_global_string("debug")
+
 
   if trio_expressions != nil:
     for n, ex in trio_expressions:
@@ -166,8 +171,8 @@ proc newEvaluator*(samples: seq[Sample], groups: seq[Group], trio_expressions: T
   for kid in samples.trio_kids:
       result.trios.add([by_name[kid.id], by_name[kid.dad.id], by_name[kid.mom.id]])
 
-  result.INFO = result.ctx.newObject("INFO")
-  result.variant = result.ctx.newObject("variant")
+  result.INFO = result.ctx.newStrictObject("INFO")
+  result.variant = result.ctx.newStrictObject("variant")
   result.set_sample_attributes(by_name)
 
 proc clear*(ctx:var Evaluator) {.inline.} =

@@ -1,4 +1,5 @@
 import times
+import strutils
 import duktape/js
 export js
 
@@ -6,6 +7,7 @@ type Duko* = object
     ctx*: DTContext
     name*: string
     vptr*: pointer
+    strict: bool
 
 type Dukexpr* = object
     ## a compiled expression
@@ -87,10 +89,52 @@ proc check*(ctx: DTContext, expression: string): bool {.inline.} =
     result = ctx.duk_get_boolean(-1)
     ctx.pop()
 
+var strictO* = """
+var strictObject = function() {
+   return new Proxy({}, {
+      get: function(obj, prop) {
+        if(prop in obj) { return obj[prop] }
+        throw "unknown attribute:" + prop
+      }
+   })
+}
+function clear(obj) {
+   for(k in obj){
+       delete obj[k]
+   }
+}
+"""
+
+proc newStrictObject*(ctx: DTContext, name: string): Duko =
+  result = Duko(ctx: ctx, name: name, strict:true)
+  if ctx.duk_peval_string(name & "=strictObject()"):
+      var err = $ctx.duk_safe_to_string(-1)
+      raise newException(ValueError, err)
+
+  result.vptr = ctx.duk_get_heapptr(-1)
+  doAssert result.ctx.duk_put_global_lstring(name, name.len.duk_size_t)
+
+proc newStrictObject*(d: Duko, name: string): Duko =
+  var idx = d.ctx.duk_push_heapptr(d.vptr)
+  result = Duko(ctx: d.ctx, name: name, strict: true)
+
+  if d.ctx.duk_peval_string("strictObject"):
+      var err = $d.ctx.duk_safe_to_string(-1)
+      raise newException(ValueError, err)
+
+  if 0 != d.ctx.duk_pcall(0):
+      var err = $d.ctx.duk_safe_to_string(-1)
+      raise newException(ValueError, err)
+
+  result.vptr = d.ctx.duk_get_heapptr(-1)
+  doAssert result.ctx.duk_put_prop_lstring(idx, name, name.len.duk_size_t)
+  d.ctx.pop()
+
+
 proc newObject*(ctx:DTContext, name: string): Duko =
   ## create a new object.
   result = Duko(ctx: ctx, name: name)
-  discard ctx.duk_push_object()
+  discard ctx.duk_push_bare_object()
   result.vptr = ctx.duk_get_heapptr(-1)
   doAssert result.ctx.duk_put_global_lstring(name, name.len.duk_size_t)
 
@@ -104,7 +148,7 @@ proc alias*(o: Duko, copyname:string): Duko {.inline, discardable.} =
 proc newObject*(d:Duko, name: string): Duko =
   var idx = d.ctx.duk_push_heapptr(d.vptr)
   result = Duko(ctx: d.ctx, name: name)
-  discard d.ctx.duk_push_object()
+  discard d.ctx.duk_push_bare_object()
   result.vptr = d.ctx.duk_get_heapptr(-1)
   #discard result.ctx.duk_push_heapptr(result.vptr)
   doAssert result.ctx.duk_put_prop_lstring(idx, name, name.len.duk_size_t)
@@ -150,10 +194,20 @@ template `[]=`*(o:Duko, key:string, value: string) =
 
 template clear*(o: var Duko) =
   # TODO make this more efficient
-  #o.ctx.duk_eval_string(o.name & "= null")
-  discard o.ctx.duk_push_object()
-  o.vptr = o.ctx.duk_get_heapptr(-1)
-  doAssert o.ctx.duk_put_global_literal_raw(o.name, o.name.len.duk_size_t)
+  if o.strict:
+    discard
+    doAssert o.ctx.duk_get_global_string("clear")
+    discard o.ctx.duk_push_heapptr(o.vptr)
+    if o.ctx.duk_pcall(1):
+      var err = $o.ctx.duk_safe_to_string(-1)
+      raise newException(ValueError, err)
+    o.ctx.pop
+
+    #o = newStrictObject(o.ctx, o.name)
+  else:
+    discard o.ctx.duk_push_bare_object()
+    o.vptr = o.ctx.duk_get_heapptr(-1)
+    doAssert o.ctx.duk_put_global_literal_raw(o.name, o.name.len.duk_size_t)
 
 proc `[]=`*(o: Duko, key: string, values: seq[SomeNumber]) {.inline.} =
   var idx = o.ctx.duk_push_heapptr(o.vptr)
@@ -285,6 +339,21 @@ when isMainModule:
       obj["ab"] = false
       ctx.duk_eval_string("obj.ab ? 'YES' : 'NO'")
       check ctx.duk_get_string(-1) == "NO"
+      ctx.duk_destroy_heap()
+
+    test "strict object":
+      var ctx = duk_create_heap(nil, nil, nil, nil, my_fatal)
+      if ctx.duk_peval_string_no_result(strictO):
+        var err = $ctx.duk_safe_to_string(-1)
+        raise newException(ValueError, err)
+      doAssert ctx.duk_get_top == 0
+      var o = ctx.newStrictObject("st")
+      if ctx.duk_peval_string("st.a"):
+        var err = $ctx.duk_safe_to_string(-1)
+        doAssert ("unknown attribute" in $err)
+      else:
+        doAssert false
+
       ctx.duk_destroy_heap()
 
 
