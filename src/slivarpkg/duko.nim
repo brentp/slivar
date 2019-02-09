@@ -130,6 +130,13 @@ proc newStrictObject*(d: Duko, name: string): Duko =
   doAssert result.ctx.duk_put_prop_lstring(idx, name, name.len.duk_size_t)
   d.ctx.pop()
 
+proc del*(o: var Duko, keys: varargs[string]) {.inline.} =
+  ## delete the value at key from the object.
+  var idx = o.ctx.duk_push_heapptr(o.vptr)
+  for key in keys:
+    doAssert o.ctx.duk_del_prop_lstring(idx, key, key.len.duk_size_t) == 1
+  o.ctx.pop()
+
 proc clear*(o: var Duko) {.inline.} =
   if o.strict:
     var idx = o.ctx.duk_push_heapptr(o.vptr)
@@ -332,10 +339,32 @@ when isMainModule:
       obj["ab"] = true
       ctx.duk_eval_string("obj.ab ? 'YES' : 'NO'")
       check ctx.duk_get_string(-1) == "YES"
-      obj["ab"] = false
-      ctx.duk_eval_string("obj.ab ? 'YES' : 'NO'")
-      check ctx.duk_get_string(-1) == "NO"
+
       ctx.duk_destroy_heap()
+
+    test "duko.del removes key":
+      var ctx = duk_create_heap(nil, nil, nil, nil, my_fatal)
+      var obj = ctx.newObject("obj")
+
+      obj.del("ab")
+      ctx.duk_eval_string("obj.ab == undefined ? 'YES' : 'NO'")
+      check ctx.duk_get_string(-1) == "YES"
+
+      obj["ab"] = true
+
+      obj["ab"] = 123
+      obj["abc"] = 123
+      ctx.duk_eval_string("obj.ab")
+      check ctx.duk_get_number(-1) == 123.0
+      obj.del("ab", "abc") # or obj.del(@["ab", "abc"])
+
+      ctx.duk_eval_string("obj.ab == undefined ? 'YES' : 'NO'")
+      check ctx.duk_get_string(-1) == "YES"
+      ctx.duk_eval_string("obj.abc == undefined ? 'YES' : 'NO'")
+      check ctx.duk_get_string(-1) == "YES"
+
+      ctx.duk_destroy_heap()
+
 
     test "strict object":
       var ctx = duk_create_heap(nil, nil, nil, nil, my_fatal)
