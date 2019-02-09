@@ -98,37 +98,51 @@ var strictObject = function() {
       }
    })
 }
-function clear(obj) {
-   for(k in obj){
-       delete obj[k]
-   }
-}
 """
 
 proc newStrictObject*(ctx: DTContext, name: string): Duko =
-  result = Duko(ctx: ctx, name: name, strict:true)
-  if ctx.duk_peval_string(name & "=strictObject()"):
+  result = Duko(ctx: ctx, name: name, strict: true)
+
+  if not ctx.duk_get_global_string("strictObject"):
+    quit "must load strict code before calling"
+
+  if 0 != ctx.duk_pcall(0):
       var err = $ctx.duk_safe_to_string(-1)
       raise newException(ValueError, err)
-
   result.vptr = ctx.duk_get_heapptr(-1)
-  doAssert result.ctx.duk_put_global_lstring(name, name.len.duk_size_t)
+
+  doAssert ctx.duk_put_global_lstring(name, name.len.duk_size_t)
+  #ctx.pop()
 
 proc newStrictObject*(d: Duko, name: string): Duko =
   var idx = d.ctx.duk_push_heapptr(d.vptr)
   result = Duko(ctx: d.ctx, name: name, strict: true)
 
-  if d.ctx.duk_peval_string("strictObject"):
-      var err = $d.ctx.duk_safe_to_string(-1)
-      raise newException(ValueError, err)
+  if not d.ctx.duk_get_global_string("strictObject"):
+    quit "must load strict code before calling"
 
   if 0 != d.ctx.duk_pcall(0):
       var err = $d.ctx.duk_safe_to_string(-1)
       raise newException(ValueError, err)
 
+
   result.vptr = d.ctx.duk_get_heapptr(-1)
   doAssert result.ctx.duk_put_prop_lstring(idx, name, name.len.duk_size_t)
   d.ctx.pop()
+
+proc clear*(o: var Duko) {.inline.} =
+  if o.strict:
+    var idx = o.ctx.duk_push_heapptr(o.vptr)
+    o.ctx.duk_enum(idx, 1 shl 4)
+
+    while o.ctx.duk_next(-1, 0):
+      doAssert o.ctx.duk_del_prop(idx)
+    o.ctx.duk_pop_2()
+
+  else:
+    discard o.ctx.duk_push_bare_object()
+    o.vptr = o.ctx.duk_get_heapptr(-1)
+    doAssert o.ctx.duk_put_global_lstring(o.name, o.name.len.duk_size_t)
 
 
 proc newObject*(ctx:DTContext, name: string): Duko =
@@ -143,7 +157,7 @@ proc alias*(o: Duko, copyname:string): Duko {.inline, discardable.} =
   doAssert o.ctx.duk_push_heapptr(o.vptr) >= 0
   result = Duko(ctx: o.ctx, name:copyname)
   result.vptr = o.vptr
-  doAssert result.ctx.duk_put_global_literal_raw(copyname, copyname.len.duk_size_t)
+  doAssert result.ctx.duk_put_global_lstring(copyname, copyname.len.duk_size_t)
 
 proc newObject*(d:Duko, name: string): Duko =
   var idx = d.ctx.duk_push_heapptr(d.vptr)
@@ -192,23 +206,6 @@ template `[]=`*(o:Duko, key:string, value: string) =
       quit "problem setting:" & key & " -> " & $value
     o.ctx.pop()
 
-template clear*(o: var Duko) =
-  # TODO make this more efficient
-  if o.strict:
-    discard
-    doAssert o.ctx.duk_get_global_string("clear")
-    discard o.ctx.duk_push_heapptr(o.vptr)
-    if o.ctx.duk_pcall(1):
-      var err = $o.ctx.duk_safe_to_string(-1)
-      raise newException(ValueError, err)
-    o.ctx.pop
-
-    #o = newStrictObject(o.ctx, o.name)
-  else:
-    discard o.ctx.duk_push_bare_object()
-    o.vptr = o.ctx.duk_get_heapptr(-1)
-    doAssert o.ctx.duk_put_global_literal_raw(o.name, o.name.len.duk_size_t)
-
 proc `[]=`*(o: Duko, key: string, values: seq[SomeNumber]) {.inline.} =
   var idx = o.ctx.duk_push_heapptr(o.vptr)
   var arr_idx = o.ctx.duk_push_array()
@@ -233,7 +230,6 @@ proc `[]`*(o: Duko, key:string): float {.inline.} =
     doAssert o.ctx.duk_get_prop(idx)
     result = o.ctx.duk_get_number(-1).float
     o.ctx.duk_pop_n(2)
-
 
 when isMainModule:
   import unittest
