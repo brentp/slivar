@@ -80,7 +80,7 @@ Options:
   for s in ivcf.samples:
     samples.add(Sample(id:s))
 
-  var ev = newEvaluator(samples, groups, tbl, tbl, $args["--expr"], gno)
+  var ev = newEvaluator(samples, groups, tbl, tbl, $args["--expr"], gno, id2names(ivcf.header))
 
   ovcf.copy_header(ivcf.header)
   doAssert ovcf.write_header
@@ -92,15 +92,15 @@ Options:
 
   for variant in ivcf.variants($args["--region"]):
     total.inc
-    ev.clear()
 
     if ev.gno != nil:
       discard ev.gno.annotate(variant)
 
-    ev.set_infos(variant, ints, floats)
     ev.set_variant_fields(variant)
     variant.format.genotypes(ints).alts(alts)
     ev.set_calculated_variant_fields(alts)
+
+    ev.set_infos(variant, ints, floats)
 
     if needs_fmt:
       ev.set_format_fields(variant, alts, ints, floats)

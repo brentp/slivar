@@ -71,6 +71,10 @@ proc card*(b:intSet): int {.inline.} =
   for i in 0..b.values.high:
     result.inc(countSetbits(b.values[i]))
 
+template clear*(b:intSet) =
+  if len(b.values) > 0:
+    zeroMem(b.values[0].addr, b.values.len * sizeof(b.values[0]))
+
 proc `*`*(a:intSet, b:intSet): intSet {.inline.} =
   ## set intersection. note that this is fairly slow due to heap allocation
   ## of a new Seq.
@@ -78,9 +82,15 @@ proc `*`*(a:intSet, b:intSet): intSet {.inline.} =
   for i in 0..min(a.values.high, b.values.high):
     result.values[i] = a.values[i] and b.values[i]
 
-proc `*=`*(a:var intSet, b:intSet): intSet {.inline.} =
+iterator `-`*(a:intSet, b:intSet): int {.inline.} =
   for i in 0..max(a.values.high, b.values.high):
-    a.values[i] = a.values[i] and b.values[i]
+    if a.values[i] == b.values[i]: continue
+    var bt = (a.values[i] and not b.values[i])
+    while bt != 0:
+      var t = cast[uint64](bt and -bt)
+      var r = countTrailingZeroBits(bt)
+      yield i * 64 + r
+      bt = bt and not cast[int64](t)
 
 iterator items*(b:intSet): int =
   var i = 0
@@ -89,6 +99,7 @@ iterator items*(b:intSet): int =
     while x < b.values.len and b.values[x] == 0:
       i += 8
       x += 1
+    if x == b.values.len: break
     var w = b.values[x] shr (i and (wordSize - 1))
     if w != 0:
       i += countTrailingZeroBits(w)
@@ -106,6 +117,8 @@ proc `$`*(b:intSet): string =
 
 when isMainModule:
   import unittest
+  import sequtils
+
   suite "intSet":
     test "incl excl card contains":
       var b = initIntSet(100)
@@ -129,6 +142,14 @@ when isMainModule:
         b.incl(i)
       check b.card == 100
 
+    test "-":
+      var a = initIntSet(100)
+      var b = initIntSet(100)
+      for i in 0..10: a.incl(i)
+      for i in 5..15: b.incl(i)
+      b.incl(98)
+      check toSeq(a - b) == @[0, 1, 2, 3, 4]
+      check toSeq(b - a) == @[11, 12, 13, 14, 15, 98]
 
     test "+ - *":
       var a = initIntSet(100)
@@ -198,12 +219,21 @@ when isMainModule:
 
     (iset * jset).card
 
+  template contains_speed(): int {.dirty.} =
+    var found: int
+    for i in 0..N:
+      found = 0
+      for k in 0..63:
+        if k.uint8 in iset: found += 1
+      doAssert found == 40
+    found
+
   var N = 2000000
   when defined(release):
     N *= 10
 
   proc siset_iteration(): int =
-    var iset = initIntSet(64)
+    var iset = initIntSet(255)
     fill_set()
     iteration_speed()
 
@@ -213,7 +243,7 @@ when isMainModule:
     iteration_speed()
 
   proc siset_incl(): int =
-    var iset = initIntSet(64)
+    var iset = initIntSet(255)
     incl_speed()
 
   proc systemset_incl(): int =
@@ -221,9 +251,9 @@ when isMainModule:
     incl_speed()
 
   proc siset_intersect(): int =
-    var iset = initIntSet(64)
+    var iset = initIntSet(255)
     fill_set()
-    var jset = initIntSet(64)
+    var jset = initIntSet(255)
     for i in 41..49: jset.incl(i)
     intersect_speed()
 
@@ -233,6 +263,16 @@ when isMainModule:
     var jset : set[uint8]
     for i in 41..49: jset.incl(i.uint8)
     intersect_speed()
+
+  proc siset_contains(): int =
+    var iset = initIntSet(63)
+    fill_set()
+    contains_speed()
+
+  proc systemset_contains(): int =
+    var iset : set[uint8]
+    fill_set()
+    contains_speed()
 
   var t = cpuTime()
 
@@ -250,3 +290,8 @@ when isMainModule:
   echo "siset intersect:", siset_intersect(), " ", (cpuTime() - t)
   t = cpuTime()
   echo "system set intersect:", systemset_intersect(), " ", (cpuTime() - t)
+
+  t = cpuTime()
+  echo "siset contains:", siset_contains(), " ", (cpuTime() - t)
+  t = cpuTime()
+  echo "system set contains:", systemset_contains(), " ", (cpuTime() - t)

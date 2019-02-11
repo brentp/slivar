@@ -29,6 +29,18 @@ get hairy. Ideally, instead of isolating this in utils/vkgnomad.nim, it would be
 able to specify this behavior via the javascript expressions. For now, probably a few simple
 exceptions suffice.
 
+# filling sample and info fields
+
+slivar fills every sample with every FORMAT field. It also takes care to clear values. So,
+if variant `i` has `GT:GQ:DP:AD:PL` but variant `i+1` has only `GT:GQ:AD`, then `DP` and `PL`
+will be unavailable. This is required for correctness but required some extra engineering since
+deleting all attributes from all samples before each variant is quite expensive. Instead,
+`slivar` uses a bitset to see which format and info fields were used in the last variant vs in
+the current variant. It then takes `last - curr` and clears those values.
+Those sets are stored in `info_field_sets` and `fmt_field_sets`. There is also a lookup from the
+index (used by htslib) to the name (used for the duktape engine) so that slivar can delete the attribute
+from the duktape object by name.
+
 # compression
 
 I have to use the nim/zip/zipfiles for decompression and https://github.com/brentp/nim-minizip for

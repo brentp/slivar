@@ -1,8 +1,10 @@
 import hts/vcf
+import hts/private/hts_concat
 import math
 import bpbiopkg/pedfile
 import ./duko
 import ./gnotate
+import ./siset
 import ./groups
 import tables
 import strformat
@@ -31,6 +33,9 @@ type ISample = ref object
   ped_sample: pedfile.Sample
   duk: Duko
 
+type
+ idpair* = tuple[name:string, info:bool]
+
 type Trio = array[3, ISample] ## kid, dad, mom
 
 type IGroup* = object
@@ -45,11 +50,28 @@ type NamedExpression = object
   name: string
   expr: Dukexpr
 
+# at each iteration, we need to make sure there is no stale data left in any
+# of the `duk` objects. this could happen if, e.g. variant 123 had a `popmax_AF`
+# in the info field, but variant 124 did not.
+# Due to the implementation, we need tmp to keep the difference without extra allocations.
+# these sets keep the bcf_info_t.key and bcf_fmt_t.id
+type FieldSets = object
+  last: intSet
+  curr: intSet
+
+proc initFieldSets(n:int):FieldSets =
+  result.last = initIntSet(n)
+  result.curr = initIntSet(n)
+
 type Evaluator* = ref object
   ctx: DTContext
   trios: seq[Trio]
   groups: seq[IGroup]
   samples: seq[Isample]
+
+  field_names: seq[idpair]
+  info_field_sets: FieldSets
+  fmt_field_sets: FieldSets
   # samples is a name-space to store the samples.
   samples_ns: Duko
   INFO: Duko
@@ -129,7 +151,7 @@ proc make_igroups(ev:Evaluator, groups: seq[Group], by_name:TableRef[string, ISa
 
     result.add(ig)
 
-proc newEvaluator*(samples: seq[Sample], groups: seq[Group], trio_expressions: TableRef[string, string], group_expressions: TableRef[string, string], info_expr: string, g:Gnotater): Evaluator =
+proc newEvaluator*(samples: seq[Sample], groups: seq[Group], trio_expressions: TableRef[string, string], group_expressions: TableRef[string, string], info_expr: string, g:Gnotater, field_names:seq[idpair]): Evaluator =
   ## make a new evaluation context for the given string
   var my_fatal: duk_fatal_function = (proc (udata: pointer, msg:cstring) {.stdcall.} =
     stderr.write_line "slivar fatal error:"
@@ -138,6 +160,10 @@ proc newEvaluator*(samples: seq[Sample], groups: seq[Group], trio_expressions: T
 
   result = Evaluator(ctx:duk_create_heap(nil, nil, nil, nil, my_fatal))
   result.ctx.duk_require_stack_top(500000)
+
+  result.info_field_sets = initFieldSets(field_names.len+1)
+  result.fmt_field_sets = initFieldSets(field_names.len+1)
+  result.field_names = field_names
 
   # need this because we can only have 1 object per sample id. this allows fast lookup by id.
   var by_name = newTable[string,ISample]()
@@ -175,11 +201,15 @@ proc newEvaluator*(samples: seq[Sample], groups: seq[Group], trio_expressions: T
   result.variant = result.ctx.newStrictObject("variant")
   result.set_sample_attributes(by_name)
 
-proc clear*(ctx:var Evaluator) {.inline.} =
-  for s in ctx.samples:
-    s.duk.clear()
-  ctx.INFO.clear()
-  # don't need to clear variant as it always has the same stuff.
+proc id2names*(h:Header): seq[idpair] =
+  var hdr = h.hdr
+  result = newSeq[idpair](hdr.n[0])
+  for i in 0..<hdr.n[0].int:
+    var idp = cast[seq[bcf_idpair_t]](hdr.id[0])[i]
+    if idp.val == nil: continue
+    var name = idp.key
+    if idp.val.hrec[1] == nil and idp.val.hrec[2] == nil: continue
+    result[idp.val.id] = ($name, idp.val.hrec[1] != nil)
 
 proc set_ab(ctx: Evaluator, fmt:FORMAT, ints: var seq[int32], floats: var seq[float32]) =
   if fmt.get("AD", ints) != Status.OK:
@@ -230,6 +260,7 @@ proc set_format_field(ctx: Evaluator, f:FormatField, fmt:FORMAT, ints: var seq[i
 
 proc set_variant_fields*(ctx:Evaluator, variant:Variant) =
   ctx.variant["CHROM"] = $variant.CHROM
+  echo "setting start to:", variant.start
   ctx.variant["start"] = variant.start
   ctx.variant["stop"] = variant.stop
   ctx.variant["POS"] = variant.POS
@@ -281,30 +312,40 @@ proc set_calculated_variant_fields*(ctx:Evaluator, alts: var seq[int8]) =
   ctx.variant["num_hom_alt"] = counts[2]
   ctx.variant["num_unknown"] = counts[3]
 
-proc set_infos*(ctx:var Evaluator, variant:Variant, ints: var seq[int32], floats: var seq[float32]) =
+proc clear_unused_infos(ev: Evaluator, f:FieldSets) =
+  for idx in f.last - f.curr:
+    ev.INFO.del(ev.field_names[idx].name)
+
+proc set_infos*(ev:var Evaluator, variant:Variant, ints: var seq[int32], floats: var seq[float32]) =
   var istr: string = ""
   var info = variant.info
+
+  swap(ev.info_field_sets.last, ev.info_field_sets.curr)
+  ev.info_field_sets.curr.clear()
+
   for field in info.fields:
     if field.vtype == BCF_TYPE.FLOAT:
       if info.get(field.name, floats) != Status.OK:
         quit "couldn't get field:" & field.name
       if field.n == 1:
-          ctx.INFO[field.name] = floats[0]
+          ev.INFO[field.name] = floats[0]
       else:
-          ctx.INFO[field.name] = floats
+          ev.INFO[field.name] = floats
     elif field.vtype == BCF_TYPE.CHAR:
       var ret = info.get(field.name, istr)
       if ret != Status.OK:
         quit "couldn't get field:" & field.name & " status:" & $ret
         # NOTE: all set as a single string for now.
-      ctx.INFO[field.name] = istr
+      ev.INFO[field.name] = istr
     elif field.vtype in {BCF_TYPE.INT32, BCF_TYPE.INT16, BCF_TYPE.INT8}:
       if info.get(field.name, ints) != Status.OK:
         quit "couldn't get field:" & field.name
       if field.n == 1:
-          ctx.INFO[field.name] = ints[0]
+          ev.INFO[field.name] = ints[0]
       else:
-          ctx.INFO[field.name] = ints
+          ev.INFO[field.name] = ints
+    ev.info_field_sets.curr.incl(field.i)
+  ev.clear_unused_infos(ev.info_field_sets)
 
 type exResult = tuple[name:string, sampleList:seq[string]]
 
@@ -371,40 +412,58 @@ iterator evaluate_groups(ev:Evaluator, nerrors: var int, variant:Variant): exRes
         ev.INFO[namedexpr.name] = join(matching_groups, ",")
         yield (namedexpr.name, matching_groups)
 
-proc set_format_fields*(ctx:var Evaluator, v:Variant, alts: var seq[int8], ints: var seq[int32], floats: var seq[float32]) =
+template clear_unused_formats(ev:Evaluator) =
+  for idx in ev.fmt_field_sets.last - ev.fmt_field_sets.curr:
+    for sample in ev.samples:
+      sample.duk.del(ev.field_names[idx].name)
+
+proc set_format_fields*(ev:var Evaluator, v:Variant, alts: var seq[int8], ints: var seq[int32], floats: var seq[float32]) =
   # fill the format fields
+
+  swap(ev.fmt_field_sets.last, ev.fmt_field_sets.curr)
+  ev.fmt_field_sets.curr.clear()
+
   var fmt = v.format
   var has_ad = false
   var has_ab = false
   for f in fmt.fields:
+    ev.fmt_field_sets.curr.incl(f.i)
     if f.name == "GT": continue
     if f.name == "AD": has_ad = true
     elif f.name == "AB": has_ab = true
-    ctx.set_format_field(f, fmt, ints, floats)
+    ev.set_format_field(f, fmt, ints, floats)
   if has_ad and not has_ab:
-    ctx.set_ab(fmt, ints, floats)
+    ev.set_ab(fmt, ints, floats)
 
-  for sample in ctx.samples:
+  for sample in ev.samples:
     sample.fill("alts", alts, 1)
 
-iterator evaluate*(ctx:var Evaluator, variant:Variant, nerrors:var int): exResult =
-  ctx.clear()
+  ev.clear_unused_formats()
 
-  if ctx.gno != nil:
-    discard ctx.gno.annotate(variant)
+
+iterator evaluate*(ev:var Evaluator, variant:Variant, nerrors:var int): exResult =
+
+  if ev.gno != nil:
+    discard ev.gno.annotate(variant)
   var ints = newSeq[int32](3 * variant.n_samples)
   var floats = newSeq[float32](3 * variant.n_samples)
 
   ## the most expensive part is pulling out the format fields so we pull all fields
   ## and set values for all samples in the trio list.
   ## once all that is done, we evaluate the expressions.
-  ctx.set_infos(variant, ints, floats)
-  ctx.set_variant_fields(variant)
+  ## the field_sets make it so that we only clear fields from the duk objects that were
+  ## set last variant, but not this variant.
+  ev.set_variant_fields(variant)
   var alts = variant.format.genotypes(ints).alts
-  ctx.set_calculated_variant_fields(alts)
+  ev.set_calculated_variant_fields(alts)
+  # set_infos also updates field_sets.curr
+  ev.set_infos(variant, ints, floats)
 
-  if ctx.info_expression.ctx == nil or ctx.info_expression.check:
-    ctx.set_format_fields(variant, alts, ints, floats)
-    for r in ctx.evaluate_trios(nerrors, variant): yield r
-    for r in ctx.evaluate_groups(nerrors, variant): yield r
+  # clear any field in last variant but not in this one.
+
+
+  if ev.info_expression.ctx == nil or ev.info_expression.check:
+    ev.set_format_fields(variant, alts, ints, floats)
+    for r in ev.evaluate_trios(nerrors, variant): yield r
+    for r in ev.evaluate_groups(nerrors, variant): yield r
 

@@ -14,6 +14,7 @@ import times
 import strformat
 import docopt
 
+
 proc expr_main*(dropfirst:bool=false) =
   let doc = """
 slivar -- variant expression for great good
@@ -109,8 +110,7 @@ Options:
   if $args["--group-expr"] != "nil":
     grpTbl = ovcf.getExpressionTable(@(args["--group-expr"]), $args["--vcf"])
   doAssert ovcf.write_header
-
-  var ev = newEvaluator(samples, groups, trioTbl, grpTbl, $args["--info"], gno)
+  var ev = newEvaluator(samples, groups, trioTbl, grpTbl, $args["--info"], gno, field_names=id2names(ivcf.header))
 
   if $args["--js"] != "nil":
     var js = $readFile($args["--js"])
