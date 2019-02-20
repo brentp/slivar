@@ -106,7 +106,6 @@ normal.alts == 0 && normal.DP > 10 \
 to find a somatic variant that has increasing frequency (AB is allele balance) along the tumor time-points.
 
 
-```
 ### Gnotate
 
 This uses a compressed, reduced representation of gnomad allele frequencies **and FILTERs** to reduce from the 600+ GB of data for the
