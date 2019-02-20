@@ -1,9 +1,20 @@
 # slivar: filter/annotate variants in VCF/BCF format with simple expressions
 
 slivar has sub-commands:
-+ expr: trio and group expressions and filtering
-+ gnotate: rapidly annotate a VCF/BCF with gnomad
++ [expr](#expr): trio and group expressions and filtering
++ [gnotate](#gnotate): rapidly annotate a VCF/BCF with gnomad
 + filter: filter a VCF with an expression
+
+# Table of Contents
+
+* [Commands](#commands)
+ * [expr](#expr)
+    * [trio](#trio)
+    * [Groups](#groups)
+ * [Gnotate](#gnotate)
+* [Installation](#installation)
+* [Attributes](#attributes)
+* [How it works](#how-it-works)
 
 
 ## Commands
@@ -121,7 +132,7 @@ get the latest binary from: https://github.com/brentp/slivar/releases/latest
 
 or use via docker from: [brentp/slivar:latest](https://hub.docker.com/r/brentp/slivar)
 
-### Attributes
+## Attributes
 
  + anything in the INFO is available as e.g. INFO.CSQ
  + if FORMAT.AB is not present, it is added so one can filter with kid.AB > 0.25 && kid.AB < 0.75
