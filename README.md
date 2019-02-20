@@ -67,7 +67,7 @@ slivar gnotate --vcf $input_vcf -o $output_bcf --threads 3 -g gnomad-2.1.zip
 
 get the latest binary from: https://github.com/brentp/slivar/releases/latest
 
-or use via docker from: [brentp/slivar:latest](https://cloud.docker.com/repository/docker/brentp/slivar)
+or use via docker from: [brentp/slivar:latest](https://hub.docker.com/r/brentp/slivar)
 
 ### Attributes
 
