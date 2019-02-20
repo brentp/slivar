@@ -10,6 +10,10 @@ slivar has sub-commands:
 
 ### expr
 
+`expr` allows filtering on (abstracted) trios and groups. For example, given a VCF (and ped/fam file) with
+100 trios, `slivar` will apply an expression with `kid`, `mom`, `dad` identifiers to each trio that it automatically
+extracts.
+
 #### trio
 
 when --trio is used, `slivar` finds all trios in a VCF, PED pair and let's the user specify an expression with indentifiers
@@ -54,6 +58,55 @@ slivar expr \
 Note that `slivar` does not give direct access to the genotypes, instead exposing `alts` where 0 is homozygous reference, 1 is heterozygous, 2 is
 homozygous alternate and -1 when the genotype is unknown. It is recommended to **decompose** a VCF before sending to `slivar`
 
+#### Groups
+
+A `trio` is a special-case of a `group` that can be inferred from a pedigree. For more specialized use-cases, a `group` can be
+specified. For example we could, instead of  using `--trio`, use a `group` file like:
+```
+#kid	mom	dad
+sample1	sample2	sample3
+sample4	sample5	sample6
+sample7	sample8	sample9
+```
+
+Where, here we have specified 3 trios below a header with their "labels". This can be accomplished using `--trio`, but we can
+for example specify quartets like this:
+
+```
+#kid	mom	dad	sibling
+sample1	sample2	sample3	sample10
+sample4	sample5	sample6	sample11
+sample7	sample8	sample9	sample12
+```
+
+where `sample10` will be available as "sibling" in the first family and an expression like:
+```
+kid.alts == 1 && mom.alts == 0 && dad.alts == 0 and sibling.alts == 0
+```
+could be specified and it would automatically be applied to each of the 3 families.
+
+Another example could be looking at somatic variants with 3 samples, each with a normal and 4 time-points of a tumor:
+```
+#normal	tumor1	tumor2	tumor3	tumor4
+ss1	ss8	ss9	ss10	ss11
+ss2	ss12	ss13	ss14	ss15	
+ss3	ss16	ss17	ss18	ss19	
+```
+
+where, again each row is a sample and the ID's (starting with "ss") will be injected for each sample to allow a single
+expression like:
+```
+normal.alts == 0 && normal.DP > 10 \
+  && tumor1.AB > 0 \
+  && tumor1.AB < tumor2.AB \
+  && tumor2.AB < tumor3.AB \
+  && tumor3.AB < tumor4.AB
+```
+
+to find a somatic variant that has increasing frequency (AB is allele balance) along the tumor time-points.
+
+
+```
 ### Gnotate
 
 This uses a compressed, reduced representation of gnomad allele frequencies **and FILTERs** to reduce from the 600+ GB of data for the
