@@ -1,18 +1,18 @@
 import algorithm
 
 type encoded = object
-  filter {.bitsize: 2} : uint64 ## whether a non-pass filter is set on the variant.
-  enc {.bitsize: 26} : uint64
-  alen {.bitsize: 4} : uint64
-  rlen {.bitsize: 4} : uint64
-  pos {.bitsize: 28} : uint64
+  filter {.bitsize: 2.} : uint64 ## whether a non-pass filter is set on the variant.
+  enc {.bitsize: 26.} : uint64
+  alen {.bitsize: 4.} : uint64
+  rlen {.bitsize: 4.} : uint64
+  pos {.bitsize: 28.} : uint64
 
 const MaxCombinedLen* = 13
 
 type pfra* = object
   # position,ref,alt
   position*: uint32
-  filter: bool
+  filter*: bool
   reference*: string
   alternate*: string
 
@@ -124,16 +124,21 @@ when isMainModule:
       var v = encode(1232434'u32, "AAAAAAAAAAAAAAAAA", "TTTTTTTTTTTTTTTTTTT", false)
       check (cast[encoded](v)).pos == 1232434'u64
       check (cast[encoded](v)).rlen == 0
+      check (cast[encoded](v)).filter == 0
+      v = encode(1232434'u32, "AAAAAAAAAAAAAAAAA", "TTTTTTTTTTTTTTTTTTT", true)
+      check (cast[encoded](v)).filter == 1
 
       var d = v.decode
       check d.reference == ""
+      check d.filter == true
       check d.alternate == ""
       check d.position == 1232434
 
     test "that encode/decode roundtrip works":
-      var v = encode(122434'u32, "AAAAAA", "TTTT", false)
+      var v = encode(122434'u32, "AAAAAA", "TTTT", true)
       echo v
       var d = v.decode
+      check d.filter
       echo d
 
     test "ordering":

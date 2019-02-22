@@ -9,16 +9,16 @@ import os
 
 proc main*(dropfirst:bool=false) =
   let doc = """
-slivar gnotate -- annotate a VCF quickly with a compressed gnomad representation.
+slivar gnotate -- annotate a VCF quickly with a compressed gnotate representation.
 
-Usage: slivar gnotate [--out-vcf <path> --vcf <path> --gnomad <zip_path> --threads <int>]
+Usage: slivar gnotate [--out-vcf <path> --vcf <path> --gnotate <zip_path>... --threads <int>]
 
 Options:
 
-  -v --vcf <path>       VCF/BCF to annotate
-  -o --out-vcf <path>   VCF/BCF [default: /dev/stdout]
-  -t --threads <int>    number of (de)compression threads [default: 2]
-  -g --gnomad <path>    path compressed gnomad allele frequencies distributed at: https://github.com/brentp/slivar/releases
+  -v --vcf <path>              VCF/BCF to annotate
+  -o --out-vcf <path>          VCF/BCF [default: annotated.bcf]
+  -t --threads <int>           number of (de)compression threads [default: 2]
+  -g --gnotate <zip_path>...   path compressed gnotate file
   """
 
   var args: Table[string, docopt.Value]
@@ -29,13 +29,13 @@ Options:
     args = docopt(doc)
   echo $args
 
-  if $args["--gnomad"] == "nil":
+  if $args["--gnotate"] == "nil":
     stderr.write_line "[slivar] must pass zip file for annotation"
 
   var
     ivcf:VCF
     ovcf:VCF
-    gno:Gnotater
+    gnos:seq[Gnotater]
     threads = parseInt($args["--threads"])
 
   if not open(ivcf, $args["--vcf"], threads=threads):
@@ -45,9 +45,11 @@ Options:
 
 
   var t = cpuTime()
-  # (g:var Gnotater, path: string, name:string="gnomad_af", tmpDir:string="/tmp", include_missing:bool=true)
-  doAssert gno.open($args["--gnomad"])
-  gno.update_header(ivcf)
+  for p in @(args["--gnotate"]):
+    var gno: Gnotater
+    doAssert gno.open(p, name=splitFile(p).name)
+    gno.update_header(ivcf)
+    gnos.add(gno)
   var
     anns:int
     noanns:int
@@ -55,7 +57,11 @@ Options:
   ovcf.copy_header(ivcf.header)
   doAssert ovcf.write_header
   for v in ivcf:
-    if gno.annotate(v):
+    var any = false
+    for gno in gnos.mitems:
+      if gno.annotate(v):
+        any = true
+    if any:
       anns.inc
     else:
       noanns.inc
@@ -63,7 +69,8 @@ Options:
 
   ivcf.close()
   ovcf.close()
-  gno.close()
+  for gno in gnos.mitems:
+    gno.close()
 
   var d = cpuTime() - t
   stderr.write_line &"[slivar] annotated {anns+noanns} variants in {d:.2f} seconds -- {float64(anns+noanns)/d:.1f} variants/second."

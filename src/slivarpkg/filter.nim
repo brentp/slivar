@@ -27,13 +27,13 @@ Usage: slivar filter [options]
 
 Options:
 
-  -v --vcf <path>       VCF/BCF
-  --region <string>     optional region to limit evaluation. e.g. chr1 or 1:222-333
-  -j --js <path>        path to javascript functions to expose to user
-  -f --format           format fields are required (by default per-sample information is not avaiable use this flag to make it so).
-  -g --gnomad <zip>     optional path to gnomad zip file.
-  -o --out-vcf <path>   VCF/BCF
-  --expr <string>       a filtering expression
+  -v --vcf <path>             VCF/BCF
+  --region <string>           optional region to limit evaluation. e.g. chr1 or 1:222-333
+  -j --js <path>              path to javascript functions to expose to user
+  -f --format                 format fields are required (by default per-sample information is not avaiable use this flag to make it so).
+  -g --gnotate <zip>...       optional path to gnotate zip file.
+  -o --out-vcf <path>         VCF/BCF
+  --expr <string>             a filtering expression
   """
 
   var args: Table[string, docopt.Value]
@@ -55,7 +55,7 @@ Options:
   var
     ivcf:VCF
     ovcf:VCF
-    gno:Gnotater
+    gnos:seq[Gnotater]
     tbl: TableRef[string, string]
     pass:int
     total:int
@@ -67,9 +67,11 @@ Options:
   if not open(ovcf, $args["--out-vcf"], mode="w", threads=2):
     quit "couldn't open:" & $args["--out-vcf"]
 
-  if $args["--gnomad"] != "nil":
-    doAssert gno.open($args["--gnomad"])
+  for p in @(args["--gnotate"]):
+    var gno:Gnotater
+    doAssert gno.open(p, name=splitFile(p).name)
     gno.update_header(ivcf)
+    gnos.add(gno)
 
   if args["--format"]:
     needs_fmt = true
@@ -80,7 +82,7 @@ Options:
   for s in ivcf.samples:
     samples.add(Sample(id:s))
 
-  var ev = newEvaluator(samples, groups, tbl, tbl, $args["--expr"], gno, id2names(ivcf.header))
+  var ev = newEvaluator(samples, groups, tbl, tbl, $args["--expr"], gnos, id2names(ivcf.header))
 
   ovcf.copy_header(ivcf.header)
   doAssert ovcf.write_header
@@ -93,8 +95,8 @@ Options:
   for variant in ivcf.variants($args["--region"]):
     total.inc
 
-    if ev.gno != nil:
-      discard ev.gno.annotate(variant)
+    for gno in ev.gnos.mitems:
+      discard gno.annotate(variant)
 
     ev.set_variant_fields(variant)
     variant.format.genotypes(ints).alts(alts)

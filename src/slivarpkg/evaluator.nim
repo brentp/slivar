@@ -76,7 +76,7 @@ type Evaluator* = ref object
   samples_ns: Duko
   INFO: Duko
   variant: Duko
-  gno*:Gnotater
+  gnos*:seq[Gnotater]
   trio_expressions: seq[NamedExpression]
   group_expressions: seq[NamedExpression]
   info_expression*: Dukexpr
@@ -151,7 +151,7 @@ proc make_igroups(ev:Evaluator, groups: seq[Group], by_name:TableRef[string, ISa
 
     result.add(ig)
 
-proc newEvaluator*(samples: seq[Sample], groups: seq[Group], trio_expressions: TableRef[string, string], group_expressions: TableRef[string, string], info_expr: string, g:Gnotater, field_names:seq[idpair]): Evaluator =
+proc newEvaluator*(samples: seq[Sample], groups: seq[Group], trio_expressions: TableRef[string, string], group_expressions: TableRef[string, string], info_expr: string, gnos:seq[Gnotater], field_names:seq[idpair]): Evaluator =
   ## make a new evaluation context for the given string
   var my_fatal: duk_fatal_function = (proc (udata: pointer, msg:cstring) {.stdcall.} =
     stderr.write_line "slivar fatal error:"
@@ -177,7 +177,7 @@ proc newEvaluator*(samples: seq[Sample], groups: seq[Group], trio_expressions: T
     result.samples.add(ISample(ped_sample:sample, duk:result.samples_ns.newStrictObject(sample.id)))
     by_name[sample.id] = result.samples[result.samples.high]
 
-  result.gno = g
+  result.gnos = gnos
   discard result.ctx.duk_push_c_function(debug, -1.cint)
   discard result.ctx.duk_put_global_string("debug")
 
@@ -441,9 +441,8 @@ proc set_format_fields*(ev:var Evaluator, v:Variant, alts: var seq[int8], ints: 
 
 
 iterator evaluate*(ev:var Evaluator, variant:Variant, nerrors:var int): exResult =
-
-  if ev.gno != nil:
-    discard ev.gno.annotate(variant)
+  for gno in ev.gnos.mitems:
+    discard gno.annotate(variant)
   var ints = newSeq[int32](3 * variant.n_samples)
   var floats = newSeq[float32](3 * variant.n_samples)
 

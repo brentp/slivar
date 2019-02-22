@@ -6,6 +6,7 @@ import ./slivarpkg/groups
 
 import ./slivarpkg/gnotate
 import ./slivarpkg/sl_gnotate
+import ./slivarpkg/make_gnotate
 import ./slivarpkg/filter
 import strutils
 import hts/vcf
@@ -51,7 +52,7 @@ Options:
   --group-expr <string>...   expressions applied to the groups defined in the alias option.
   --info <string>            a filter expression using only variables from  the info field and variant attributes. If this filter
                              does not pass, the trio and alias expressions will not be applied.
-  -g --gnomad <path>          optional path compressed gnomad allele frequencies distributed at: https://github.com/brentp/slivar/releases
+  -g --gnotate <path>...     optional paths compressed gnote file (made with slivar make-gnotate)
   """
 
   var args: Table[string, docopt.Value]
@@ -74,7 +75,7 @@ Options:
     ivcf:VCF
     ovcf:VCF
     groups: seq[Group]
-    gno:Gnotater
+    gnos:seq[Gnotater]
     samples:seq[Sample]
 
   if not open(ivcf, $args["--vcf"], threads=1):
@@ -96,9 +97,12 @@ Options:
   if $args["--alias"] != "nil":
     groups = parse_groups($args["--alias"], samples)
 
-  if $args["--gnomad"] != "nil":
-    doAssert gno.open($args["--gnomad"])
-    gno.update_header(ivcf)
+  if $args["--gnotate"] != "nil":
+    for p in @(args["--gnotate"]):
+      var gno:Gnotater
+      doAssert gno.open(p, name=splitFile(p).name)
+      gno.update_header(ivcf)
+      gnos.add(gno)
 
   ovcf.copy_header(ivcf.header)
   var
@@ -110,7 +114,7 @@ Options:
   if $args["--group-expr"] != "nil":
     grpTbl = ovcf.getExpressionTable(@(args["--group-expr"]), $args["--vcf"])
   doAssert ovcf.write_header
-  var ev = newEvaluator(samples, groups, trioTbl, grpTbl, $args["--info"], gno, field_names=id2names(ivcf.header))
+  var ev = newEvaluator(samples, groups, trioTbl, grpTbl, $args["--info"], gnos, field_names=id2names(ivcf.header))
 
   if $args["--js"] != "nil":
     var js = $readFile($args["--js"])
@@ -158,6 +162,7 @@ proc main*() =
   var dispatcher = {
     "expr": pair(f:expr_main, description:"trio and group expressions and filtering"),
     "gnotate": pair(f:sl_gnotate.main, description:"rapidly annotate a VCF/BCF with a gnotate.zip file"),
+    "make-gnotate": pair(f:make_gnotate.main, description:"make a gnotate zip file for a given VCF"),
     "filter": pair(f:filter.main, description:"filter a vcf with javascript expressions"),
     }.toTable
 

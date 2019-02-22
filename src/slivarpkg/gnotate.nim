@@ -12,16 +12,13 @@ import zip/zipfiles
 import ./pracode
 import hts
 
-type packed = object
-  value {.bitsize: 27.}: float32
-  flag {.bitsize: 5.}: float32
-
 type Long* = object
   # values that are too long to be encoded get put here.
   position*: uint32
   reference*: string
   alternate*: string
   value: float32
+  filter: bool
 
 # Same as Missing in htslib
 const MissingVal = float32(0x7F800001) # float32.low
@@ -34,7 +31,6 @@ type Gnotater* = ref object
   encs: seq[uint64] ## encoded position,ref,alt. alts > 1 are encoding a FILTER as well.
   values: seq[float32] ## encoded values, e.g. allele frequencies from gnomad.
   longs: seq[Long] ## pos, ref, alt, af for long variants
-  filters: seq[string] ## ordered FILTER fields from gnomad
   chroms: seq[string] ## list of chroms available in the index.
   tmpDir: string
 
@@ -53,13 +49,8 @@ proc open*(g:var Gnotater, path: string, name:string="gnomad_af", tmpDir:string=
   g = Gnotater(name:name, tmpDir:tmpDir, missing_value:missing_val)
   if not open(g.zip, path):
     return false
-  var path = g.tmpDir / "filters.txt"
-  g.zip.extract_file("sli.var/filters.txt", path)
-  for l in path.lines:
-    g.filters.add(l.strip)
-  removeFile(path)
 
-  path = g.tmpDir / "chroms.txt"
+  var path = g.tmpDir / "chroms.txt"
   g.zip.extract_file("sli.var/chroms.txt", path)
   for l in path.lines:
     g.chroms.add(l.strip)
@@ -82,6 +73,8 @@ proc parseLong(line: string): Long {.inline.} =
     elif i == 2:
       result.alternate = t
     elif i == 3:
+      result.filter = t[0] == 't'
+    elif i == 4:
       result.value = parseFloat(t)
       return
   if i < 3:
@@ -100,7 +93,7 @@ proc readLongs(g:var Gnotater, chrom: string) =
   st.close()
 
 proc readEncs(g:Gnotater, chrom: string) =
-  var st = g.zip.getStream(&"sli.var/{chrom}/gnotate-variants.bin")
+  var st = g.zip.getStream(&"sli.var/{chrom}/gnotate-variant.bin")
   var chunk = 21660531 # this is the exact number of elements in chr1 so it makes this the fastest
   if g.encs.len > chunk:
     g.encs.setLen(chunk)
@@ -115,7 +108,7 @@ proc readEncs(g:Gnotater, chrom: string) =
   st.close()
 
 proc readAfs(g: var Gnotater, chrom: string) =
-  var st = g.zip.getStream(&"sli.var/{chrom}/gnotate-values.bin")
+  var st = g.zip.getStream(&"sli.var/{chrom}/gnotate-value.bin")
   var chunk = 21660531
   shallow(g.values)
   if g.values.len > chunk:
@@ -194,7 +187,7 @@ proc annotate*(g:var Gnotater, v:Variant): bool {.inline.} =
 
   var q:pfra
   var alt = if likely(len(v.ALT) > 0): v.ALT[0] else: "."
-  if unlikely(v.REF.len + alt.len > 14):
+  if unlikely(v.REF.len + alt.len > MaxCombinedLen):
     q = pfra(position:v.start.uint32)
   else:
     q = pfra(position:v.start.uint32, reference:v.REF, alternate:alt)
@@ -203,9 +196,10 @@ proc annotate*(g:var Gnotater, v:Variant): bool {.inline.} =
     return g.annotate_missing(v)
 
   var value = g.values[i]
-  var filter:string
 
   var match = g.encs[i].decode
+  var filtered = match.filter
+
   if match.reference.len == 0:
     # should find this position in the longs
     var l = Long(position:v.start.uint32, reference:v.REF, alternate:alt)
@@ -219,16 +213,7 @@ proc annotate*(g:var Gnotater, v:Variant): bool {.inline.} =
       i += 1
 
     value = g.longs[i].value
-
-  if value > 1:
-    # the value also stores the ith flag.
-    # 0 is pass and 1 is unused so if the value is > 1
-    # e.g. 2.001 means the 2nd flag and an AF of 0.001
-    var ifilt = value.int
-    filter = g.filters[ifilt]
-    value -= ifilt.float32
-    if value > 1:
-      echo ifilt, " ", value, " filter:", filter, " ifilt:", ifilt
+    filtered = g.longs[i].filter
 
   var values = @[value]
   if v.info.set(g.name, values) != Status.OK:
@@ -236,31 +221,34 @@ proc annotate*(g:var Gnotater, v:Variant): bool {.inline.} =
     echo v.tostring()
     quit &"couldn't set info of {g.name} to {values[0]}"
 
-  if filter.len > 0 and filter != "PASS":
-    if v.info.set(g.name & "_filter", filter) != Status.OK:
-      quit &"couldn't set info of {g.name & \"_filter\"} to {filter}"
+  if filtered:
+    if v.info.set(g.name & "_filter", true) != Status.OK:
+      quit &"couldn't set info flag {g.name & \"_filter\"}"
   return true
 
 proc update_header*(g:Gnotater, ivcf:VCF) =
-  doAssert ivcf.header.add_info(g.name, "1", "Float", "field from from gnomad VCF") == Status.OK
-  doAssert ivcf.header.add_info(g.name & "_filter", "1", "String", "flag from gnomad VCF") == Status.OK
+  doAssert ivcf.header.add_info(g.name, "1", "Float", "field from from gnotate VCF") == Status.OK
+  doAssert ivcf.header.add_info(g.name & "_filter", "0", "Flag", "non-passing flag in gnotate source VCF") == Status.OK
 
 when isMainModule:
   import times
 
-  var vcf_path = commandLineParams()[0]
+  var vcf_path = paramStr(1)
 
   var ivcf:VCF
   if not open(ivcf, vcf_path, threads=2):
     quit "couldn't open path" & vcf_path
 
   var ovcf:VCF
-  if not open(ovcf, "t.bcf", mode="w", threads=2):
+  if not open(ovcf, "t.bcf", mode="wb", threads=3):
     quit "couldn't open output file"
 
+  var name = paramStr(3)
+  var original_field = paramStr(4)
+
   var g:Gnotater
-  var zip_path = commandLineParams()[1]
-  doAssert g.open(zip_path, name="gnomad_af", tmpDir="/tmp", missing_val= -1.0'f32)
+  var zip_path = paramStr(2)
+  doAssert g.open(zip_path, name=name, tmpDir="/tmp", missing_val= -1.0'f32)
   g.update_header(ivcf)
 
   ovcf.copy_header(ivcf.header)
@@ -281,7 +269,7 @@ when isMainModule:
 
   ## now open the output file and check that values match.
   var floats = newSeq[float32]()
-  var strings = ""
+  var ints = newSeq[int32]()
   if not open(ivcf, "t.bcf", threads=3):
     quit "couldn't open file to check"
 
@@ -295,10 +283,10 @@ when isMainModule:
     var filt = v.FILTER
 
     var oaf = 0'f32
-    if v.info.get("AF_popmax", floats) != Status.OK:
+    if v.info.get(original_field, ints) != Status.OK:
       if filt == "PASS":
         if nmiss < 10:
-          echo "missing AF_popmax not annotated:" & v.tostring()[0..150]
+          echo "not annotated:" & v.tostring()[0..150]
         nmiss += 1
     else:
       oaf = floats[0]
@@ -311,12 +299,8 @@ when isMainModule:
           echo "FAIL: differing values for:" & v.tostring()
           quit "got:" & $aaf & " expected:" & $oaf
 
-    if v.info.get("gnomad_af_filter", strings) != Status.OK and filt != "PASS":
+    if not v.info.has_flag(name & "_filter") and filt != "PASS":
         quit "FAIL: no filter found for " & v.tostring()
 
-    if filt == "PASS": filt = ""
-    if filt != strings:
-      echo  "FAIL: differing filters found for " & v.tostring()
-      quit "got:" & strings & " expected:" & filt
     n += 1
   echo "PASS:", $n, " variants tested with max difference:", max_diff

@@ -3,6 +3,7 @@
 slivar has sub-commands:
 + [expr](#expr): trio and group expressions and filtering
 + [gnotate](#gnotate): rapidly annotate a VCF/BCF with gnomad
++ [make-gnotate](#gnotate): make a compressed zip file of annotations for use by slivar
 + filter: filter a VCF with an expression
 
 # Table of Contents
@@ -52,7 +53,7 @@ slivar expr \
    --pass-only \ # output only variants that pass one of the filters (default is to output all variants)
    --vcf $vcf \
    --ped $ped \
-   --gnomad $gnomad_zip \ # a compressed gnomad zip that allows fast annotation so that `gnomad_af` is available in the expressions below.
+   --gnotate $gnomad_af.zip \ # a compressed gnomad zip that allows fast annotation so that `gnomad_af` is available in the expressions below.
    --load functions.js \ # any valid javascript is allowed here.
    --out-vcf annotated.bcf \
    --info "variant.call_rate > 0.9" \ # this filter is applied before the trio filters and can speed evaluation if it is stringent.
