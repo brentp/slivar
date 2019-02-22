@@ -12,22 +12,29 @@ import zip/zipfiles
 import ./pracode
 import hts
 
+type packed = object
+  value {.bitsize: 27.}: float32
+  flag {.bitsize: 5.}: float32
+
 type Long* = object
-  # Too long to be encoded
+  # values that are too long to be encoded get put here.
   position*: uint32
   reference*: string
   alternate*: string
-  af: float32
+  value: float32
+
+# Same as Missing in htslib
+const MissingVal = float32(0x7F800001) # float32.low
 
 type Gnotater* = ref object
   zip: ZipArchive
   name*: string ## this is what gets set in the INFO. e.g. 'gnomad_af'.
-  include_missing: bool ## annotate variants absent from gnomad with an allele frequency of -1.0
+  missing_value: float32 ## annotate variants absent from gnomad with an allele frequency of -1.0
   chrom: cstring ## this tracks the current chromosome.
   encs: seq[uint64] ## encoded position,ref,alt. alts > 1 are encoding a FILTER as well.
-  afs: seq[float32] ## allele frequencies from gnomad.
+  values: seq[float32] ## encoded values, e.g. allele frequencies from gnomad.
   longs: seq[Long] ## pos, ref, alt, af for long variants
-  filters: seq[string] ## FILTER fields from gnomad
+  filters: seq[string] ## ordered FILTER fields from gnomad
   chroms: seq[string] ## list of chroms available in the index.
   tmpDir: string
 
@@ -42,8 +49,8 @@ proc cmp_long*(a, b:Long): int =
   # can't compare .af here because it screws up lower bound
   return cmp(a.alternate.len, b.alternate.len)
 
-proc open*(g:var Gnotater, path: string, name:string="gnomad_af", tmpDir:string="/tmp", include_missing:bool=true): bool =
-  g = Gnotater(name:name, tmpDir:tmpDir, include_missing:include_missing)
+proc open*(g:var Gnotater, path: string, name:string="gnomad_af", tmpDir:string="/tmp", missing_val:float32= -1.0'f32): bool =
+  g = Gnotater(name:name, tmpDir:tmpDir, missing_value:missing_val)
   if not open(g.zip, path):
     return false
   var path = g.tmpDir / "filters.txt"
@@ -59,7 +66,7 @@ proc open*(g:var Gnotater, path: string, name:string="gnomad_af", tmpDir:string=
   removeFile(path)
 
   g.encs = newSeq[uint64]()
-  g.afs = newSeq[float32]()
+  g.values = newSeq[float32]()
   g.longs = newSeq[Long]()
 
   return true
@@ -75,13 +82,13 @@ proc parseLong(line: string): Long {.inline.} =
     elif i == 2:
       result.alternate = t
     elif i == 3:
-      result.af = parseFloat(t)
+      result.value = parseFloat(t)
       return
   if i < 3:
     quit "bad line:" & line
 
 proc readLongs(g:var Gnotater, chrom: string) =
-  let st = g.zip.getStream(&"sli.var/{chrom}/long-alleles.AF_popmax.txt")
+  let st = g.zip.getStream(&"sli.var/{chrom}/long-alleles.txt")
   g.longs.setLen(0)
   # reading into memory here is the fastest way I could find. I think the calls
   # to streams are not inlined and therefore can be expensive. reading this
@@ -93,7 +100,7 @@ proc readLongs(g:var Gnotater, chrom: string) =
   st.close()
 
 proc readEncs(g:Gnotater, chrom: string) =
-  var st = g.zip.getStream(&"sli.var/{chrom}/vk.bin")
+  var st = g.zip.getStream(&"sli.var/{chrom}/gnotate-variants.bin")
   var chunk = 21660531 # this is the exact number of elements in chr1 so it makes this the fastest
   if g.encs.len > chunk:
     g.encs.setLen(chunk)
@@ -108,19 +115,19 @@ proc readEncs(g:Gnotater, chrom: string) =
   st.close()
 
 proc readAfs(g: var Gnotater, chrom: string) =
-  var st = g.zip.getStream(&"sli.var/{chrom}/vk-AF_popmax.bin")
+  var st = g.zip.getStream(&"sli.var/{chrom}/gnotate-values.bin")
   var chunk = 21660531
-  shallow(g.afs)
-  if g.afs.len > chunk:
-    g.afs.setLen(chunk)
+  shallow(g.values)
+  if g.values.len > chunk:
+    g.values.setLen(chunk)
   else:
-    g.afs = newSeqUninitialized[float32](chunk)
+    g.values = newSeqUninitialized[float32](chunk)
   while true:
-    let bytesRead = st.readData(g.afs[g.afs.len - chunk].addr, chunk * float32.sizeof)
+    let bytesRead = st.readData(g.values[g.values.len - chunk].addr, chunk * float32.sizeof)
     if bytesRead < chunk * float32.sizeof:
-      g.afs.setLen(g.afs.len - chunk + int(bytesRead / float32.sizeof))
+      g.values.setLen(g.values.len - chunk + int(bytesRead / float32.sizeof))
       break
-    g.afs.setLen(g.afs.len + chunk)
+    g.values.setLen(g.values.len + chunk)
 
 proc sanitize_chrom(c:string): string {.inline.} =
   if c.len == 1: return c
@@ -134,7 +141,7 @@ proc load(g:var Gnotater, chrom: cstring): bool =
   var chrom = sanitize_chrom($chrom)
   if chrom notin g.chroms:
     g.encs.setLen(0)
-    g.afs.setLen(0)
+    g.values.setLen(0)
     g.longs.setLen(0)
     return false
 
@@ -148,7 +155,7 @@ proc load(g:var Gnotater, chrom: cstring): bool =
   g.readLongs(chrom)
   var ltime = cpuTime() - t2
   echo &"len: {g.encs.len}. time to extract encs: {etime:.3f} afs: {atime:.3f} longs: {ltime:.3f} total:{cpuTime() - t:.3f}"
-  doAssert g.afs.len == g.encs.len
+  doAssert g.values.len == g.encs.len
   return true
 
 proc show*(g:var Gnotater, chrom:string, start:int, stop:int) =
@@ -166,8 +173,8 @@ proc show*(g:var Gnotater, chrom:string, start:int, stop:int) =
     echo g.encs[k].decode, " # ", g.encs[k]
 
 proc annotate_missing(g:Gnotater, v:Variant): bool {.inline.} =
-  if g.include_missing:
-    var values = @[-1.0'f32]
+  if g.missing_value != MissingVal:
+    var values = @[g.missing_value]
     if v.info.set(g.name, values) != Status.OK:
       quit &"couldn't set info of {g.name} to {values[0]}"
     return true
@@ -186,7 +193,7 @@ proc annotate*(g:var Gnotater, v:Variant): bool {.inline.} =
     return g.annotate_missing(v)
 
   var q:pfra
-  var alt = if len(v.ALT) > 0: v.ALT[0] else: "."
+  var alt = if likely(len(v.ALT) > 0): v.ALT[0] else: "."
   if unlikely(v.REF.len + alt.len > 14):
     q = pfra(position:v.start.uint32)
   else:
@@ -195,7 +202,7 @@ proc annotate*(g:var Gnotater, v:Variant): bool {.inline.} =
   if i == -1:
     return g.annotate_missing(v)
 
-  var value = g.afs[i]
+  var value = g.values[i]
   var filter:string
 
   var match = g.encs[i].decode
@@ -211,7 +218,7 @@ proc annotate*(g:var Gnotater, v:Variant): bool {.inline.} =
         break
       i += 1
 
-    value = g.longs[i].af
+    value = g.longs[i].value
 
   if value > 1:
     # the value also stores the ith flag.
@@ -251,15 +258,14 @@ when isMainModule:
   if not open(ovcf, "t.bcf", mode="w", threads=2):
     quit "couldn't open output file"
 
-  var g = Gnotater(name: "gnomad_af", include_missing: true)
+  var g:Gnotater
+  var zip_path = commandLineParams()[1]
+  doAssert g.open(zip_path, name="gnomad_af", tmpDir="/tmp", missing_val= -1.0'f32)
   g.update_header(ivcf)
 
   ovcf.copy_header(ivcf.header)
 
   doAssert ovcf.write_header
-
-  var zip_path = commandLineParams()[1]
-  doAssert g.open(zip_path)
 
   var nv = 0
   var t0 = cpuTime()

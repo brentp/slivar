@@ -1,14 +1,18 @@
 import algorithm
 
-type pra = object
-  ra {.bitsize: 28} : uint64
+type encoded = object
+  filter {.bitsize: 2} : uint64 ## whether a non-pass filter is set on the variant.
+  enc {.bitsize: 26} : uint64
   alen {.bitsize: 4} : uint64
   rlen {.bitsize: 4} : uint64
   pos {.bitsize: 28} : uint64
 
+const MaxCombinedLen* = 13
+
 type pfra* = object
   # position,ref,alt
   position*: uint32
+  filter: bool
   reference*: string
   alternate*: string
 
@@ -25,14 +29,13 @@ proc cmp_pfra*(a, b:pfra): int =
     return cmp[int](a.alternate.len, b.alternate.len)
   return cmp(a.alternate, b.alternate)
 
-
-const lookup:array[256, uint8] = [3'u8,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,0,3,1,3,3,3,2,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3]
+const lookup:array[128, uint8] = [3'u8,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,0,3,1,3,3,3,2,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3]
 
 const rlookup:array[4, char] = ['A', 'C', 'G', 'T']
 
-proc encode*(pos: uint32, ref_allele: string, alt_allele: string): uint64 {.inline.} =
-  var p = pra(pos:pos, rlen:ref_allele.len.uint64, alen:alt_allele.len.uint64)
-  if ref_allele.len + alt_allele.len > 14:
+proc encode*(pos: uint32, ref_allele: string, alt_allele: string, filter:bool): uint64 {.inline.} =
+  var p = encoded(pos:pos, rlen:ref_allele.len.uint64, alen:alt_allele.len.uint64, filter:filter.uint64)
+  if ref_allele.len + alt_allele.len > MaxCombinedLen:
     p.rlen = 0; p.alen = 0
     return cast[uint64](p)
 
@@ -40,22 +43,20 @@ proc encode*(pos: uint32, ref_allele: string, alt_allele: string): uint64 {.inli
 
   for k in 0..<ref_allele.len:
     ra = ra * 4
-    var c = lookup[ref_allele[k].int]
-    ra += c
+    ra += lookup[ref_allele[k].int]
 
   for k in 0..<alt_allele.len:
     ra = ra * 4
-    var c = lookup[alt_allele[k].int]
-    ra += c
+    ra += lookup[alt_allele[k].int]
 
-  p.ra = ra.uint64
+  p.enc = ra.uint64
   return cast[uint64](p)
 
 template encode*(p:pfra): uint64 =
-  encode(p.position, p.reference, p.alternate)
+  encode(p.position, p.reference, p.alternate, p.filter)
 
 template long_or_short(p:pfra): bool =
-  (p.reference.len == 0 and p.alternate.len == 0) or (p.reference.len + p.alternate.len > 14)
+  (p.reference.len == 0 and p.alternate.len == 0) or (p.reference.len + p.alternate.len > MaxCombinedLen)
 
 proc match(q:pfra, t:pfra): bool {.inline.} =
   if q.position != t.position: return false
@@ -63,46 +64,46 @@ proc match(q:pfra, t:pfra): bool {.inline.} =
   return q.reference == t.reference and q.alternate == t.alternate
 
 proc decode*(e:uint64): pfra {.inline.} =
-  var tmp = cast[pra](e)
-  result = pfra(position:tmp.pos.uint32)
+  var tmp = cast[encoded](e)
+  result = pfra(position:tmp.pos.uint32, filter: tmp.filter.bool)
   if tmp.rlen == 0:
     return
 
-  var e = tmp.ra
+  var e = tmp.enc
   result.alternate = newString(tmp.alen)
   for i in 0..<result.alternate.len:
-    var index = e and 3
+    let index = e and 3
     e = e shr 2
     result.alternate[result.alternate.high - i] = rlookup[index]
 
   result.reference = newString(tmp.rlen)
   for i in 0..<result.reference.len:
-    var index = e and 3
+    let index = e and 3
     e = e shr 2
     result.reference[result.reference.high - i] = rlookup[index]
 
 
-proc find*(encoded:seq[uint64], q:pfra): int {.inline.} =
+proc find*(coded:seq[uint64], q:pfra): int {.inline.} =
   var e = encode(q)
-  var i = lowerBound[uint64](encoded, e)
+  var i = lowerBound[uint64](coded, e)
   if i == -1: return -1
-  if i > encoded.high:
-    i = encoded.high
+  if i > coded.high:
+    i = coded.high
 
-  if cast[pra](encoded[i]).pos.uint32 != q.position:
+  if cast[encoded](coded[i]).pos.uint32 != q.position:
     return -1
-  if encoded[i] == e:
+  if coded[i] == e:
     return i
 
-  var te = encoded[i].decode
-  while i < encoded.len:
+  var te = coded[i].decode
+  while i < coded.len:
     if q.match(te):
       return i
-    if i == encoded.high: return - 1
+    if i == coded.high: return - 1
     i += 1
-    if cast[pra](encoded[i]).pos.uint32 != q.position:
+    if cast[encoded](coded[i]).pos.uint32 != q.position:
       return -1
-    te = encoded[i].decode
+    te = coded[i].decode
 
   return - 1
 
@@ -112,17 +113,17 @@ when isMainModule:
   import random
 
   when defined(release):
-    doAssert pra().sizeof == 8
+    doAssert encoded().sizeof == 8
 
   suite "pra test suite":
 
     test "that long ref alt works":
-      check encode(1232434'u32, "AAAAAAAAAAAAAAAAA", "TTTTTTTTTTTTTTTTTTT") > 0'u64
+      check encode(1232434'u32, "AAAAAAAAAAAAAAAAA", "TTTTTTTTTTTTTTTTTTT", false) > 0'u64
 
     test "that flag with long ref alt gets set":
-      var v = encode(1232434'u32, "AAAAAAAAAAAAAAAAA", "TTTTTTTTTTTTTTTTTTT")
-      check (cast[pra](v)).pos == 1232434'u64
-      check (cast[pra](v)).rlen == 0
+      var v = encode(1232434'u32, "AAAAAAAAAAAAAAAAA", "TTTTTTTTTTTTTTTTTTT", false)
+      check (cast[encoded](v)).pos == 1232434'u64
+      check (cast[encoded](v)).rlen == 0
 
       var d = v.decode
       check d.reference == ""
@@ -130,19 +131,19 @@ when isMainModule:
       check d.position == 1232434
 
     test "that encode/decode roundtrip works":
-      var v = encode(122434'u32, "AAAAAA", "TTTT")
+      var v = encode(122434'u32, "AAAAAA", "TTTT", false)
       echo v
       var d = v.decode
       echo d
 
     test "ordering":
-      var aL = encode(1232434'u32, "AAAAAAAAAAAAAAAAA", "TTTTTTTTTTTTTTTTTTT")
-      var bL = encode(1232434'u32, "AAAAAAAAAAAAAAAAA", "TTTTTTTTTTTTTTTTTTT")
+      var aL = encode(1232434'u32, "AAAAAAAAAAAAAAAAA", "TTTTTTTTTTTTTTTTTTT", false)
+      var bL = encode(1232434'u32, "AAAAAAAAAAAAAAAAA", "TTTTTTTTTTTTTTTTTTT", false)
 
-      var a = encode(1232434'u32, "A", "T")
-      var b = encode(1232434'u32, "A", "T")
+      var a = encode(1232434'u32, "A", "T", false)
+      var b = encode(1232434'u32, "A", "T", false)
 
-      var cL = encode(1232434'u32, "A", "TTTTTTTTTTTTTTTTTTT")
+      var cL = encode(1232434'u32, "A", "TTTTTTTTTTTTTTTTTTT", false)
 
       check bL <= aL
       check b == a
@@ -155,14 +156,14 @@ when isMainModule:
     test "find with all exact":
 
       var haystack = @[
-        encode(123'u32, "A", "T"),
-        encode(123'u32, "A", "T"),
-        encode(123'u32, "A", "CTTT"),
-        encode(123'u32, "A", "T"),
-        encode(123'u32, "G", "T"),
-        encode(123'u32, "A", "G"),
-        encode(124'u32, "A", "G"),
-        encode(124'u32, "A", "T")]
+        encode(123'u32, "A", "T", false),
+        encode(123'u32, "A", "T", true),
+        encode(123'u32, "A", "CTTT", false),
+        encode(123'u32, "A", "T", false),
+        encode(123'u32, "G", "T", false),
+        encode(123'u32, "A", "G", false),
+        encode(124'u32, "A", "G", false),
+        encode(124'u32, "A", "T", false)]
       sort(haystack, cmp[uint64])
 
       for i, h in haystack:
@@ -170,13 +171,13 @@ when isMainModule:
     test "find with changed flag ":
 
       var haystack = @[
-        encode(123'u32, "A", "T"),
-        encode(123'u32, "A", "T"),
-        encode(123'u32, "A", "CTTT"),
-        encode(123'u32, "A", "T"),
-        encode(123'u32, "G", "T"),
-        encode(123'u32, "A", "G"),
-        encode(124'u32, "A", "T")]
+        encode(123'u32, "A", "T", false),
+        encode(123'u32, "A", "T", true),
+        encode(123'u32, "A", "CTTT", true),
+        encode(123'u32, "A", "T", true),
+        encode(123'u32, "G", "T", true),
+        encode(123'u32, "A", "G", true),
+        encode(124'u32, "A", "T", true)]
       sort(haystack, cmp[uint64])
       for h in haystack:
         var v = h.decode
@@ -189,8 +190,8 @@ when isMainModule:
     test "find with large events":
 
       var haystack = @[
-        encode(124'u32, "GGGCGGGGGGG", "TTTTTTTTTT"),
-        encode(124'u32, "GGGCGGGGGGG", "T")]
+        encode(124'u32, "GGGCGGGGGGG", "TTTTTTTTTT", true),
+        encode(124'u32, "GGGCGGGGGGG", "T", false)]
       sort(haystack, cmp[uint64])
       echo "["
       for e in haystack:
@@ -214,10 +215,10 @@ when isMainModule:
     test "with max size":
 
      for i in 0..100000:
-       var alen = rand(1..<14)
-       var rlen = 14 - alen
-       check alen < 14
-       check alen + rlen == 14
+       var alen = rand(1..<MaxCombinedLen)
+       var rlen = MaxCombinedLen - alen
+       check alen < MaxCombinedLen
+       check alen + rlen == MaxCombinedLen
 
        var aref = ""
        for i in 0..<rlen:
@@ -227,7 +228,7 @@ when isMainModule:
        for i in 0..<alen:
          aalt &= sample("ACTG")
        var p = rand(250_000_000).uint32
-       var e = encode(p, aref, aalt)
+       var e = encode(p, aref, aalt, false)
        var d = e.decode
        check d.reference == aref
        check d.alternate == aalt
@@ -252,11 +253,12 @@ when isMainModule:
       var p = rand(250_000_000).uint32
       var aref = sample(refs)
       var aalt = sample(alts)
-      var e = encode(p, aref, aalt)
+      var e = encode(p, aref, aalt, i mod 2 == 0)
       var d = e.decode
       doAssert d.position == p
       doAssert d.reference == aref
       doAssert d.alternate == aalt
+      doAssert d.filter == (i mod 2 == 0)
 
     echo int(n.float64 / (cpuTime() - t)), " encode/decodes per second"
 
@@ -266,7 +268,7 @@ when isMainModule:
       var p = rand(250_000_000).uint32
       var aref = sample(refs)
       var aalt = sample(alts)
-      var e = encode(p, aref, aalt)
+      var e = encode(p, aref, aalt, false)
       haystack.add(e)
 
     sort(haystack)
@@ -279,7 +281,7 @@ when isMainModule:
     echo int(n.float64 / (cpuTime() - t)), " finds per second"
 
 
-    var needle = encode(1233333, "AAA", "T")
+    var needle = encode(1233333, "AAA", "T", false)
     t = cpuTime()
     for i in 0..haystack.high:
       check haystack.find(needle.decode) == -1

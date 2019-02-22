@@ -119,12 +119,13 @@ to find a somatic variant that has increasing frequency (AB is allele balance) a
 
 ### Gnotate
 
-This uses a compressed, reduced representation of gnomad allele frequencies **and FILTERs** to reduce from the 600+ GB of data for the
-**whole genome and exome** to a 1.5GB file distributed [here](https://s3.amazonaws.com/gemini-annotations/gnomad-2.1.zip).
-The zip file encodes the popmax_AF (whichever is higher between whole genome and exome) and the FILTER for every variant in gnomad.
-It can annotate at faster than 10K variants per second.
+This uses a compressed, reduced representation of a single value pulled from a (population VCF) along with a boolean that indicates a
+non-pass filter. This can, for example, reduce the 600+ GB of data for the **whole genome and exome** from gnomad to a 1.5GB file
+distributed [here](https://s3.amazonaws.com/gemini-annotations/gnomad-2.1.zip).
+The zip file encodes the popmax_AF (whichever is higher between whole genome and exome) and the presence of FILTER for every variant
+in gnomad.  It can annotate at faster than 10K variants per second.
 
-slivar gnotate --vcf $input_vcf -o $output_bcf --threads 3 -g gnomad-2.1.zip
+slivar gnotate --vcf $input_vcf -o $output_bcf --threads 3 -g encoded.zip
 
 ## Installation
 

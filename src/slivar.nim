@@ -157,7 +157,7 @@ proc main*() =
 
   var dispatcher = {
     "expr": pair(f:expr_main, description:"trio and group expressions and filtering"),
-    "gnotate": pair(f:sl_gnotate.main, description:"rapidly annotate a VCF/BCF with gnomad"),
+    "gnotate": pair(f:sl_gnotate.main, description:"rapidly annotate a VCF/BCF with a gnotate.zip file"),
     "filter": pair(f:filter.main, description:"filter a vcf with javascript expressions"),
     }.toTable
 

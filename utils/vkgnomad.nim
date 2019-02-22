@@ -82,8 +82,6 @@ shallow(longs_by_rid)
 var longs: seq[PosValue]
 var kvs: seq[evalue]
 
-var filters = @["PASS", "UNUSED"]
-
 var floats = newSeq[float32](1)
 var ints = newSeq[float32](1)
 echo prefix & "zip"
@@ -117,24 +115,17 @@ for i in 0..<vcf_paths.len:
         longs = longs_by_rid[last_rid]
         kvs = kvs_by_rid[last_rid]
 
-      var fil = v.FILTER
-      var fidx = filters.find(fil)
-      if fidx == -1:
-        filters.add(fil)
-        fidx = filters.high
-
-      var e = encode(uint32(v.start), v.REF, v.ALT[0])
+      var e = encode(uint32(v.start), v.REF, v.ALT[0], v.FILTER notin @["", "PASS", "."])
 
       if v.info.get(field, floats) != Status.OK:
-        if fidx == 0 and v.info.get("AF", floats) == Status.OK and floats[0] > 0.01 and v.info.get("AN", ints) == Status.OK and ints[0] > 2000:
+        if v.FILTER in ["PASS", ""] and v.info.get("AF", floats) == Status.OK and floats[0] > 0.01 and v.info.get("AN", ints) == Status.OK and ints[0] > 2000:
           quit "got wierd't get field for:" & v.tostring()
         floats = @[0'f32]
 
       # need to differentiate from 1 because we use the int to store flags.
-      floats[0] = min(floats[0], 1-(5e-7))
 
-      var val = floats[0] + fidx.float32
-      if v.REF.len + v.ALT[0].len > 14:
+      var val = floats[0]
+      if v.REF.len + v.ALT[0].len > MaxCombinedLen:
         var p = e.decode()
         doAssert p.position == v.start.uint32
         p.reference = v.REF
@@ -172,7 +163,7 @@ for rid in 0..kvs_by_rid.high:
   stderr.write_line &"sorting and writing... {kvs.len} variants completed. non-exact: {longs.len} for chromosome: {chrom}"
   fchrom.write(chrom & '\n')
 
-  longs.write_to(prefix & &"long-alleles.{field}.txt")
+  longs.write_to(prefix & &"long-alleles.txt")
 
   kvs.sort(proc (a:evalue, b:evalue): int =
     result = cmp[uint64](a.encoded, b.encoded)
@@ -181,8 +172,8 @@ for rid in 0..kvs_by_rid.high:
       result = cmp(b.value, a.value)
   )
 
-  var keystream = newFileStream(prefix & "vk.bin", fmWrite)
-  var valstream = newFileStream(prefix & &"vk-{field}.bin", fmWrite)
+  var keystream = newFileStream(prefix & "gnotate-variant.bin", fmWrite)
+  var valstream = newFileStream(prefix & &"gnotate-value.bin", fmWrite)
 
   var last : uint64
   var dups = 0
@@ -199,21 +190,13 @@ for rid in 0..kvs_by_rid.high:
   keystream.close()
   valstream.close()
 
-  for f in @["vk.bin", &"vk-{field}.bin", &"long-alleles.{field}.txt"]:
+  for f in @["gnotate-variant.bin", &"gnotate-value.bin", &"long-alleles.txt"]:
     echo "adding:",  f
     var dest = &"sli.var/{chrom}/{f}"
     #zip.addFile(dest, prefix & f)
     zip.addFile(prefix & f, dest)
     removeFile(prefix & f)
 
-var fh:File
-if not open(fh, prefix & "filters.txt", fmWrite):
-  quit "couldn't open file:" & prefix & "filters.txt"
-fh.write(join(filters, "\n") & '\n')
-fh.close()
-
-zip.addFile(prefix & "filters.txt", "sli.var/filters.txt")
-removeFile(prefix & "filters.txt")
 fchrom.close()
 zip.addFile(prefix & "chroms.txt", "sli.var/chroms.txt")
 removeFile(prefix & "chroms.txt")

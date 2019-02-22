@@ -260,7 +260,6 @@ proc set_format_field(ctx: Evaluator, f:FormatField, fmt:FORMAT, ints: var seq[i
 
 proc set_variant_fields*(ctx:Evaluator, variant:Variant) =
   ctx.variant["CHROM"] = $variant.CHROM
-  echo "setting start to:", variant.start
   ctx.variant["start"] = variant.start
   ctx.variant["stop"] = variant.stop
   ctx.variant["POS"] = variant.POS
