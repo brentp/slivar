@@ -118,6 +118,8 @@ normal.alts == 0 && normal.DP > 10 \
 to find a somatic variant that has increasing frequency (AB is allele balance) along the tumor time-points.
 
 
+More detail on groups is provided [here](https://github.com/brentp/slivar/wiki/groups-in-slivar)
+
 ### Gnotate
 
 More extensive documentation and justification for `gnotate` are [here](https://github.com/brentp/slivar/wiki/gnotate)
