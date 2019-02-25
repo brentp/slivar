@@ -49,7 +49,7 @@ Options:
   --pass-only                only output variants that pass at least one of the filters [default: false]
   --trio <string>...         an expression applied to each trio where "mom", "dad", "kid" labels are available from trios inferred from
                              a ped file.
-  --group-expr <string>...   expressions applied to the groups defined in the alias option.
+  --group-expr <string>...   expressions applied to the groups defined in the alias option [see: https://github.com/brentp/slivar/wiki/groups-in-slivar].
   --info <string>            a filter expression using only variables from  the info field and variant attributes. If this filter
                              does not pass, the trio and alias expressions will not be applied.
   -g --gnotate <path>...     optional paths compressed gnote file (made with slivar make-gnotate)

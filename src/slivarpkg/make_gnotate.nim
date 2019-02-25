@@ -15,6 +15,8 @@ let doc = """
 
 Make a compressed gnotate zip file for an INFO field in the given VCF.
 
+See: https://github.com/brentp/slivar/wiki/gnotate
+
 Usage: slivar make-gnotate [--prefix=<prefix> options] <vcfs>...
 
 Options:

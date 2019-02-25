@@ -11,6 +11,8 @@ proc main*(dropfirst:bool=false) =
   let doc = """
 slivar gnotate -- annotate a VCF quickly with a compressed gnotate representation.
 
+See: https://github.com/brentp/slivar/wiki/gnotate for more detail
+
 Usage: slivar gnotate [--out-vcf <path> --vcf <path> --gnotate <zip_path>... --threads <int>]
 
 Options:
