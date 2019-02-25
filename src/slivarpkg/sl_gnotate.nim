@@ -27,10 +27,11 @@ Options:
     args = docopt(doc, argv=argv[1..argv.high])
   else:
     args = docopt(doc)
-  echo $args
 
-  if $args["--gnotate"] == "nil":
+  if $args["--gnotate"] in @["nil", "[]"]:
     stderr.write_line "[slivar] must pass zip file for annotation"
+    echo doc
+    quit 1
 
   var
     ivcf:VCF
@@ -47,7 +48,7 @@ Options:
   var t = cpuTime()
   for p in @(args["--gnotate"]):
     var gno: Gnotater
-    doAssert gno.open(p, name=splitFile(p).name)
+    doAssert gno.open(p, name=splitFile(p).name.replace("-", "_"))
     gno.update_header(ivcf)
     gnos.add(gno)
   var

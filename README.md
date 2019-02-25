@@ -120,6 +120,8 @@ to find a somatic variant that has increasing frequency (AB is allele balance) a
 
 ### Gnotate
 
+More extensive documentation and justification for `gnotate` are [here](https://github.com/brentp/slivar/wiki/gnotate)
+
 This uses a compressed, reduced representation of a single value pulled from a (population VCF) along with a boolean that indicates a
 non-pass filter. This can, for example, reduce the 600+ GB of data for the **whole genome and exome** from gnomad to a 1.5GB file
 distributed [here](https://s3.amazonaws.com/gemini-annotations/gnomad-2.1.zip).

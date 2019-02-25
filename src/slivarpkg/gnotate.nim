@@ -46,7 +46,9 @@ proc cmp_long*(a, b:Long): int =
   return cmp(a.alternate.len, b.alternate.len)
 
 proc open*(g:var Gnotater, path: string, name:string="gnomad_af", tmpDir:string="/tmp", missing_val:float32= -1.0'f32): bool =
-  g = Gnotater(name:name, tmpDir:tmpDir, missing_value:missing_val)
+  g = Gnotater(name:name.replace("-", "_"), tmpDir:tmpDir, missing_value:missing_val)
+  if g.name != name:
+    stderr.write_line &"[slivar] note, name has been changed from {name} to {g.name}"
   if not open(g.zip, path):
     return false
 

@@ -344,6 +344,7 @@ proc set_infos*(ev:var Evaluator, variant:Variant, ints: var seq[int32], floats:
       else:
           ev.INFO[field.name] = ints
     ev.info_field_sets.curr.incl(field.i)
+  # clear any field in last variant but not in this one.
   ev.clear_unused_infos(ev.info_field_sets)
 
 type exResult = tuple[name:string, sampleList:seq[string]]
@@ -447,7 +448,7 @@ iterator evaluate*(ev:var Evaluator, variant:Variant, nerrors:var int): exResult
   var floats = newSeq[float32](3 * variant.n_samples)
 
   ## the most expensive part is pulling out the format fields so we pull all fields
-  ## and set values for all samples in the trio list.
+  ## and set values for all samples.
   ## once all that is done, we evaluate the expressions.
   ## the field_sets make it so that we only clear fields from the duk objects that were
   ## set last variant, but not this variant.
@@ -456,8 +457,6 @@ iterator evaluate*(ev:var Evaluator, variant:Variant, nerrors:var int): exResult
   ev.set_calculated_variant_fields(alts)
   # set_infos also updates field_sets.curr
   ev.set_infos(variant, ints, floats)
-
-  # clear any field in last variant but not in this one.
 
 
   if ev.info_expression.ctx == nil or ev.info_expression.check:
