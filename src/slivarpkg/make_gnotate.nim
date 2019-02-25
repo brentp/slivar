@@ -23,6 +23,7 @@ Options:
 
   --prefix <string>        prefix for output [default: gno]
   --field <string>         field to use for value [default: AF_popmax]
+  --min                    use minimum to choose from repeated variant. default is to use max which is often more sensible (e.g. for AF)
   --missing-value <float>  the value to use when the variant is present, but the field is not. [default: -1]
 
 Arguments:
@@ -34,7 +35,7 @@ Arguments:
 # things that are too long to be encoded.
 type PosValue = tuple[chrom: string, position:pfra, value:float32]
 
-proc write_to(positions:var seq[PosValue], fname:string) =
+proc write_to(positions:var seq[PosValue], fname:string, min_tie:bool) =
   # write the positions to file after sorting
   proc icmp_position(a: PosValue, b:PosValue): int =
     if a.chrom != b.chrom:
@@ -42,7 +43,10 @@ proc write_to(positions:var seq[PosValue], fname:string) =
     result = cmp_pfra(a.position, b.position)
 
     if result == 0:
-      result = cmp(b.value, a.value)
+      if min_tie:
+        result = cmp(a.value, b.value)
+      else:
+        result = cmp(b.value, a.value)
 
   positions.sort(icmp_position)
   var last = pfra()
@@ -83,6 +87,7 @@ proc main*(dropfirst:bool=false) =
 
   let
     vcf_paths = @(args["<vcfs>"])
+    min_tie:bool = args["--min"]
     field = $args["--field"]
     default = parseFloat($args["--missing-value"]).float32
 
@@ -202,13 +207,17 @@ proc main*(dropfirst:bool=false) =
     stderr.write_line &"sorting and writing... {kvs.len} variants completed. non-exact: {longs.len} for chromosome: {chrom}"
     fchrom.write(chrom & '\n')
 
-    longs.write_to(prefix & &"long-alleles.txt")
+    longs.write_to(prefix & &"long-alleles.txt", min_tie)
 
     kvs.sort(proc (a:evalue, b:evalue): int =
+      let min_tie = min_tie
       result = cmp[uint64](a.encoded, b.encoded)
       if result == 0:
-        # on ties, take the largest (yes largest) value.
-        result = cmp(b.value, a.value)
+        # on ties, take the largest (yes largest) value. unless min-tie is specified
+        if min_tie:
+          result = cmp(a.value, b.value)
+        else:
+          result = cmp(b.value, a.value)
     )
 
     var keystream = newFileStream(prefix & "gnotate-variant.bin", fmWrite)
