@@ -18,7 +18,7 @@ license       = "MIT"
 
 # Dependencies
 
-requires "hts >= 0.2.7",  "binaryheap", "zip", "https://github.com/brentp/duktape-nim#dev", "https://github.com/brentp/bpbio", "https://github.com/brentp/nim-minizip"
+requires "hts >= 0.2.7", "nimgen", "binaryheap", "zip", "https://github.com/brentp/duktape-nim#dev", "https://github.com/brentp/bpbio", "https://github.com/brentp/nim-minizip"
 srcDir = "src"
 installExt = @["nim"]
 

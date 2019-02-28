@@ -54,7 +54,7 @@ slivar expr \
    --vcf $vcf \
    --ped $ped \
    --gnotate $gnomad_af.zip \ # a compressed gnomad zip that allows fast annotation so that `gnomad_af` is available in the expressions below.
-   --load functions.js \ # any valid javascript is allowed here.
+   --js functions.js \ # any valid javascript is allowed here.
    --out-vcf annotated.bcf \
    --info "variant.call_rate > 0.9" \ # this filter is applied before the trio filters and can speed evaluation if it is stringent.
    --trio "denovo:kid.alts == 1 && mom.alts == 0 && dad.alts == 0 \
