@@ -95,15 +95,16 @@ proc write_chrom(zip: var Zip, chrom: string, prefix: string, kvs:var seq[evalue
   var dups = 0
   for kv in kvs:
     if kv[0] == last:
-      if kv[0].decode.reference.len > 0:
-        echo "DUP:", chrom, " ", kv[0].decode
+      #if kv[0].decode.reference.len > 0:
+      #  echo "DUP:", chrom, " ", kv[0].decode
       dups.inc
       continue
     keystream.write(kv[0])
     valstream.write(kv[1])
     last = kv[0]
 
-  stderr.write_line &"removed {dups} duplicated entries by using the largest value and chromosome: {chrom}"
+  var direction = if min_tie: "smallest" else: "largest"
+  stderr.write_line &"removed {dups} duplicated entries by using the {direction} value and chromosome: {chrom}"
 
   keystream.close()
   valstream.close()
@@ -116,9 +117,12 @@ proc write_chrom(zip: var Zip, chrom: string, prefix: string, kvs:var seq[evalue
 proc get_value(v:Variant, field: string, use_ints:var bool, default:float32, L:int):float32 {.inline.} =
   if L == 0:
     var floats: seq[float32]
-    if v.info.get(field, floats) == Status.UnexpectedType:
+    var st = v.info.get(field, floats)
+    if st == Status.UnexpectedType:
       stderr.write_line "using type int"
       use_ints = true
+    elif st == UndefinedTag:
+      quit &"tag:{field} not found in vcf"
   result = default
   ## get the int or float value as appropriate and set val.
   if use_ints:
@@ -137,22 +141,22 @@ proc get_value(v:Variant, field: string, use_ints:var bool, default:float32, L:i
     result = floats[0]
 
 proc update(v:Variant, e:uint64, val:float32, kvs:var seq[evalue], longs:var seq[PosValue]) =
-    if v.REF.len + v.ALT[0].len > MaxCombinedLen:
-      var p = e.decode()
-      doAssert p.position == v.start.uint32
-      p.reference = v.REF
-      p.alternate = v.ALT[0]
-      # filter is already set.
-      longs.add(($v.CHROM, p, val))
-    kvs.add((e, val))
+  if v.REF.len + v.ALT[0].len > MaxCombinedLen:
+    var p = e.decode()
+    doAssert p.position == v.start.uint32
+    p.reference = v.REF
+    p.alternate = v.ALT[0]
+    # filter is already set.
+    longs.add(($v.CHROM, p, val))
+  kvs.add((e, val))
 
 proc encode_and_update(v: Variant, field: string, kvs: var seq[evalue], longs: var seq[PosValue], use_ints: var bool, default: float32) =
-    if v.ALT.len == 0:
-      return
+  if v.ALT.len == 0:
+    return
 
-    var e = encode(uint32(v.start), v.REF, v.ALT[0], v.FILTER notin @["", "PASS", "."])
-    var val = v.get_value(field, use_ints, default, kvs.len)
-    v.update(e, val, kvs, longs)
+  var e = encode(uint32(v.start), v.REF, v.ALT[0], v.FILTER notin @["", "PASS", "."])
+  var val = v.get_value(field, use_ints, default, kvs.len)
+  v.update(e, val, kvs, longs)
 
 proc main*(dropfirst:bool=false) =
   var args = if dropfirst:
