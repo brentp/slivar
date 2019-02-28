@@ -130,7 +130,19 @@ distributed [here](https://s3.amazonaws.com/gemini-annotations/gnomad-2.1.zip).
 The zip file encodes the popmax_AF (whichever is higher between whole genome and exome) and the presence of FILTER for every variant
 in gnomad.  It can annotate at faster than 10K variants per second.
 
+```
 slivar gnotate --vcf $input_vcf -o $output_bcf --threads 3 -g encoded.zip
+```
+
+Users can make their own `gnotate` files like:
+
+```
+slivar make-gnotate --field popmax_AF --prefix gnomad_popmax_af gnomad.exomes.r2.1.sites.vcf.gz gnomad.genomes.r2.1.sites.vcf.gz
+```
+
+this will pull `popmax_AF` from the INFO field and create gnomad_popmax_af.zip which will contain the union of values seen in the exome
+and genomes files with the maximum popmax_AF value for any intersection.
+
 
 ## Installation
 

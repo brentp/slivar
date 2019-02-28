@@ -35,6 +35,8 @@ Arguments:
 # things that are too long to be encoded.
 type PosValue = tuple[chrom: string, position:pfra, value:float32]
 
+type evalue = tuple[encoded:uint64, value:float32]
+
 proc write_to(positions:var seq[PosValue], fname:string, min_tie:bool) =
   # write the positions to file after sorting
   proc icmp_position(a: PosValue, b:PosValue): int =
@@ -67,6 +69,91 @@ proc write_to(positions:var seq[PosValue], fname:string, min_tie:bool) =
 
   fh.close()
 
+proc write_chrom(zip: var Zip, chrom: string, prefix: string, kvs:var seq[evalue], longs:var seq[PosValue], min_tie: bool) =
+  var chrom = chrom
+  echo &"writing {kvs.len} encoded and {longs.len} long values for chromosome {chrom}"
+  if chrom.startsWith("chr"): chrom = chrom[3..chrom.high]
+  if chrom == "MT": chrom = "M"
+  if kvs.len == 0 and longs.len == 0: return
+
+  longs.write_to(prefix & &"long-alleles.txt", min_tie)
+
+  kvs.sort(proc (a:evalue, b:evalue): int =
+    let min_tie = min_tie
+    result = cmp[uint64](a.encoded, b.encoded)
+    if result == 0:
+      # on ties, take the largest (yes largest) value. unless min-tie is specified
+      if min_tie:
+        result = cmp(a.value, b.value)
+      else:
+        result = cmp(b.value, a.value)
+  )
+  var keystream = newFileStream(prefix & "gnotate-variant.bin", fmWrite)
+  var valstream = newFileStream(prefix & "gnotate-value.bin", fmWrite)
+
+  var last : uint64
+  var dups = 0
+  for kv in kvs:
+    if kv[0] == last:
+      if kv[0].decode.reference.len > 0:
+        echo "DUP:", chrom, " ", kv[0].decode
+      dups.inc
+      continue
+    keystream.write(kv[0])
+    valstream.write(kv[1])
+    last = kv[0]
+
+  stderr.write_line &"removed {dups} duplicated entries by using the largest value and chromosome: {chrom}"
+
+  keystream.close()
+  valstream.close()
+
+  for f in @["gnotate-variant.bin", &"gnotate-value.bin", &"long-alleles.txt"]:
+    var dest = &"sli.var/{chrom}/{f}"
+    zip.addFile(prefix & f, dest)
+    removeFile(prefix & f)
+
+proc get_value(v:Variant, field: string, use_ints:var bool, default:float32, L:int):float32 {.inline.} =
+  if L == 0:
+    var floats: seq[float32]
+    if v.info.get(field, floats) == Status.UnexpectedType:
+      stderr.write_line "using type int"
+      use_ints = true
+  result = default
+  ## get the int or float value as appropriate and set val.
+  if use_ints:
+    var ints = newSeq[int32](1)
+    if v.info.get(field, ints) != Status.OK:
+      stderr.write_line &"[slivar make-gnomad] didn't find field {field} in {v.tostring()}"
+    else:
+      result = ints[0].float32
+
+  else:
+    var floats = newSeq[float32](1)
+    if v.info.get(field, floats) != Status.OK:
+      var ints:seq[float32]
+      if v.FILTER in ["PASS", ""] and v.info.get("AF", floats) == Status.OK and floats[0] > 0.01 and v.info.get("AN", ints) == Status.OK and ints[0] > 2000:
+        stderr.write_line "got wierd value for:" & v.tostring()
+    result = floats[0]
+
+proc update(v:Variant, e:uint64, val:float32, kvs:var seq[evalue], longs:var seq[PosValue]) =
+    if v.REF.len + v.ALT[0].len > MaxCombinedLen:
+      var p = e.decode()
+      doAssert p.position == v.start.uint32
+      p.reference = v.REF
+      p.alternate = v.ALT[0]
+      # filter is already set.
+      longs.add(($v.CHROM, p, val))
+    kvs.add((e, val))
+
+proc encode_and_update(v: Variant, field: string, kvs: var seq[evalue], longs: var seq[PosValue], use_ints: var bool, default: float32) =
+    if v.ALT.len == 0:
+      return
+
+    var e = encode(uint32(v.start), v.REF, v.ALT[0], v.FILTER notin @["", "PASS", "."])
+    var val = v.get_value(field, use_ints, default, kvs.len)
+    v.update(e, val, kvs, longs)
+
 proc main*(dropfirst:bool=false) =
   var args = if dropfirst:
     var argv = commandLineParams()
@@ -83,7 +170,7 @@ proc main*(dropfirst:bool=false) =
   proc cleanup() =
     removeDir(prefix)
   defer: cleanup()
-  echo $args
+  var imod = 500_000
 
   let
     vcf_paths = @(args["<vcfs>"])
@@ -95,95 +182,17 @@ proc main*(dropfirst:bool=false) =
     echo doc
     quit "vcf(s) required"
 
-  type evalue = tuple[encoded:uint64, value:float32]
 
   var
     use_ints = false # discovered later
-    population_vcf:VCF
-    longs_by_rid = newSeqOfCap[seq[PosValue]](1000)
-    kvs_by_rid = newSeqOfCap[seq[evalue]](1000)
-
-  shallow(kvs_by_rid)
-  shallow(longs_by_rid)
 
   var
-    longs: seq[PosValue]
-    kvs: seq[evalue]
-    floats = newSeq[float32](1)
-    ints = newSeq[int32](1)
-    ridToChrom = newSeqOfCap[string](100000)
+    longs = newSeqOfCap[PosValue](65536)
+    kvs = newSeqOfCap[evalue](65536)
 
   echo prefix & "zip"
 
-  var last_rid = -1
-  for i in 0..<vcf_paths.len:
-    if not open(population_vcf, vcf_paths[i], threads=3):
-      quit "couldn't open:" & vcf_paths[i]
-
-    for v in population_vcf:
-        if len(v.ALT) > 1:
-          quit "input should be decomposed and normalized"
-        if v.rid != last_rid:
-          if last_rid != -1:
-            longs_by_rid[last_rid] = longs
-            kvs_by_rid[last_rid] = kvs
-          last_rid = v.rid
-          if last_rid >= longs_by_rid.len:
-            longs_by_rid.setLen(last_rid + 1)
-            kvs_by_rid.setLen(last_rid + 1)
-            ridToChrom.setLen(last_rid + 1)
-            longs_by_rid[last_rid] = newSeqOfCap[PosValue](32768)
-            kvs_by_rid[last_rid] = newSeqOfCap[evalue](32768)
-            ridToChrom[last_rid] = $v.CHROM
-          else:
-            doAssert ridToChrom[last_rid] == $v.CHROM
-
-          longs = longs_by_rid[last_rid]
-          kvs = kvs_by_rid[last_rid]
-
-        var alt_allele:string
-        if v.ALT.len > 0:
-          alt_allele = v.ALT[0]
-        else:
-          #echo &"no alternate allele for {v.tostring()}";
-          continue
-          #alt_allele = "N"
-
-        var e = encode(uint32(v.start), v.REF, alt_allele, v.FILTER notin @["", "PASS", "."])
-        var val = default
-
-        if kvs.len == 0 and kvs_by_rid.len == 1:
-          if v.info.get(field, floats) == Status.UnexpectedType:
-            stderr.write_line "using type int"
-            use_ints = true
-
-        if use_ints:
-          if v.info.get(field, ints) != Status.OK:
-            stderr.write_line &"[slivar make-gnomad] didn't find field {field} in {v.tostring()}"
-          else:
-            val = ints[0].float32
-
-        elif v.info.get(field, floats) != Status.OK:
-          if v.FILTER in ["PASS", ""] and v.info.get("AF", floats) == Status.OK and floats[0] > 0.01 and v.info.get("AN", ints) == Status.OK and ints[0] > 2000:
-            stderr.write_line "got wierd value for:" & v.tostring()
-          val = floats[0]
-
-        if v.REF.len + alt_allele.len > MaxCombinedLen:
-          var p = e.decode()
-          doAssert p.position == v.start.uint32
-          p.reference = v.REF
-          p.alternate = alt_allele
-          # filter is already set.
-          longs.add(($v.CHROM, p, val))
-        kvs.add((e, val))
-        if kvs.len mod 500_000 == 0:
-          stderr.write_line &"{kvs.len} variants completed. at: {v.CHROM}:{v.start+1}. non-exact: {longs.len} in {vcf_paths[i]}"
-    longs_by_rid[last_rid] = longs
-    kvs_by_rid[last_rid] = kvs
-    stderr.write_line &"{kvs_by_rid[last_rid].len} variants completed. non-exact: {longs.len} for {vcf_paths[i]}"
-
-    population_vcf.close()
-
+  var vcfs = newSeq[VCF](vcf_paths.len)
 
   #var zip: ZipArchive
   var zip: Zip
@@ -194,56 +203,45 @@ proc main*(dropfirst:bool=false) =
   if not open(fchrom, prefix & "chroms.txt", fmWrite):
     quit "could not open chroms file"
 
-  for rid in 0..kvs_by_rid.high:
-    var chrom = ridToChrom[rid]
-    echo chrom
-    if chrom == "": continue
-    if chrom.startsWith("chr"): chrom = chrom[3..chrom.high]
-    if chrom == "MT": chrom = "M"
+  var last_rid = -1
+  var last_chrom = ""
+  for i, p in vcf_paths:
+    if not open(vcfs[i], p, threads=3):
+      quit "couldn't open:" & p
 
-    var kvs = kvs_by_rid[rid]
-    var longs = longs_by_rid[rid]
-    if kvs.len == 0 and longs.len == 0: continue
-    stderr.write_line &"sorting and writing... {kvs.len} variants completed. non-exact: {longs.len} for chromosome: {chrom}"
-    fchrom.write(chrom & '\n')
+  for v in vcfs[0]:
+    if len(v.ALT) > 1:
+      quit "input should be decomposed and normalized"
+    if v.rid != last_rid:
+      if last_rid != -1:
+        echo &"kvs.len for {last_chrom}: {kvs.len} after {vcf_paths[0]}"
+        for i, ovcf in vcfs:
+          # skip first vcf since we already used it.
+          if i == 0: continue
+          for ov in ovcf.query(last_chrom):
+            ov.encode_and_update(field, kvs, longs, use_ints, default)
+          echo &"kvs.len for {last_chrom}: {kvs.len} after {vcf_paths[i]}"
+        fchrom.write(last_chrom & "\n")
+        zip.write_chrom(last_chrom, prefix, kvs, longs, min_tie)
 
-    longs.write_to(prefix & &"long-alleles.txt", min_tie)
+        longs = newSeqOfCap[PosValue](65536)
+        kvs = newSeqOfCap[evalue](65536)
 
-    kvs.sort(proc (a:evalue, b:evalue): int =
-      let min_tie = min_tie
-      result = cmp[uint64](a.encoded, b.encoded)
-      if result == 0:
-        # on ties, take the largest (yes largest) value. unless min-tie is specified
-        if min_tie:
-          result = cmp(a.value, b.value)
-        else:
-          result = cmp(b.value, a.value)
-    )
+      last_chrom = $v.CHROM
+      last_rid = v.rid
 
-    var keystream = newFileStream(prefix & "gnotate-variant.bin", fmWrite)
-    var valstream = newFileStream(prefix & &"gnotate-value.bin", fmWrite)
+    v.encode_and_update(field, kvs, longs, use_ints, default)
 
-    var last : uint64
-    var dups = 0
-    for kv in kvs:
-      if kv[0] == last:
-        if kv[0].decode.reference.len > 0:
-          echo "DUP:", chrom, " ", kv[0].decode
-        dups.inc
-        continue
-      keystream.write(kv[0])
-      valstream.write(kv[1])
-      last = kv[0]
+    if kvs.len mod imod == 0:
+      stderr.write_line &"{kvs.len} variants completed. at: {v.CHROM}:{v.start+1}. exact: {kvs.len} long: {longs.len} in {vcf_paths[0]}"
+      if kvs.len >= 10 * imod and imod < 10_000_000:
+        imod *= 5
 
-    stderr.write_line &"removed {dups} duplicated entries by using the largest value for {field} and chromosome: {chrom}"
+  if last_rid != -1:
+    fchrom.write(last_chrom & "\n")
+    zip.write_chrom(last_chrom, prefix, kvs, longs, min_tie)
 
-    keystream.close()
-    valstream.close()
-
-    for f in @["gnotate-variant.bin", &"gnotate-value.bin", &"long-alleles.txt"]:
-      var dest = &"sli.var/{chrom}/{f}"
-      zip.addFile(prefix & f, dest)
-      removeFile(prefix & f)
+  for ivcf in vcfs: ivcf.close()
 
   fchrom.close()
   zip.addFile(prefix & "chroms.txt", "sli.var/chroms.txt")
@@ -257,7 +255,7 @@ proc main*(dropfirst:bool=false) =
   zip.addFile(prefix & "args.txt", "sli.var/args.txt")
   removeFile(prefix & "args.txt")
   zip.close()
-  echo "closed"
+  echo &"wrote {prefix}zip"
 
 when isMainModule:
   main(false)
