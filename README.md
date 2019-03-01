@@ -137,12 +137,13 @@ slivar gnotate --vcf $input_vcf -o $output_bcf --threads 3 -g encoded.zip
 Users can make their own `gnotate` files like:
 
 ```
-slivar make-gnotate --field popmax_AF --prefix gnomad_popmax_af gnomad.exomes.r2.1.sites.vcf.gz gnomad.genomes.r2.1.sites.vcf.gz
+slivar make-gnotate --prefix gnomad --field AF_popmax:gnomad_popmax_af --field nhomalt:gnomad_num_homalt gnomad.exomes.r2.1.sites.vcf.gz gnomad.genomes.r2.1.sites.vcf.gz
 ```
 
-this will pull `popmax_AF` from the INFO field and create gnomad_popmax_af.zip which will contain the union of values seen in the exome
-and genomes files with the maximum popmax_AF value for any intersection.
-
+this will pull `AF_popmax` and `nhomalt` from the INFO field and put them into gnomad.zip as `gnomad_popmax_af` and `gnomad_num_homalt` respectively.
+The resulting zip file will contain the union of values seen in the exome and genomes files with the maximum value for any intersection.
+Note that the names (`gnomad_popmax_af` and `gnomad_num_homalt` in this case) should be chosen carefully as those will be the names added to the INFO
+of any file to be annotated with the resulting `gnomad.zip`
 
 ## Installation
 
