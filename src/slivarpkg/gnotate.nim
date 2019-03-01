@@ -17,7 +17,7 @@ type Long* = object
   position*: uint32
   reference*: string
   alternate*: string
-  value: float32
+  values: seq[float32]
   filter: bool
 
 # Same as Missing in htslib
@@ -25,17 +25,20 @@ const MissingVal = float32(0x7F800001) # float32.low
 
 type Gnotater* = ref object
   zip: ZipArchive
-  name*: string ## this is what gets set in the INFO. e.g. 'gnomad_af'.
-  missing_value: float32 ## annotate variants absent from gnomad with an allele frequency of -1.0
+  missing_value: float32 ## annotate variants absent from gnotate file with an allele frequency of -1.0
   chrom: cstring ## this tracks the current chromosome.
   encs: seq[uint64] ## encoded position,ref,alt. alts > 1 are encoding a FILTER as well.
-  values: seq[float32] ## encoded values, e.g. allele frequencies from gnomad.
+  names: seq[string] ## this is what gets set in the INFO. e.g. 'gnomad_af'.
+  values: seq[seq[float32]] ## encoded values, e.g. allele frequencies from gnomad.
   longs: seq[Long] ## pos, ref, alt, af for long variants
   chroms: seq[string] ## list of chroms available in the index.
   tmpDir: string
 
 proc close*(g:var Gnotater) =
   g.zip.close()
+
+proc n_fields(g: Gnotater): int =
+  return g.names.len
 
 proc cmp_long*(a, b:Long): int =
   if a.position != b.position:
@@ -45,10 +48,8 @@ proc cmp_long*(a, b:Long): int =
   # can't compare .af here because it screws up lower bound
   return cmp(a.alternate.len, b.alternate.len)
 
-proc open*(g:var Gnotater, path: string, name:string="gnomad_af", tmpDir:string="/tmp", missing_val:float32= -1.0'f32): bool =
-  g = Gnotater(name:name.replace("-", "_"), tmpDir:tmpDir, missing_value:missing_val)
-  if g.name != name:
-    stderr.write_line &"[slivar] note, name has been changed from {name} to {g.name}"
+proc open*(g:var Gnotater, path: string, tmpDir:string="/tmp", missing_val:float32= -1.0'f32): bool =
+  g = Gnotater(tmpDir:tmpDir, missing_value:missing_val)
   if not open(g.zip, path):
     return false
 
@@ -58,15 +59,21 @@ proc open*(g:var Gnotater, path: string, name:string="gnomad_af", tmpDir:string=
     g.chroms.add(l.strip)
   removeFile(path)
 
+  path = g.tmpDir / "fields.txt"
+  g.zip.extract_file("sli.var/fields.txt", path)
+  for l in path.lines:
+    g.names.add(l.strip())
+  removeFile(path)
+
   g.encs = newSeq[uint64]()
-  g.values = newSeq[float32]()
+  g.values = newSeq[seq[float32]](g.n_fields)
   g.longs = newSeq[Long]()
 
   return true
 
-proc parseLong(line: string): Long {.inline.} =
+proc parseLong(line: string, n_fields:int): Long {.inline.} =
   var i = -1
-  for t in line.split(seps={'\t', '\n'}, maxsplit=3):
+  for t in line.split(seps={'\t', '\n'}, maxsplit=4):
     i += 1
     if i == 0:
       result.position = parseInt(t).uint32
@@ -77,7 +84,10 @@ proc parseLong(line: string): Long {.inline.} =
     elif i == 3:
       result.filter = t[0] == 't'
     elif i == 4:
-      result.value = parseFloat(t)
+      var ts = t.split(seps={'|'}, maxsplit=n_fields)
+      result.values.setLen(ts.len)
+      for i, it in ts:
+        result.values[i] = parseFloat(it)
       return
   if i < 3:
     quit "bad line:" & line
@@ -89,9 +99,12 @@ proc readLongs(g:var Gnotater, chrom: string) =
   # to streams are not inlined and therefore can be expensive. reading this
   # file is still slower than reading the encoded binary data.
   let big = st.readAll
+  var i = 0
   for l in big.split(seps={'\n'}):
     if unlikely(l.len == 0): continue
-    g.longs.add(parseLong(l))#.strip(chars={'\n'})))
+    if unlikely(i == 0 and l.startswith("position")): continue
+    g.longs.add(parseLong(l, g.n_fields))#.strip(chars={'\n'})))
+    i += 1
   st.close()
 
 proc readEncs(g:Gnotater, chrom: string) =
@@ -109,20 +122,32 @@ proc readEncs(g:Gnotater, chrom: string) =
     g.encs.setLen(g.encs.len + chunk)
   st.close()
 
-proc readAfs(g: var Gnotater, chrom: string) =
-  var st = g.zip.getStream(&"sli.var/{chrom}/gnotate-value.bin")
-  var chunk = 21660531
+proc readValues(g: var Gnotater, chrom: string, field_i: int) =
+  var field_name = g.names[field_i]
+  # gnotate-gnomad_num_homalt.bin
+  var st = g.zip.getStream(&"sli.var/{chrom}/gnotate-{field_name}.bin")
+  var chunk = 216 #60531
   shallow(g.values)
-  if g.values.len > chunk:
-    g.values.setLen(chunk)
+  shallow(g.values[field_i])
+  if g.values[field_i].len >= chunk:
+    g.values[field_i].setLen(chunk)
   else:
-    g.values = newSeqUninitialized[float32](chunk)
+    g.values[field_i] = newSeqUninitialized[float32](chunk)
+  shallow(g.values[field_i])
+  shallow(g.values)
+  #var vs = g.values[field_i]
+  #echo "len:", vs.len, " chunk:", chunk
+
   while true:
-    let bytesRead = st.readData(g.values[g.values.len - chunk].addr, chunk * float32.sizeof)
+    let bytesRead = st.readData(g.values[field_i][g.values[field_i].len - chunk].addr, chunk * float32.sizeof)
     if bytesRead < chunk * float32.sizeof:
-      g.values.setLen(g.values.len - chunk + int(bytesRead / float32.sizeof))
+      g.values[field_i].setLen(g.values[field_i].len - chunk + int(bytesRead / float32.sizeof))
       break
-    g.values.setLen(g.values.len + chunk)
+    g.values[field_i].setLen(g.values[field_i].len + chunk)
+
+proc readValues(g: var Gnotater, chrom: string) =
+  for i in 0..<g.n_fields:
+    g.readValues(chrom, i)
 
 proc sanitize_chrom(c:string): string {.inline.} =
   if c.len == 1: return c
@@ -144,13 +169,14 @@ proc load(g:var Gnotater, chrom: cstring): bool =
   g.readEncs(chrom)
   var etime = cpuTime() - t
   var t2 = cpuTime()
-  g.readAfs(chrom)
+  g.readValues(chrom)
   var atime = cpuTime() - t2
   t2 = cpuTime()
   g.readLongs(chrom)
   var ltime = cpuTime() - t2
   echo &"len: {g.encs.len}. time to extract encs: {etime:.3f} afs: {atime:.3f} longs: {ltime:.3f} total:{cpuTime() - t:.3f}"
-  doAssert g.values.len == g.encs.len
+  for v in g.values:
+    doAssert v.len == g.encs.len
   return true
 
 proc show*(g:var Gnotater, chrom:string, start:int, stop:int) =
@@ -170,10 +196,17 @@ proc show*(g:var Gnotater, chrom:string, start:int, stop:int) =
 proc annotate_missing(g:Gnotater, v:Variant): bool {.inline.} =
   if g.missing_value != MissingVal:
     var values = @[g.missing_value]
-    if v.info.set(g.name, values) != Status.OK:
-      quit &"couldn't set info of {g.name} to {values[0]}"
+    for n in g.names:
+      if v.info.set(n, values) != Status.OK:
+        quit &"couldn't set info of {n} to {values[0]}"
     return true
   return false
+
+proc values_at(g: Gnotater, i: int): seq[float32] =
+  result.setLen(g.n_fields)
+  for k in 0..g.values.high:
+    # g.values  is shape (n_fields, n_variants)
+    result[k] = g.values[k][i]
 
 proc annotate*(g:var Gnotater, v:Variant): bool {.inline.} =
   ## annotate the variant INFO field with the allele frequencies and flags in g
@@ -197,7 +230,7 @@ proc annotate*(g:var Gnotater, v:Variant): bool {.inline.} =
   if i == -1:
     return g.annotate_missing(v)
 
-  var value = g.values[i]
+  var values = g.values_at(i)
 
   var match = g.encs[i].decode
   var filtered = match.filter
@@ -214,23 +247,24 @@ proc annotate*(g:var Gnotater, v:Variant): bool {.inline.} =
         break
       i += 1
 
-    value = g.longs[i].value
+    values = g.longs[i].values
     filtered = g.longs[i].filter
 
-  var values = @[value]
-  if v.info.set(g.name, values) != Status.OK:
-    echo "variant:"
-    echo v.tostring()
-    quit &"couldn't set info of {g.name} to {values[0]}"
+  for i, value in values:
+    var ivalues = @[value]
+    if v.info.set(g.names[i], ivalues) != Status.OK:
+      echo v.tostring()
+      quit &"couldn't set info of {g.names[i]} to {values[0]}"
 
-  if filtered:
-    if v.info.set(g.name & "_filter", true) != Status.OK:
-      quit &"couldn't set info flag {g.name & \"_filter\"}"
+    if filtered:
+      if v.info.set(g.names[i] & "_filter", true) != Status.OK:
+        quit &"couldn't set info flag {g.names[i] & \"_filter\"}"
   return true
 
 proc update_header*(g:Gnotater, ivcf:VCF) =
-  doAssert ivcf.header.add_info(g.name, "1", "Float", "field from from gnotate VCF") == Status.OK
-  doAssert ivcf.header.add_info(g.name & "_filter", "0", "Flag", "non-passing flag in gnotate source VCF") == Status.OK
+  for n in g.names:
+    doAssert ivcf.header.add_info(n, "1", "Float", "field from from gnotate VCF") == Status.OK
+    doAssert ivcf.header.add_info(n & "_filter", "0", "Flag", "non-passing flag in gnotate source VCF") == Status.OK
 
 when isMainModule:
   import times
@@ -245,12 +279,11 @@ when isMainModule:
   if not open(ovcf, "t.bcf", mode="wb", threads=3):
     quit "couldn't open output file"
 
-  var name = paramStr(3)
-  var original_field = paramStr(4)
+  var zip_path = paramStr(2)
+  var original_field = paramStr(3)
 
   var g:Gnotater
-  var zip_path = paramStr(2)
-  doAssert g.open(zip_path, name=name, tmpDir="/tmp", missing_val= -1.0'f32)
+  doAssert g.open(zip_path, tmpDir="/tmp", missing_val= -1.0'f32)
   g.update_header(ivcf)
 
   ovcf.copy_header(ivcf.header)
@@ -260,7 +293,9 @@ when isMainModule:
   var nv = 0
   var t0 = cpuTime()
   for v in ivcf:
-    discard g.annotate(v) #, v.tostring()[0..<150]
+    if v.rid > 4: break
+    #if v.ALT[0] != "C": continue
+    discard g.annotate(v)
     doAssert ovcf.write_variant(v)
     nv += 1
 
@@ -270,8 +305,6 @@ when isMainModule:
   ivcf.close()
 
   ## now open the output file and check that values match.
-  var floats = newSeq[float32]()
-  var ints = newSeq[int32]()
   if not open(ivcf, "t.bcf", threads=3):
     quit "couldn't open file to check"
 
@@ -279,30 +312,36 @@ when isMainModule:
   var nmiss = 0
   var max_diff = 0'f32
   for v in ivcf:
-    if v.info.get(g.name, floats) != Status.OK:
-      quit "FAIL. not annotated:" & v.tostring()
-    var aaf = floats[0]
-    var filt = v.FILTER
+    if v.rid > 4: break
+    #if v.ALT[0] != "C": continue
+    for n in g.names[0..<1]:
+      var floats = newSeq[float32]()
+      var ints = newSeq[int32]()
+      if v.info.get(n, floats) != Status.OK:
+        quit "FAIL 0. not annotated:" & v.tostring()
+      var val = floats[0]
+      var filt = v.FILTER
 
-    var oaf = 0'f32
-    if v.info.get(original_field, ints) != Status.OK:
-      if filt == "PASS":
-        if nmiss < 10:
-          echo "not annotated:" & v.tostring()[0..150]
-        nmiss += 1
-    else:
-      oaf = floats[0]
+      var oval = -1'f32
+      if v.info.get(original_field, floats) != Status.OK:
+        if filt == "PASS":
+          if nmiss < 10:
+            echo "not annotated:" & v.tostring()[0..150]
+          nmiss += 1
+      else:
+        oval = floats[0]
 
-    if abs(aaf - oaf) > max_diff:
-        max_diff = abs(aaf - oaf)
-        if max_diff < 0.001:
+      if abs(val - oval) > max_diff:
+        max_diff = abs(val - oval)
+        if max_diff < 0.00001:
           echo "current maximum difference:", $max_diff
         else:
           echo "FAIL: differing values for:" & v.tostring()
-          quit "got:" & $aaf & " expected:" & $oaf
+          quit "got:" & $val & " expected:" & $oval
 
-    if not v.info.has_flag(name & "_filter") and filt != "PASS":
-        quit "FAIL: no filter found for " & v.tostring()
+      if not v.info.has_flag(n & "_filter") and filt != "PASS":
+          quit "FAIL: no filter found for " & v.tostring()
+      break
 
     n += 1
   echo "PASS:", $n, " variants tested with max difference:", max_diff

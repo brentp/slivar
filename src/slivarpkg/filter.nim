@@ -69,7 +69,7 @@ Options:
 
   for p in @(args["--gnotate"]):
     var gno:Gnotater
-    doAssert gno.open(p, name=splitFile(p).name)
+    doAssert gno.open(p)
     gno.update_header(ivcf)
     gnos.add(gno)
 

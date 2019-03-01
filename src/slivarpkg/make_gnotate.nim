@@ -77,7 +77,7 @@ proc write_to(positions:var seq[PosValue], fname:string, fields:seq[field]) =
     fh.close()
     return
   var last:PosValue = positions[0]
-  var snames = join(names, "\t")
+  var snames = join(names, "|")
   fh.write(fmt("position\treference\talternate\tfilter\t{snames}\n"))
 
   var chrom = positions[0].chrom
@@ -86,7 +86,7 @@ proc write_to(positions:var seq[PosValue], fname:string, fields:seq[field]) =
     doAssert chrom == pv.chrom, "expecting only a single chromosome in call to write_to"
     if pv.position != last.position:
       var p = last.position
-      var vs = join(last.values, "\t")
+      var vs = join(last.values, "|")
       fh.write(fmt("{p.position}\t{p.reference}\t{p.alternate}\t{p.filter}\t{vs}\n"))
       last = pv
     else:
@@ -97,7 +97,7 @@ proc write_to(positions:var seq[PosValue], fname:string, fields:seq[field]) =
           last.values[i] = max(last.values[i], pv.values[i])
 
   var p = last.position
-  var vs = join(last.values, "\t")
+  var vs = join(last.values, "|")
   fh.write(fmt("{p.position}\t{p.reference}\t{p.alternate}\t{p.filter}\t{vs}\n"))
   fh.close()
 
@@ -180,14 +180,17 @@ proc get_values(v:Variant, fields: var seq[field]): seq[float32] {.inline.} =
       var ints = newSeq[int32](1)
       if v.info.get(field.field, ints) != Status.OK:
         stderr.write_line &"[slivar make-gnomad] didn't find field {field.field} in {v.tostring()}"
+        result[i] = field.default
       else:
         result[i] = ints[0].float32
     else:
       if v.info.get(field.field, floats) != Status.OK:
         var ints:seq[float32]
-        if v.FILTER in ["PASS", ""] and v.info.get("AF", floats) == Status.OK and floats[0] > 0.01 and v.info.get("AN", ints) == Status.OK and ints[0] > 2000:
-          stderr.write_line "got wierd value for:" & v.tostring()
-      result[i] = floats[0]
+        result[i] = field.default
+        #if v.FILTER in ["PASS", ""] and v.info.get("AF", floats) == Status.OK and floats[0] > 0.01 and v.info.get("AN", ints) == Status.OK and ints[0] > 2000:
+        #  stderr.write_line "got wierd value for:" & v.tostring()
+      else:
+        result[i] = floats[0]
 
 proc update(v:Variant, e:uint64, vals:seq[float32], kvs:var seq[evalue], longs:var seq[PosValue]) =
   if v.REF.len + v.ALT[0].len > MaxCombinedLen:
@@ -299,6 +302,14 @@ proc main*(dropfirst:bool=false) =
   fh.close()
   zip.addFile(prefix & "args.txt", "sli.var/args.txt")
   removeFile(prefix & "args.txt")
+
+  doAssert open(fh, prefix & "fields.txt", fmWrite)
+  for f in fields:
+    fh.write_line(f.name)
+  fh.close()
+  zip.addFile(prefix & "fields.txt", "sli.var/fields.txt")
+  removeFile(prefix & "fields.txt")
+
   zip.close()
   stderr.write_line &"[slivar] wrote {prefix}zip"
 

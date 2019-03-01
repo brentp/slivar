@@ -6,4 +6,11 @@ src/slivarpkg/groups
 src/slivarpkg/pracode
 src/slivarpkg/sl_gnotate
 __tmp.groups
+sli.var
+*.zip
+*.bin
+src/slivarpkg/filter
+src/slivarpkg/make_gnotate
+src/slivarpkg/siset
+
 

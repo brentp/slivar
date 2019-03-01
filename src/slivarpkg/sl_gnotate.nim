@@ -50,7 +50,7 @@ Options:
   var t = cpuTime()
   for p in @(args["--gnotate"]):
     var gno: Gnotater
-    doAssert gno.open(p, name=splitFile(p).name.replace("-", "_"))
+    doAssert gno.open(p)
     gno.update_header(ivcf)
     gnos.add(gno)
   var
