@@ -63,12 +63,15 @@ slivar expr \
                    && kid.GQ >= 20 && mom.GQ >= 20 && dad.GQ >= 20 \
                    && kid.DP >= 12 && mom.DP >= 12 && dad.DP >= 12" \
    --trio "informative:kid.GQ > 20 && dad.GQ > 20 && mom.GQ > 20 && kid.alts == 1 && ((mom.alts == 1 && dad.alts == 0) || (mom.alts == 0 && dad.alts == 1))" \
-   --trio "recessive:recessive_func(kid, mom, dad)"
+   --trio "recessive:trio_autosomal_recessive(kid, mom, dad)"
 
 ```
 
 Note that `slivar` does not give direct access to the genotypes, instead exposing `alts` where 0 is homozygous reference, 1 is heterozygous, 2 is
 homozygous alternate and -1 when the genotype is unknown. It is recommended to **decompose** a VCF before sending to `slivar`
+
+Here it is assumed that `trio_autosomal_recessive` is defined in `functions.js`; an example implementation of that
+and other useful functions is provided [here](https://github.com/brentp/slivar/blob/master/js/functions.js
 
 #### Groups
 
