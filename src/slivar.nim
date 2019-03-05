@@ -5,7 +5,6 @@ import ./slivarpkg/evaluator
 import ./slivarpkg/groups
 
 import ./slivarpkg/gnotate
-import ./slivarpkg/sl_gnotate
 import ./slivarpkg/make_gnotate
 import ./slivarpkg/filter
 import strutils
@@ -161,9 +160,8 @@ proc main*() =
 
   var dispatcher = {
     "expr": pair(f:expr_main, description:"trio and group expressions and filtering"),
-    "gnotate": pair(f:sl_gnotate.main, description:"rapidly annotate a VCF/BCF with a gnotate.zip file"),
+    "gnotate": pair(f:filter.main, description:"filter and/or annotate a VCF/BCF"),
     "make-gnotate": pair(f:make_gnotate.main, description:"make a gnotate zip file for a given VCF"),
-    "filter": pair(f:filter.main, description:"filter a vcf with javascript expressions"),
     }.toTable
 
   stderr.write_line "slivar version: " & slivarVersion

@@ -202,6 +202,7 @@ proc newEvaluator*(samples: seq[Sample], groups: seq[Group], trio_expressions: T
   result.set_sample_attributes(by_name)
 
 proc id2names*(h:Header): seq[idpair] =
+  ## lookup of headerid -> name
   var hdr = h.hdr
   result = newSeq[idpair](hdr.n[0])
   for i in 0..<hdr.n[0].int:

@@ -13,6 +13,7 @@ slivar has sub-commands:
     * [trio](#trio)
     * [Groups](#groups)
  * [Gnotate](#gnotate)
+ * [filter](#filter)
 * [Installation](#installation)
 * [Attributes](#attributes)
 * [How it works](#how-it-works)
@@ -54,7 +55,7 @@ slivar expr \
    --vcf $vcf \
    --ped $ped \
    --gnotate $gnomad_af.zip \ # a compressed gnomad zip that allows fast annotation so that `gnomad_af` is available in the expressions below.
-   --js functions.js \ # any valid javascript is allowed here.
+   --js js/functions.js \ # any valid javascript is allowed here.
    --out-vcf annotated.bcf \
    --info "variant.call_rate > 0.9" \ # this filter is applied before the trio filters and can speed evaluation if it is stringent.
    --trio "denovo:kid.alts == 1 && mom.alts == 0 && dad.alts == 0 \
@@ -123,18 +124,19 @@ to find a somatic variant that has increasing frequency (AB is allele balance) a
 
 More detail on groups is provided [here](https://github.com/brentp/slivar/wiki/groups-in-slivar)
 
-### Gnotate
+### Gnotate (annotation and filtering)
 
-More extensive documentation and justification for `gnotate` are [here](https://github.com/brentp/slivar/wiki/gnotate)
+The `gnotate` sub-command allows filtering and/or annotating.
+More extensive documentation and justification for annotating with `gnotate` are [here](https://github.com/brentp/slivar/wiki/gnotate)
 
-This uses a compressed, reduced representation of a single value pulled from a (population VCF) along with a boolean that indicates a
+`gnotate` uses a compressed, reduced representation of a single value pulled from a (population VCF) along with a boolean that indicates a
 non-pass filter. This can, for example, reduce the 600+ GB of data for the **whole genome and exome** from gnomad to a 1.5GB file
 distributed [here](https://s3.amazonaws.com/gemini-annotations/gnomad-2.1.zip).
 The zip file encodes the popmax_AF (whichever is higher between whole genome and exome) and the presence of FILTER for every variant
 in gnomad.  It can annotate at faster than 10K variants per second.
 
 ```
-slivar gnotate --vcf $input_vcf -o $output_bcf --threads 3 -g encoded.zip
+slivar gnotate --vcf $input_vcf -o $output_bcf --threads 3 --gnotate encoded.zip
 ```
 
 Users can make their own `gnotate` files like:
@@ -147,6 +149,8 @@ this will pull `AF_popmax` and `nhomalt` from the INFO field and put them into g
 The resulting zip file will contain the union of values seen in the exome and genomes files with the maximum value for any intersection.
 Note that the names (`gnomad_popmax_af` and `gnomad_num_homalt` in this case) should be chosen carefully as those will be the names added to the INFO
 of any file to be annotated with the resulting `gnomad.zip`
+
+It's also possible to use `gnotate` as a filtering command without specifying any --gnotate arguments.
 
 ## Installation
 

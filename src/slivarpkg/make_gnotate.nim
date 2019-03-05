@@ -185,10 +185,7 @@ proc get_values(v:Variant, fields: var seq[field]): seq[float32] {.inline.} =
         result[i] = ints[0].float32
     else:
       if v.info.get(field.field, floats) != Status.OK:
-        var ints:seq[float32]
         result[i] = field.default
-        #if v.FILTER in ["PASS", ""] and v.info.get("AF", floats) == Status.OK and floats[0] > 0.01 and v.info.get("AN", ints) == Status.OK and ints[0] > 2000:
-        #  stderr.write_line "got wierd value for:" & v.tostring()
       else:
         result[i] = floats[0]
 
