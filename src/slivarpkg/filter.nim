@@ -71,11 +71,12 @@ Additional Options:
   if not open(ovcf, $args["--out-vcf"], mode="w", threads=threads):
     quit "couldn't open:" & $args["--out-vcf"]
 
-  for p in @(args["--gnotate"]):
-    var gno:Gnotater
-    doAssert gno.open(p)
-    gno.update_header(ivcf)
-    gnos.add(gno)
+  if $args["--gnotate"] != "nil":
+    for p in @(args["--gnotate"]):
+      var gno:Gnotater
+      doAssert gno.open(p)
+      gno.update_header(ivcf)
+      gnos.add(gno)
 
   var groups: seq[Group]
 

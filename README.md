@@ -1,4 +1,4 @@
-# slivar: filter/annotate variants in VCF/BCF format with simple expressions
+# slivar: filter/annotate variants in VCF/BCF format with simple expressions [![Build Status](https://travis-ci.org/brentp/slivar.svg?branch=master)](https://travis-ci.org/brentp/slivar)
 
 slivar has sub-commands:
 + [expr](#expr): trio and group expressions and filtering
