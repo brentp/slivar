@@ -1,0 +1,53 @@
+language: c
+services: docker
+before_install:
+- docker pull brentp/musl-hts-nim
+script:
+- docker run -w /test -v `pwd`:/test brentp/musl-hts-nim scripts/ci-tests.sh
+branches:
+  except:
+  - gh-pages
+before_deploy:
+- git config --local user.name "brentp"
+- git config --local user.email "bpederse@gmail.com"
+- export TRAVIS_TAG=${TRAVIS_TAG:-$(date +'%Y%m%d%H%M%S')-$(git log --format=%h -1)}
+- git tag $TRAVIS_TAG
+deploy:
+  # gem install travis
+  # travis setup releases --force
+  provider: releases
+  api_key:
+    secure: xIC7UCrPPB6lQqx9ZLcUP3OOdwF7NEClgE+HN3u0TfCbDkJvCdatrhezzRp09RhP1snaus56cl4U2oqDjJr+16E1jX/sHMfhF5tinreIRb3tgxlidtGEpiq8ljwK6cLB89Iq/yaihamqlG4Pw/R8AIlMCMyi99yHObTpaCYCptiOygUPkVtpDw5KkWoya9Ol7vrCyTVQK5rENEeivzpfPGtGNKHvNwCxI4f7njLI0VNHP1XLoAieb59ttDEgMIfjWI/T2mwjunIjgQtQKzVbBGUsG9M9eYhc5Jw0xZJQfoRiGn0p+ocxfVNX3H5oVM31sd/EEtuEXPfEO5UKxt5ro42ijd24kNjcVC8rVJxyPdqasjb7IQIXRX8CZqd9SF3boCGAbqSG39obdR2g7BoisL5VmZ/IcTCoj/zE5t9loyVLLJf24YViJwS39l9L51M4R4Oq5jHOtJGdrd/OhTYB9xAtc+DAEKiv1JkDmAJV34gAaZd12SnTCps2BtlttqqiTvXjgxIo62XgrXyBKtNzZ0+toYls2RBKdATBv615+zGQcxnXJkPuvl7DvaNJ2i1xCMNisPTSAFfVSciVulq1/k/IHrMYxY4ceRzrmkfUxzb4STETaNHAzq9cmF8MEa5LSLgSDCB0EqBHyll8JcBDlANBvgHUsUiwUbV0mKYUP6o=
+  skip_cleanup: true
+  draft: true
+  file: "$TRAVIS_BUILD_DIR/slivar_static"
+  on:
+    repo: brentp/slivar
+    branch: dev
+
+
+#deploy:
+#  # gem install travis
+#  # travis setup releases --force
+#  provider: releases
+#  api_key:
+#    secure: xIC7UCrPPB6lQqx9ZLcUP3OOdwF7NEClgE+HN3u0TfCbDkJvCdatrhezzRp09RhP1snaus56cl4U2oqDjJr+16E1jX/sHMfhF5tinreIRb3tgxlidtGEpiq8ljwK6cLB89Iq/yaihamqlG4Pw/R8AIlMCMyi99yHObTpaCYCptiOygUPkVtpDw5KkWoya9Ol7vrCyTVQK5rENEeivzpfPGtGNKHvNwCxI4f7njLI0VNHP1XLoAieb59ttDEgMIfjWI/T2mwjunIjgQtQKzVbBGUsG9M9eYhc5Jw0xZJQfoRiGn0p+ocxfVNX3H5oVM31sd/EEtuEXPfEO5UKxt5ro42ijd24kNjcVC8rVJxyPdqasjb7IQIXRX8CZqd9SF3boCGAbqSG39obdR2g7BoisL5VmZ/IcTCoj/zE5t9loyVLLJf24YViJwS39l9L51M4R4Oq5jHOtJGdrd/OhTYB9xAtc+DAEKiv1JkDmAJV34gAaZd12SnTCps2BtlttqqiTvXjgxIo62XgrXyBKtNzZ0+toYls2RBKdATBv615+zGQcxnXJkPuvl7DvaNJ2i1xCMNisPTSAFfVSciVulq1/k/IHrMYxY4ceRzrmkfUxzb4STETaNHAzq9cmF8MEa5LSLgSDCB0EqBHyll8JcBDlANBvgHUsUiwUbV0mKYUP6o=
+#  skip_cleanup: true
+#  draft: true
+#  file: "$TRAVIS_BUILD_DIR/slivar_static"
+#  on:
+#    repo: brentp/slivar
+#    branch: master
+#
+#deploy:
+#  # gem install travis
+#  # travis setup releases --force
+#  provider: releases
+#  api_key:
+#    secure: xIC7UCrPPB6lQqx9ZLcUP3OOdwF7NEClgE+HN3u0TfCbDkJvCdatrhezzRp09RhP1snaus56cl4U2oqDjJr+16E1jX/sHMfhF5tinreIRb3tgxlidtGEpiq8ljwK6cLB89Iq/yaihamqlG4Pw/R8AIlMCMyi99yHObTpaCYCptiOygUPkVtpDw5KkWoya9Ol7vrCyTVQK5rENEeivzpfPGtGNKHvNwCxI4f7njLI0VNHP1XLoAieb59ttDEgMIfjWI/T2mwjunIjgQtQKzVbBGUsG9M9eYhc5Jw0xZJQfoRiGn0p+ocxfVNX3H5oVM31sd/EEtuEXPfEO5UKxt5ro42ijd24kNjcVC8rVJxyPdqasjb7IQIXRX8CZqd9SF3boCGAbqSG39obdR2g7BoisL5VmZ/IcTCoj/zE5t9loyVLLJf24YViJwS39l9L51M4R4Oq5jHOtJGdrd/OhTYB9xAtc+DAEKiv1JkDmAJV34gAaZd12SnTCps2BtlttqqiTvXjgxIo62XgrXyBKtNzZ0+toYls2RBKdATBv615+zGQcxnXJkPuvl7DvaNJ2i1xCMNisPTSAFfVSciVulq1/k/IHrMYxY4ceRzrmkfUxzb4STETaNHAzq9cmF8MEa5LSLgSDCB0EqBHyll8JcBDlANBvgHUsUiwUbV0mKYUP6o=
+#  skip_cleanup: true
+#  draft: false
+#  file: "$TRAVIS_BUILD_DIR/slivar_static"
+#  on:
+#    repo: brentp/slivar
+#    tags: true

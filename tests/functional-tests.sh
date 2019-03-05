@@ -39,3 +39,20 @@ assert_equal 4 $(bcftools view -H xx.bcf | wc -l)
 run check_simple_groups $exe expr -v tests/ashk-trio.vcf.gz -a tests/trio.group --group-expr 'denovo:variant.FILTER == '"'"'PASS'"'"' && kid.alts == 1 && mom.alts == 0 && dad.alts == 0 && (  mom.AD[1] + dad.AD[1]) < 2 && kid.GQ > 10 && mom.GQ > 10 && dad.GQ > 10 && kid.DP > 10 && mom.DP > 10 && dad.DP > 10' -o xx.bcf
 assert_exit_code 0
 assert_equal 4 $(bcftools view -H xx.bcf | wc -l)
+
+
+#### filter
+
+rm -f xx.bcf
+run check_slivar_gnotate $exe gnotate --expr "variant.call_rate < 0" -o xx.bcf tests/ashk-trio.vcf.gz
+assert_exit_code 0
+assert_equal 0 $(bcftools view -H xx.bcf | wc -l)
+
+rm -f xx.bcf
+run check_slivar_gnotate_all $exe gnotate --expr "variant.call_rate > -1" -o xx.bcf tests/ashk-trio.vcf.gz
+assert_exit_code 0
+assert_equal $(bcftools view -H tests/ashk-trio.vcf.gz | wc -l) $(bcftools view -H xx.bcf | wc -l)
+
+rm -f xx.bcf
+run check_slivar_gnotate_load $exe gnotate --js tests/test-functions.js --expr "call_rate(variant)" -o xx.bcf tests/ashk-trio.vcf.gz
+assert_equal 9834 $(bcftools view -H xx.bcf | wc -l)
