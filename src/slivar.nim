@@ -19,7 +19,7 @@ proc expr_main*(dropfirst:bool=false) =
   let doc = """
 slivar -- variant expression for great good
 
-Usage: slivar expr [options --pass-only --out-vcf <path> --vcf <path> --ped <path> --trio=<expression>... --group-expr=<expression>... --info=<expression>]
+Usage: slivar expr [options --pass-only --out-vcf <path> --vcf <path> --ped <path> --trio=<expression>... --group-expr=<expression>... --info=<expression> --gnotate=<path>...]
 
 About:
 

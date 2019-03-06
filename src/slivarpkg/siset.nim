@@ -45,14 +45,16 @@ proc initIntSetUn(maxsize:int): intSet =
   return intSet(values: newSeqUninitialized[int64](int(0.5 + maxsize/bitsizeof(int64))))
 
 template incl*(b:intSet, s:SomeOrdinal) =
-  assert s.int < b.values.len * bitsizeof(int64) and s.int >= 0
+  when defined debug:
+    assert s.int < b.values.len * bitsizeof(int64) and s.int >= 0
   b.values[s shr log2WordSize] = b.values[s shr log2WordSize] or (1.int shl (s.int and (wordSize - 1)))
 
 template `+`*(b:intSet, s:SomeOrdinal) =
   b.incl(s)
 
 template excl*(b:intSet, s:SomeOrdinal) =
-  assert s.int < b.values.len * bitsizeof(int64) and s.int >= 0
+  when defined debug:
+    assert s.int < b.values.len * bitsizeof(int64) and s.int >= 0
   b.values[s shr log2WordSize] = b.values[s shr log2WordSize] and not (1.int shl (s.int and (wordSize - 1)))
 
 template `-`*(b:intSet, s:SomeOrdinal) =
