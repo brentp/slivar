@@ -1,4 +1,5 @@
 import hts/vcf
+import ./evaluator
 import times
 import ./version
 import algorithm
@@ -17,17 +18,23 @@ Make a compressed gnotate zip file for an INFO field in the given VCF.
 
 See: https://github.com/brentp/slivar/wiki/gnotate
 
-Usage: slivar make-gnotate [options --field <string>...] <vcfs>...
+Usage: slivar make-gnotate [options --field <string>... --expr <string>...] <vcfs>...
 
 Fields are specified as $info_field:$new_name:$op:$default, e.g.:  --field AF_popmax:gnomad_popmax:max:-1 --field num_homalt:gnomad_num_homalt:max:-1
 The default values for $op and $default are `max` and -1 respectively so they can be omitted.
 The only other valid value for $op is "min".
 The $new_name will be used when annotating files with the resulting file so it should be uniq and descriptive.
 
+It is also possible to use calculated values from the INFO (only) to create a derived field. For example spliceai has for values
+for different scenarios, we can simplify to the maximum of all of them as:
+
+  --expr 'spliceai:Math.max(INFO.DS_AG, INFO.DS_AL, INFO.DS_DG, INFO.DS_DL)' --field spliceai --prefix spliceai exome_splice_ai.vcf.gz`
+
 Options:
 
   --prefix <string>          prefix for output [default: gno]
   -f --field <string>...     field(s) to use for value [default: AF_popmax]
+  -e --expr <string>...      optional name:expression(s) that return floats to be used by --field
   -m --message <string>      optional usage message (or license) to associate with the gnotate file.
 
 Arguments:
@@ -159,11 +166,15 @@ proc write_chrom(zip: var Zip, chrom: string, prefix: string, kvs:var seq[evalue
     var dest = &"sli.var/{chrom}/{f}"
     zip.addFile(prefix & f, dest)
 
-proc get_values(v:Variant, fields: var seq[field]): seq[float32] {.inline.} =
+proc get_values(v:Variant, fields: var seq[field], calculated_values: TableRef[string, float32]): seq[float32] {.inline.} =
+  # calculated values are from info expressions.
   if not fields[0].initialized:
     stderr.write_line "[slivar] initializing fields"
     var floats: seq[float32]
     for i, field in fields.mpairs:
+      field.initialized = true
+      # TODO: check field.name
+      if field.name in calculated_values: continue
       var st = v.info.get(field.field, floats)
       if st == Status.UnexpectedType:
         stderr.write_line &"[slivar] using type int for {field.field}"
@@ -172,11 +183,13 @@ proc get_values(v:Variant, fields: var seq[field]): seq[float32] {.inline.} =
         quit &"tag:{field} not found in vcf"
       else:
         stderr.write_line &"[slivar] using type float for {field.field}"
-      field.initialized = true
   result = newSeqUninitialized[float32](fields.len)
   ## get the int or float value as appropriate and set val.
   var floats = newSeq[float32](1)
   for i, field in fields:
+    if field.field in calculated_values:
+      result[i] = calculated_values[field.field]
+      continue
     if field.use_ints:
       var ints = newSeq[int32](1)
       if v.info.get(field.field, ints) != Status.OK:
@@ -200,12 +213,13 @@ proc update(v:Variant, e:uint64, vals:seq[float32], kvs:var seq[evalue], longs:v
     longs.add(($v.CHROM, p, vals))
   kvs.add((e, vals))
 
-proc encode_and_update(v: Variant, fields: var seq[field], kvs: var seq[evalue], longs: var seq[PosValue]) =
+proc encode_and_update(v: Variant, fields: var seq[field], kvs: var seq[evalue], longs: var seq[PosValue], calculated_values: TableRef[string, float32]) =
   if v.ALT.len == 0:
     return
 
   var e = encode(uint32(v.start), v.REF, v.ALT[0], v.FILTER notin ["", "PASS", "."])
-  var vals = v.get_values(fields)
+
+  var vals = v.get_values(fields, calculated_values)
   v.update(e, vals, kvs, longs)
 
 proc main*(dropfirst:bool=false) =
@@ -238,8 +252,11 @@ proc main*(dropfirst:bool=false) =
     imod = 500_000
     fields = parse_fields(@(args["--field"]))
     message = $args["--message"]
+    iTbl: TableRef[string, string]
 
   var vcfs = newSeq[VCF](vcf_paths.len)
+
+  var calculated_values = newTable[string, float32]()
 
   #var zip: ZipArchive
   var zip: Zip
@@ -256,6 +273,11 @@ proc main*(dropfirst:bool=false) =
     if not open(vcfs[i], p, threads=3):
       quit "couldn't open:" & p
 
+  if $args["--expr"] != "nil":
+    iTbl = vcfs[0].getExpressionTable(@(args["--expr"]), vcf_paths[0])
+  var nerrors: int
+
+  var ev = newEvaluator(@[], @[], iTbl, nil, nil, "nil", @[], id2names(vcfs[0].header))
   for v in vcfs[0]:
     if len(v.ALT) > 1:
       quit "input should be decomposed and normalized"
@@ -265,19 +287,30 @@ proc main*(dropfirst:bool=false) =
         for i, ovcf in vcfs:
           # skip first vcf since we already used it.
           if i == 0: continue
+
+          if iTbl != nil:
+            ev = newEvaluator(@[], @[], iTbl, nil, nil, "nil", @[], id2names(ovcf.header))
+
           for ov in ovcf.query(last_chrom):
-            ov.encode_and_update(fields, kvs, longs)
+            if iTbl != nil:
+              for r in ev.evaluate(v, nerrors):
+                calculated_values[r.name] = r.val
+            ov.encode_and_update(fields, kvs, longs, calculated_values)
           stderr.write_line &"[slivar] kvs.len for {last_chrom}: {kvs.len} after {vcf_paths[i]}"
         fchrom.write(last_chrom & "\n")
         zip.write_chrom(last_chrom, prefix, kvs, longs, fields)
 
         longs = newSeqOfCap[PosValue](65536)
         kvs = newSeqOfCap[evalue](65536)
+        ev = newEvaluator(@[], @[], iTbl, nil, nil, "nil", @[], id2names(vcfs[0].header))
 
       last_chrom = $v.CHROM
       last_rid = v.rid
 
-    v.encode_and_update(fields, kvs, longs)
+    if iTbl != nil:
+      for r in ev.evaluate(v, nerrors):
+        calculated_values[r.name] = r.val
+    v.encode_and_update(fields, kvs, longs, calculated_values)
 
     if kvs.len mod imod == 0:
       stderr.write_line &"[slivar] {kvs.len} variants completed. at: {v.CHROM}:{v.start+1}. exact: {kvs.len} long: {longs.len} in {vcf_paths[0]}"

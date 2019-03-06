@@ -13,6 +13,7 @@ exe=./src/slivar
 run check_help_works $exe expr --help
 assert_exit_code 0
 assert_in_stdout "Options:"
+rm -f xx.bcf
 
 run check_denovo $exe expr -v tests/ashk-trio.vcf.gz --trio "denovo:kid.alts == 1 && mom.alts == 0 && dad.alts == 0 && (mom.AD[1] + dad.AD[1]) < 2 && kid.GQ > 10 && mom.GQ > 10 && dad.GQ > 10 && kid.DP > 10 && mom.DP > 10 && dad.DP > 10" --ped tests/ashk-trio.ped -o xx.bcf
 assert_exit_code 0
@@ -56,3 +57,4 @@ assert_equal $(bcftools view -H tests/ashk-trio.vcf.gz | wc -l) $(bcftools view 
 rm -f xx.bcf
 run check_slivar_gnotate_load $exe gnotate --js tests/test-functions.js --expr "call_rate(variant)" -o xx.bcf tests/ashk-trio.vcf.gz
 assert_equal 9834 $(bcftools view -H xx.bcf | wc -l)
+rm -f xx.bcf

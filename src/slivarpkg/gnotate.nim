@@ -48,9 +48,9 @@ proc cmp_long*(a, b:Long): int =
   # can't compare .af here because it screws up lower bound
   return cmp(a.alternate.len, b.alternate.len)
 
-proc open*(g:var Gnotater, path: string, tmpDir:string="/tmp", missing_val:float32= -1.0'f32): bool =
+proc open*(g:var Gnotater, zpath: string, tmpDir:string="/tmp", missing_val:float32= -1.0'f32): bool =
   g = Gnotater(tmpDir:tmpDir, missing_value:missing_val)
-  if not open(g.zip, path):
+  if not open(g.zip, zpath):
     return false
 
   var path = g.tmpDir / "chroms.txt"
@@ -70,7 +70,7 @@ proc open*(g:var Gnotater, path: string, tmpDir:string="/tmp", missing_val:float
     g.zip.extract_file("sli.var/message.txt", path)
     var msg = path.readFile
     if msg != "":
-      stderr.write_line "[slivar] message for " & path
+      stderr.write_line "[slivar] message for " & zpath
       stderr.write_line msg
     removeFile(path)
   except:

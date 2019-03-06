@@ -107,13 +107,14 @@ Options:
   var
     trioTbl: TableRef[string,string]
     grpTbl: TableRef[string, string]
+    iTbl: TableRef[string, string]
 
   if $args["--trio"] != "nil":
     trioTbl = ovcf.getExpressionTable(@(args["--trio"]), $args["--vcf"])
   if $args["--group-expr"] != "nil":
     grpTbl = ovcf.getExpressionTable(@(args["--group-expr"]), $args["--vcf"])
   doAssert ovcf.write_header
-  var ev = newEvaluator(samples, groups, trioTbl, grpTbl, $args["--info"], gnos, field_names=id2names(ivcf.header))
+  var ev = newEvaluator(samples, groups, iTbl, trioTbl, grpTbl, $args["--info"], gnos, field_names=id2names(ivcf.header))
 
   if $args["--js"] != "nil":
     var js = $readFile($args["--js"])

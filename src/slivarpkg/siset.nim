@@ -39,10 +39,10 @@ proc bitsizeof(x:typedesc):int {.inline.} =
   sizeof(x)*8
 
 proc initIntSet*(maxsize:int): intSet =
-  return intSet(values: newSeq[int64](int(0.5 + maxsize/bitsizeof(int64))))
+  result = intSet(values: newSeq[int64](int(1 + maxsize/bitsizeof(int64))))
 
 proc initIntSetUn(maxsize:int): intSet =
-  return intSet(values: newSeqUninitialized[int64](int(0.5 + maxsize/bitsizeof(int64))))
+  return intSet(values: newSeqUninitialized[int64](int(1 + maxsize/bitsizeof(int64))))
 
 template incl*(b:intSet, s:SomeOrdinal) =
   when defined debug:

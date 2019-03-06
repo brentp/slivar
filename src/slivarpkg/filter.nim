@@ -82,7 +82,7 @@ Additional Options:
     samples.add(Sample(id:s))
 
   var expr = if $args["--expr"] == "nil": "" else: $args["--expr"]
-  var ev = newEvaluator(samples, groups, tbl, tbl, expr, gnos, id2names(ivcf.header))
+  var ev = newEvaluator(samples, groups, tbl, tbl, tbl, expr, gnos, id2names(ivcf.header))
   if $args["--js"] != "nil":
     ev.load_js($readFile($args["--js"]))
 

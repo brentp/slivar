@@ -79,6 +79,7 @@ type Evaluator* = ref object
   gnos*:seq[Gnotater]
   trio_expressions: seq[NamedExpression]
   group_expressions: seq[NamedExpression]
+  float_expressions: seq[NamedExpression]
   info_expression*: Dukexpr
 
 template fill[T: int8 | int32 | float32 | string](sample:ISample, name:string, values:var seq[T], nper:int) =
@@ -151,7 +152,9 @@ proc make_igroups(ev:Evaluator, groups: seq[Group], by_name:TableRef[string, ISa
 
     result.add(ig)
 
-proc newEvaluator*(samples: seq[Sample], groups: seq[Group], trio_expressions: TableRef[string, string], group_expressions: TableRef[string, string], info_expr: string, gnos:seq[Gnotater], field_names:seq[idpair]): Evaluator =
+proc newEvaluator*(samples: seq[Sample], groups: seq[Group], float_expressions: TableRef[string, string],
+                   trio_expressions: TableRef[string, string], group_expressions: TableRef[string, string],
+                   info_expr: string, gnos:seq[Gnotater], field_names:seq[idpair]): Evaluator =
   ## make a new evaluation context for the given string
   var my_fatal: duk_fatal_function = (proc (udata: pointer, msg:cstring) {.stdcall.} =
     stderr.write_line "slivar fatal error:"
@@ -181,13 +184,15 @@ proc newEvaluator*(samples: seq[Sample], groups: seq[Group], trio_expressions: T
   discard result.ctx.duk_push_c_function(debug, -1.cint)
   discard result.ctx.duk_put_global_string("debug")
 
-
   if trio_expressions != nil:
     for n, ex in trio_expressions:
       result.trio_expressions.add(NamedExpression(expr: result.ctx.compile(ex), name: n))
   if group_expressions != nil:
     for n, ex in group_expressions:
       result.group_expressions.add(NamedExpression(expr: result.ctx.compile(ex), name: n))
+  if float_expressions != nil:
+    for n, ex in float_expressions:
+      result.float_expressions.add(NamedExpression(expr: result.ctx.compile(ex), name: n))
 
   if info_expr != "" and info_expr != "nil":
     result.info_expression = result.ctx.compile(info_expr)
@@ -296,6 +301,8 @@ proc hwe_score*(counts: array[4, int], aaf:float64): float64 {.inline.} =
 
 proc set_calculated_variant_fields*(ctx:Evaluator, alts: var seq[int8]) =
   # homref, het, homalt, unknown (-1)
+  if len(alts) == 0:
+    return
   var counts = [0, 0, 0, 0]
   for a in alts:
     if unlikely(a < 0 or a > 2):
@@ -315,6 +322,8 @@ proc set_calculated_variant_fields*(ctx:Evaluator, alts: var seq[int8]) =
 proc clear_unused_infos(ev: Evaluator, f:FieldSets) =
   for idx in f.last - f.curr:
     ev.INFO.del(ev.field_names[idx].name)
+
+var info_warn = 0
 
 proc set_infos*(ev:var Evaluator, variant:Variant, ints: var seq[int32], floats: var seq[float32]) =
   var istr: string = ""
@@ -341,14 +350,32 @@ proc set_infos*(ev:var Evaluator, variant:Variant, ints: var seq[int32], floats:
       if info.get(field.name, ints) != Status.OK:
         quit "couldn't get field:" & field.name
       if field.n == 1:
-          ev.INFO[field.name] = ints[0]
+        if len(ints) == 0:
+          if info_warn < 5:
+            stderr.write_line &"[slivar] warning {field.name} had empty value for {variant.tostring()} setting to -127"
+            info_warn.inc
+            if info_warn == 5:
+              stderr.write_line &"[slivar] not reporting further warnings of this type."
+            info_warn.inc
+          ints.add(-127)
+        ev.INFO[field.name] = ints[0]
       else:
-          ev.INFO[field.name] = ints
+        ev.INFO[field.name] = ints
     ev.info_field_sets.curr.incl(field.i)
   # clear any field in last variant but not in this one.
   ev.clear_unused_infos(ev.info_field_sets)
 
-type exResult = tuple[name:string, sampleList:seq[string]]
+type exResult* = tuple[name:string, sampleList:seq[string], val:float32]
+
+iterator evaluate_floats(ev:Evaluator, nerrors: var int, variant:Variant): exResult =
+  for i, namedexpr in ev.float_expressions:
+    try:
+      var val = namedexpr.expr.asfloat()
+      ev.INFO[namedexpr.name] = val
+      yield (namedexpr.name, @[], val)
+    except:
+      echo variant.tostring()
+      raise
 
 iterator evaluate_trios(ctx:Evaluator, nerrors: var int, variant:Variant): exResult =
     for i, namedexpr in ctx.trio_expressions:
@@ -372,7 +399,7 @@ iterator evaluate_trios(ctx:Evaluator, nerrors: var int, variant:Variant): exRes
       if len(matching_samples) > 0:
         # set INFO of this result so subsequent expressions can use it.
         ctx.INFO[namedexpr.name] = join(matching_samples, ",")
-        yield (namedexpr.name, matching_samples)
+        yield (namedexpr.name, matching_samples, -1'f32)
 
 proc alias_objects*(ctx:DTContext, os: seq[ISample], copyname:string) {.inline.} =
   ## add an array of objects and alias them to a new name.
@@ -411,7 +438,7 @@ iterator evaluate_groups(ev:Evaluator, nerrors: var int, variant:Variant): exRes
       if len(matching_groups) > 0:
         # set INFO of this result so subsequent expressions can use it.
         ev.INFO[namedexpr.name] = join(matching_groups, ",")
-        yield (namedexpr.name, matching_groups)
+        yield (namedexpr.name, matching_groups, -1'f32)
 
 template clear_unused_formats(ev:Evaluator) =
   for idx in ev.fmt_field_sets.last - ev.fmt_field_sets.curr:
@@ -459,9 +486,11 @@ iterator evaluate*(ev:var Evaluator, variant:Variant, nerrors:var int): exResult
   # set_infos also updates field_sets.curr
   ev.set_infos(variant, ints, floats)
 
-
   if ev.info_expression.ctx == nil or ev.info_expression.check:
-    ev.set_format_fields(variant, alts, ints, floats)
-    for r in ev.evaluate_trios(nerrors, variant): yield r
-    for r in ev.evaluate_groups(nerrors, variant): yield r
+    for r in ev.evaluate_floats(nerrors, variant): yield r
+
+    if ev.trios.len > 0 or ev.groups.len > 0:
+      ev.set_format_fields(variant, alts, ints, floats)
+      for r in ev.evaluate_trios(nerrors, variant): yield r
+      for r in ev.evaluate_groups(nerrors, variant): yield r
 
