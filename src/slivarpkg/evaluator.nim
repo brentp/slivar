@@ -361,6 +361,8 @@ proc set_infos*(ev:var Evaluator, variant:Variant, ints: var seq[int32], floats:
         ev.INFO[field.name] = ints[0]
       else:
         ev.INFO[field.name] = ints
+    elif field.vtype == BCF_TYPE.NULL:
+      ev.INFO[field.name] = info.has_flag(field.name)
     ev.info_field_sets.curr.incl(field.i)
   # clear any field in last variant but not in this one.
   ev.clear_unused_infos(ev.info_field_sets)
