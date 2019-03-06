@@ -22,7 +22,7 @@ Usage: slivar make-gnotate [options --field <string>... --expr <string>...] <vcf
 
 Fields are specified as $info_field:$new_name:$op:$default, e.g.:  --field AF_popmax:gnomad_popmax:max:-1 --field num_homalt:gnomad_num_homalt:max:-1
 The default values for $op and $default are `max` and -1 respectively so they can be omitted.
-The only other valid value for $op is "min".
+The other valid value for $op are "min", or "sum". "sum", is likely to be useful for AC, AN fields.
 The $new_name will be used when annotating files with the resulting file so it should be uniq and descriptive.
 
 It is also possible to use calculated values from the INFO (only) to create a derived field. For example spliceai has for values
@@ -46,10 +46,20 @@ Arguments:
 type field = object
   field: string ## info field name
   name: string ## name in the output file (and annotated files)
-  use_min: bool ## default is to use maximum value when there is a tie.
+  fn: proc(a, b: float32): float32 ## what to do with ties.
   default: float32
   use_ints: bool
   initialized: bool
+
+const fns = {
+  "min": (proc(a, b: float32): float32 =
+    if a < b: return a
+    return b),
+  "max": (proc(a, b: float32): float32 =
+    if a > b: return a
+    return b),
+  "sum": (proc(a, b: float32): float32 = a + b),
+  }.toTable
 
 proc parse_fields(field_args: seq[string]): seq[field] =
   # AF_popmax:gnomad_af_popmax:max:-1 or just AF_popmax
@@ -61,7 +71,7 @@ proc parse_fields(field_args: seq[string]): seq[field] =
       toks.add("max")
     if toks.len == 3:
       toks.add("-1")
-    result.add(field(field: toks[0], name: toks[1], use_min: toks[2] == "min", default: parseFloat(toks[3])))
+    result.add(field(field: toks[0], name: toks[1], fn: fns[toks[2]], default: parseFloat(toks[3])))
 
 # things that are too long to be encoded.
 type PosValue = tuple[chrom: string, position:pfra, values:seq[float32]]
@@ -99,10 +109,7 @@ proc write_to(positions:var seq[PosValue], fname:string, fields:seq[field]) =
       last = pv
     else:
       for i, f in fields:
-        if f.use_min:
-          last.values[i] = min(last.values[i], pv.values[i])
-        else:
-          last.values[i] = max(last.values[i], pv.values[i])
+        last.values[i] = f.fn(last.values[i], pv.values[i])
 
   var p = last.position
   var vs = join(last.values, "|")
@@ -145,10 +152,7 @@ proc write_chrom(zip: var Zip, chrom: string, prefix: string, kvs:var seq[evalue
       if kv.encoded.decode().reference.len > 0:
         dups.inc
       for i, f in fields:
-        if f.use_min:
-          last.values[i] = min(last.values[i], kv.values[i])
-        else:
-          last.values[i] = max(last.values[i], kv.values[i])
+        last.values[i] = f.fn(last.values[i], kv.values[i])
 
   keystream.write(last.encoded)
   for k, valstream in valstreams:
