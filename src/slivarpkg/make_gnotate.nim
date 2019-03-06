@@ -27,7 +27,8 @@ The $new_name will be used when annotating files with the resulting file so it s
 Options:
 
   --prefix <string>          prefix for output [default: gno]
-  --field <string>...        field(s) to use for value [default: AF_popmax]
+  -f --field <string>...     field(s) to use for value [default: AF_popmax]
+  -m --message <string>      optional usage message (or license) to associate with the gnotate file.
 
 Arguments:
 
@@ -236,6 +237,7 @@ proc main*(dropfirst:bool=false) =
     kvs = newSeqOfCap[evalue](65536)
     imod = 500_000
     fields = parse_fields(@(args["--field"]))
+    message = $args["--message"]
 
   var vcfs = newSeq[VCF](vcf_paths.len)
 
@@ -306,6 +308,12 @@ proc main*(dropfirst:bool=false) =
   fh.close()
   zip.addFile(prefix & "fields.txt", "sli.var/fields.txt")
   removeFile(prefix & "fields.txt")
+
+  doAssert open(fh, prefix & "message.txt", fmWrite)
+  if message == "nil": message = ""
+  fh.write(message); fh.close()
+  zip.addFile(prefix & "message.txt", "sli.var/message.txt")
+  removeFile(prefix & "message.txt")
 
   zip.close()
   stderr.write_line &"[slivar] wrote {prefix}zip"

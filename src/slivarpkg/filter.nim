@@ -26,7 +26,7 @@ proc main*(dropfirst:bool=false) =
   let doc = """
 slivar gnotate -- annotate and/or filter
 
-Usage: slivar gnotate [options] <VCF/BCF>
+Usage: slivar gnotate [options --gnotate <zip>...] <VCF/BCF>
 
 Options:
 
@@ -49,9 +49,6 @@ Additional Options:
   else:
     args = docopt(doc)
 
-  if $args["--expr"] == "nil":
-    stderr.write_line "must specify the --expr for filtering"
-    quit doc
   if $args["--out-vcf"] == "nil":
     stderr.write_line "must specify the --out-vcf"
     quit doc

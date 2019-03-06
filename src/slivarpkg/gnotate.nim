@@ -65,6 +65,17 @@ proc open*(g:var Gnotater, path: string, tmpDir:string="/tmp", missing_val:float
     g.names.add(l.strip())
   removeFile(path)
 
+  try:
+    path = g.tmpDir / "message.txt"
+    g.zip.extract_file("sli.var/message.txt", path)
+    var msg = path.readFile
+    if msg != "":
+      stderr.write_line "[slivar] message for " & path
+      stderr.write_line msg
+    removeFile(path)
+  except:
+    discard
+
   g.encs = newSeq[uint64]()
   g.values = newSeq[seq[float32]](g.n_fields)
   g.longs = newSeq[Long]()
