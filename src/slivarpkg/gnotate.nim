@@ -68,10 +68,10 @@ proc open*(g:var Gnotater, zpath: string, tmpDir:string="/tmp", missing_val:floa
   try:
     path = g.tmpDir / "message.txt"
     g.zip.extract_file("sli.var/message.txt", path)
-    var msg = path.readFile
-    if msg != "":
-      stderr.write_line "[slivar] message for " & zpath
-      stderr.write_line msg
+    stderr.write_line "[slivar] message for " & zpath & ":"
+    for l in path.lines:
+      if l.strip() != "":
+        stderr.write_line "   > " & l
     removeFile(path)
   except:
     discard

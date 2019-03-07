@@ -55,12 +55,12 @@ proc encode*(pos: uint32, ref_allele: string, alt_allele: string, filter:bool): 
 template encode*(p:pfra): uint64 =
   encode(p.position, p.reference, p.alternate, p.filter)
 
-template long_or_short(p:pfra): bool =
+template is_long_allele(p:pfra): bool =
   (p.reference.len == 0 and p.alternate.len == 0) or (p.reference.len + p.alternate.len > MaxCombinedLen)
 
 proc match(q:pfra, t:pfra): bool {.inline.} =
   if q.position != t.position: return false
-  if long_or_short(q) and long_or_short(t): return true
+  if q.is_long_allele and t.is_long_allele: return true
   return q.reference == t.reference and q.alternate == t.alternate
 
 proc decode*(e:uint64): pfra {.inline.} =
@@ -81,7 +81,6 @@ proc decode*(e:uint64): pfra {.inline.} =
     let index = e and 3
     e = e shr 2
     result.reference[result.reference.high - i] = rlookup[index]
-
 
 proc find*(coded:seq[uint64], q:pfra): int {.inline.} =
   var e = encode(q)

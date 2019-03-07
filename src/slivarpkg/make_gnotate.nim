@@ -18,7 +18,7 @@ Make a compressed gnotate zip file for an INFO field in the given VCF.
 
 See: https://github.com/brentp/slivar/wiki/gnotate
 
-Usage: slivar make-gnotate [options --field <string>... --expr <string>...] <vcfs>...
+Usage: slivar make-gnotate --field <string>... [--prefix <string> --expr <string>... options] <vcfs>...
 
 Fields are specified as $info_field:$new_name:$op:$default, e.g.:  --field AF_popmax:gnomad_popmax:max:-1 --field num_homalt:gnomad_num_homalt:max:-1
 The default values for $op and $default are `max` and -1 respectively so they can be omitted.
@@ -27,8 +27,6 @@ The $new_name will be used when annotating files with the resulting file so it s
 
 It is also possible to use calculated values from the INFO (only) to create a derived field. For example spliceai has for values
 for different scenarios, we can simplify to the maximum of all of them as:
-
-  --expr 'spliceai:Math.max(INFO.DS_AG, INFO.DS_AL, INFO.DS_DG, INFO.DS_DL)' --field spliceai --prefix spliceai exome_splice_ai.vcf.gz`
 
 Options:
 
@@ -197,7 +195,8 @@ proc get_values(v:Variant, fields: var seq[field], calculated_values: TableRef[s
     if field.use_ints:
       var ints = newSeq[int32](1)
       if v.info.get(field.field, ints) != Status.OK:
-        stderr.write_line &"[slivar make-gnomad] didn't find field {field.field} in {v.tostring()}"
+        if v.rid == 0 and v.start < 100000:
+          stderr.write_line &"[slivar make-gnomad] didn't find field {field.field} in {v.tostring()}"
         result[i] = field.default
       else:
         result[i] = ints[0].float32
@@ -348,7 +347,8 @@ proc main*(dropfirst:bool=false) =
 
   doAssert open(fh, prefix & "message.txt", fmWrite)
   if message == "nil": message = ""
-  fh.write(message); fh.close()
+  message = getAppFileName() & " " & join(commandLineParams(), "\n") & message
+  fh.write_line(message); fh.close()
   zip.addFile(prefix & "message.txt", "sli.var/message.txt")
   removeFile(prefix & "message.txt")
 
