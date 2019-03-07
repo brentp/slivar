@@ -14,13 +14,13 @@ import streams
 
 let doc = """
 
-Usage: slivar make-gnotate [options --field <string>...] <vcfs>...
+Usage: slivar make-gnotate [options --field <string>... --expr <string>...] <vcfs>...
 
 Options:
 
   --prefix <string>          prefix for output [default: gno]
   -f --field <string>...    field(s) to use for value [default: AF_popmax]
-  -e --expr <string>         optional name:expression that return floats to be used by --field
+  -e --expr <string>...      optional name:expression that return floats to be used by --field
   -m --message <string>      optional usage message (or license) to associate with the gnotate file.
 
 Arguments:
@@ -270,8 +270,7 @@ proc main*(dropfirst:bool=false) =
       quit "couldn't open:" & p
 
   if $args["--expr"] != "nil" and $args["--expr"] != "":
-    echo "EXPR:", len($args["--expr"]), ($args["--expr"]) == ""
-    iTbl = vcfs[0].getExpressionTable(@[$args["--expr"]], vcf_paths[0])
+    iTbl = vcfs[0].getExpressionTable(@(args["--expr"]), vcf_paths[0])
   var nerrors: int
 
   var ev = newEvaluator(@[], @[], iTbl, nil, nil, "nil", @[], id2names(vcfs[0].header))

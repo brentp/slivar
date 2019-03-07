@@ -16,7 +16,7 @@ proc getExpressionTable*(ovcf:VCF, expressions:seq[string], invcf:string): Table
   for e in expressions:
     var t = e.split(seps={':'}, maxsplit=1)
     if t.len != 2:
-      quit "must specify name:expression pairs"
+      quit "must specify name:expression pairs. got:" & e
     result[t[0]] = t[1]
     if ovcf.header.add_info(t[0], ".", "String", &"added by slivar with expression: '{t[1]}' from {invcf}") != Status.OK:
       quit "error adding field to header"
