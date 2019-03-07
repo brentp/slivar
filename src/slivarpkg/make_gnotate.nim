@@ -14,25 +14,13 @@ import streams
 
 let doc = """
 
-Make a compressed gnotate zip file for an INFO field in the given VCF.
-
-See: https://github.com/brentp/slivar/wiki/gnotate
-
-Usage: slivar make-gnotate --field <string>... [--prefix <string> --expr <string>... options] <vcfs>...
-
-Fields are specified as $info_field:$new_name:$op:$default, e.g.:  --field AF_popmax:gnomad_popmax:max:-1 --field num_homalt:gnomad_num_homalt:max:-1
-The default values for $op and $default are `max` and -1 respectively so they can be omitted.
-The other valid value for $op are "min", or "sum". "sum", is likely to be useful for AC, AN fields.
-The $new_name will be used when annotating files with the resulting file so it should be uniq and descriptive.
-
-It is also possible to use calculated values from the INFO (only) to create a derived field. For example spliceai has for values
-for different scenarios, we can simplify to the maximum of all of them as:
+Usage: slivar make-gnotate [options --field <string>...] <vcfs>...
 
 Options:
 
   --prefix <string>          prefix for output [default: gno]
-  -f --field <string>...     field(s) to use for value [default: AF_popmax]
-  -e --expr <string>...      optional name:expression(s) that return floats to be used by --field
+  -f --field <string>...    field(s) to use for value [default: AF_popmax]
+  -e --expr <string>         optional name:expression that return floats to be used by --field
   -m --message <string>      optional usage message (or license) to associate with the gnotate file.
 
 Arguments:
@@ -228,9 +216,14 @@ proc encode_and_update(v: Variant, fields: var seq[field], kvs: var seq[evalue],
 proc main*(dropfirst:bool=false) =
   var args = if dropfirst:
     var argv = commandLineParams()
+    echo "drop"
+    echo argv
     docopt(doc, argv=argv[1..argv.high])
   else:
-    docopt(doc)
+    echo commandLineParams()
+    var argv = commandLineParams()
+    docopt(doc, argv=argv)
+    #docopt(doc)
 
   var prefix = $args["--prefix"]
   if prefix[prefix.high] == '/':
@@ -276,8 +269,9 @@ proc main*(dropfirst:bool=false) =
     if not open(vcfs[i], p, threads=3):
       quit "couldn't open:" & p
 
-  if $args["--expr"] != "nil":
-    iTbl = vcfs[0].getExpressionTable(@(args["--expr"]), vcf_paths[0])
+  if $args["--expr"] != "nil" and $args["--expr"] != "":
+    echo "EXPR:", len($args["--expr"]), ($args["--expr"]) == ""
+    iTbl = vcfs[0].getExpressionTable(@[$args["--expr"]], vcf_paths[0])
   var nerrors: int
 
   var ev = newEvaluator(@[], @[], iTbl, nil, nil, "nil", @[], id2names(vcfs[0].header))
