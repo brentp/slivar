@@ -139,6 +139,9 @@ in gnomad.  It can annotate at faster than 10K variants per second.
 slivar gnotate --vcf $input_vcf -o $output_bcf --threads 3 --gnotate encoded.zip
 ```
 
+
+#### make-gnotate
+
 Users can make their own `gnotate` files like:
 
 ```
@@ -149,6 +152,8 @@ this will pull `AF_popmax` and `nhomalt` from the INFO field and put them into g
 The resulting zip file will contain the union of values seen in the exome and genomes files with the maximum value for any intersection.
 Note that the names (`gnomad_popmax_af` and `gnomad_num_homalt` in this case) should be chosen carefully as those will be the names added to the INFO
 of any file to be annotated with the resulting `gnomad.zip`
+
+More information on `make-gnotate` is [in the wiki](https://github.com/brentp/slivar/wiki/make-gnotate)
 
 It's also possible to use `gnotate` as a filtering command without specifying any --gnotate arguments.
 
