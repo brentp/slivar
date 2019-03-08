@@ -65,20 +65,25 @@ proc initFieldSets(n:int):FieldSets =
 
 type Evaluator* = ref object
   ctx: DTContext
-  trios: seq[Trio]
-  groups: seq[IGroup]
   samples: seq[Isample]
 
   field_names: seq[idpair]
+
   info_field_sets: FieldSets
   fmt_field_sets: FieldSets
-  # samples is a name-space to store the samples.
+
+  # samples_ns is a name-space to store the samples.
   samples_ns: Duko
   INFO: Duko
   variant: Duko
   gnos*:seq[Gnotater]
+
+  trios: seq[Trio]
   trio_expressions: seq[NamedExpression]
+
+  groups: seq[IGroup]
   group_expressions: seq[NamedExpression]
+
   float_expressions: seq[NamedExpression]
   info_expression*: Dukexpr
 

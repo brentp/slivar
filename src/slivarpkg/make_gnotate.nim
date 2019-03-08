@@ -341,6 +341,7 @@ proc main*(dropfirst:bool=false) =
   doAssert open(fh, prefix & "message.txt", fmWrite)
   if message == "nil": message = ""
   message = getAppFileName() & " " & join(commandLineParams(), "\n") & message
+  message = "created on:" & getDateStr()
   fh.write_line(message); fh.close()
   zip.addFile(prefix & "message.txt", "sli.var/message.txt")
   removeFile(prefix & "message.txt")

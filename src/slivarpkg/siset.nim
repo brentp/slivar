@@ -41,9 +41,6 @@ proc bitsizeof(x:typedesc):int {.inline.} =
 proc initIntSet*(maxsize:int): intSet =
   result = intSet(values: newSeq[int64](int(1 + maxsize/bitsizeof(int64))))
 
-proc initIntSetUn(maxsize:int): intSet =
-  return intSet(values: newSeqUninitialized[int64](int(1 + maxsize/bitsizeof(int64))))
-
 template incl*(b:intSet, s:SomeOrdinal) =
   when defined debug:
     assert s.int < b.values.len * bitsizeof(int64) and s.int >= 0
@@ -80,7 +77,7 @@ template clear*(b:intSet) =
 proc `*`*(a:intSet, b:intSet): intSet {.inline.} =
   ## set intersection. note that this is fairly slow due to heap allocation
   ## of a new Seq.
-  result = initIntSetUn(max(a.values.len * bitsizeof(int64), b.values.len * bitsizeof(int64)))
+  result = initIntSet(max(a.values.len * bitsizeof(int64), b.values.len * bitsizeof(int64)))
   for i in 0..min(a.values.high, b.values.high):
     result.values[i] = a.values[i] and b.values[i]
 
