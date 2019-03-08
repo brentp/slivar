@@ -163,9 +163,9 @@ proc main*() =
     "expr": pair(f:expr_main, description:"trio and group expressions and filtering"),
     "gnotate": pair(f:filter.main, description:"filter and/or annotate a VCF/BCF"),
     "make-gnotate": pair(f:make_gnotate.main, description:"make a gnotate zip file for a given VCF"),
-    }.toTable
+    }.toOrderedTable
 
-  stderr.write_line "slivar version: " & slivarVersion
+  stderr.write_line "slivar version: " & slivarVersion & "\n"
   var args = commandLineParams()
 
   if len(args) == 0 or not (args[0] in dispatcher):
