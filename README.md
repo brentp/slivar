@@ -1,9 +1,22 @@
-# slivar: filter/annotate variants in VCF/BCF format with simple expressions
+# slivar: filter/annotate variants in VCF/BCF format with simple expressions [![Build Status](https://travis-ci.org/brentp/slivar.svg?branch=master)](https://travis-ci.org/brentp/slivar)
+
+slivar is a set of command-line tools that enables rapid querying and filtering of VCF files. 
+It facilitates operations on trios and [groups](#groups) and allows arbitrary expressions using simple javascript.
+
+#### use-cases for `slivar`
+
++ annotate variants with combined exomes + whole genomes at > 30K variants/second using only a 1.5GB compressed annotation file
++ call *denovo* variants with a simple expression that uses *mom*, *dad*, *kid* labels that is applied to each trio in a cohort (as inferred from a pedigree file).
+  `kid.alts == 1 && mom.alts == 0 && dad.alts == 0 && kid.DP > 10 && mom.DP > 10 && dad.DP > 10`
++ define and filter on arbitrary groups with labels. For example, 7 sets of samples each with 1 normal and 3 tumor time-points:
+  `normal.AD[0] = 0 && tumor1.AB  < tumor2.AB && tumor2.AB < tumor3.AB`
++ filter variants with simple expressions:
+  `variant.call_rate > 0.9 && variant.FILTER == "PASS" && INFO.AC < 22 && variant.num_hom_alt == 0`
 
 slivar has sub-commands:
 + [expr](#expr): trio and group expressions and filtering
-+ [gnotate](#gnotate): rapidly annotate a VCF/BCF with gnomad
-+ filter: filter a VCF with an expression
++ [gnotate](#gnotate): filter and/or annotate a VCF/BCF files
++ [make-gnotate](#gnotate): make a compressed zip file of annotations for use by slivar
 
 # Table of Contents
 
@@ -47,27 +60,34 @@ will be tested on each of those 200 trios.
 The expressions are javascript so the user can make these as complex as needed.
 
 
-```
+```bash
 slivar expr \
    --pass-only \ # output only variants that pass one of the filters (default is to output all variants)
    --vcf $vcf \
    --ped $ped \
-   --gnomad $gnomad_zip \ # a compressed gnomad zip that allows fast annotation so that `gnomad_af` is available in the expressions below.
-   --load functions.js \ # any valid javascript is allowed here.
+   # compressed zip that allows fast annotation so that `gnomad_af` is available in the expressions below.
+   --gnotate $gnomad_af.zip \ 
+   # any valid javascript is allowed in a file here. provide functions to be used below.
+   --js js/functions.js \ 
    --out-vcf annotated.bcf \
-   --info "variant.call_rate > 0.9" \ # this filter is applied before the trio filters and can speed evaluation if it is stringent.
+   # this filter is applied before the trio filters and can speed evaluation if it is stringent.
+   --info "variant.call_rate > 0.9" \ 
    --trio "denovo:kid.alts == 1 && mom.alts == 0 && dad.alts == 0 \
                    && kid.AB > 0.25 && kid.AB < 0.75 \
                    && (mom.AD[1] + dad.AD[1]) == 0 \
                    && kid.GQ >= 20 && mom.GQ >= 20 && dad.GQ >= 20 \
                    && kid.DP >= 12 && mom.DP >= 12 && dad.DP >= 12" \
-   --trio "informative:kid.GQ > 20 && dad.GQ > 20 && mom.GQ > 20 && kid.alts == 1 && ((mom.alts == 1 && dad.alts == 0) || (mom.alts == 0 && dad.alts == 1))" \
-   --trio "recessive:recessive_func(kid, mom, dad)"
+   --trio "informative:kid.GQ > 20 && dad.GQ > 20 && mom.GQ > 20 && kid.alts == 1 && \
+           ((mom.alts == 1 && dad.alts == 0) || (mom.alts == 0 && dad.alts == 1))" \
+   --trio "recessive:trio_autosomal_recessive(kid, mom, dad)"
 
 ```
 
 Note that `slivar` does not give direct access to the genotypes, instead exposing `alts` where 0 is homozygous reference, 1 is heterozygous, 2 is
 homozygous alternate and -1 when the genotype is unknown. It is recommended to **decompose** a VCF before sending to `slivar`
+
+Here it is assumed that `trio_autosomal_recessive` is defined in `functions.js`; an example implementation of that
+and other useful functions is provided [here](https://github.com/brentp/slivar/blob/master/js/functions.js
 
 #### Groups
 
@@ -91,7 +111,7 @@ sample7	sample8	sample9	sample12
 ```
 
 where `sample10` will be available as "sibling" in the first family and an expression like:
-```
+```bash
 kid.alts == 1 && mom.alts == 0 && dad.alts == 0 and sibling.alts == 0
 ```
 could be specified and it would automatically be applied to each of the 3 families.
@@ -106,7 +126,7 @@ ss3	ss16	ss17	ss18	ss19
 
 where, again each row is a sample and the ID's (starting with "ss") will be injected for each sample to allow a single
 expression like:
-```
+```bash
 normal.alts == 0 && normal.DP > 10 \
   && tumor1.AB > 0 \
   && tumor1.AB < tumor2.AB \
@@ -117,18 +137,49 @@ normal.alts == 0 && normal.DP > 10 \
 to find a somatic variant that has increasing frequency (AB is allele balance) along the tumor time-points.
 
 
+More detail on groups is provided [here](https://github.com/brentp/slivar/wiki/groups-in-slivar)
+
 ### Gnotate
 
-This uses a compressed, reduced representation of gnomad allele frequencies **and FILTERs** to reduce from the 600+ GB of data for the
-**whole genome and exome** to a 1.5GB file distributed [here](https://s3.amazonaws.com/gemini-annotations/gnomad-2.1.zip).
-The zip file encodes the popmax_AF (whichever is higher between whole genome and exome) and the FILTER for every variant in gnomad.
-It can annotate at faster than 10K variants per second.
+The `gnotate` sub-command allows filtering and/or annotating.
+More extensive documentation and justification for annotating with `gnotate` are [here](https://github.com/brentp/slivar/wiki/gnotate)
 
-slivar gnotate --vcf $input_vcf -o $output_bcf --threads 3 -g gnomad-2.1.zip
+`gnotate` uses a compressed, reduced representation of a single value pulled from a (population VCF) along with a boolean that indicates a
+non-pass filter. This can, for example, reduce the 600+ GB of data for the **whole genome and exome** from gnomad to a 1.5GB file
+distributed [here](https://s3.amazonaws.com/gemini-annotations/gnomad-2.1.zip).
+The zip file encodes the popmax_AF (whichever is higher between whole genome and exome) and the presence of FILTER for every variant
+in gnomad.  
+
+It can annotate at faster than 30K variants per second (limited by speed of parsing the query VCF).
+
+```
+slivar gnotate --vcf $input_vcf -o $output_bcf --threads 3 --gnotate encoded.zip
+```
+It's also possible to use `gnotate` as a filtering command without specifying any `--gnotate` arguments.
+
+
+#### make-gnotate
+
+Users can make their own `gnotate` files like:
+
+```bash
+slivar make-gnotate --prefix gnomad \
+    --field AF_popmax:gnomad_popmax_af \
+    --field nhomalt:gnomad_num_homalt \
+    gnomad.exomes.r2.1.sites.vcf.gz gnomad.genomes.r2.1.sites.vcf.gz
+```
+
+this will pull `AF_popmax` and `nhomalt` from the INFO field and put them into `gnomad.zip` as `gnomad_popmax_af` and `gnomad_num_homalt` respectively.
+The resulting zip file will contain the union of values seen in the exome and genomes files with the maximum value for any intersection.
+Note that the names (`gnomad_popmax_af` and `gnomad_num_homalt` in this case) should be chosen carefully as those will be the names added to the INFO of any file to be annotated with the resulting `gnomad.zip`
+
+More information on `make-gnotate` is [in the wiki](https://github.com/brentp/slivar/wiki/make-gnotate)
+
 
 ## Installation
 
 get the latest binary from: https://github.com/brentp/slivar/releases/latest
+This will require libhts.so (from [htslib](https://htslib.org)) to be in the usual places or in a directory indicated in `LD_LIBRARY_PATH`.
 
 or use via docker from: [brentp/slivar:latest](https://hub.docker.com/r/brentp/slivar)
 

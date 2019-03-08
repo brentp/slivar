@@ -81,6 +81,16 @@ proc check*(d:Dukexpr): bool {.inline.} =
     result = d.ctx.duk_get_boolean(-1)
   d.ctx.pop()
 
+proc asfloat*(d:Dukexpr): float32 {.inline.} =
+  ## evaluate a (previously compiled) expression and return a float32
+  discard d.ctx.duk_push_heapptr(d.vptr)
+  if d.ctx.duk_pcall(0) != 0:
+    var err = $d.ctx.duk_safe_to_string(-1)
+    raise newException(ValueError, "error from duktape: " & $err & " for expression:" & d.expr & "\n")
+  else:
+    result = d.ctx.duk_get_number(-1).float
+  d.ctx.pop()
+
 proc check*(ctx: DTContext, expression: string): bool {.inline.} =
     ## evaluate the expression in the current context
     if ctx.duk_peval_string(expression):

@@ -5,7 +5,7 @@ import ./slivarpkg/evaluator
 import ./slivarpkg/groups
 
 import ./slivarpkg/gnotate
-import ./slivarpkg/sl_gnotate
+import ./slivarpkg/make_gnotate
 import ./slivarpkg/filter
 import strutils
 import hts/vcf
@@ -19,7 +19,7 @@ proc expr_main*(dropfirst:bool=false) =
   let doc = """
 slivar -- variant expression for great good
 
-Usage: slivar expr [options --pass-only --out-vcf <path> --vcf <path> --ped <path> --trio=<expression>... --group-expr=<expression>... --info=<expression>]
+Usage: slivar expr [options --pass-only --out-vcf <path> --vcf <path> --ped <path> --trio=<expression>... --group-expr=<expression>... --info=<expression> --gnotate=<path>...]
 
 About:
 
@@ -48,10 +48,10 @@ Options:
   --pass-only                only output variants that pass at least one of the filters [default: false]
   --trio <string>...         an expression applied to each trio where "mom", "dad", "kid" labels are available from trios inferred from
                              a ped file.
-  --group-expr <string>...   expressions applied to the groups defined in the alias option.
+  --group-expr <string>...   expressions applied to the groups defined in the alias option [see: https://github.com/brentp/slivar/wiki/groups-in-slivar].
   --info <string>            a filter expression using only variables from  the info field and variant attributes. If this filter
                              does not pass, the trio and alias expressions will not be applied.
-  -g --gnomad <path>          optional path compressed gnomad allele frequencies distributed at: https://github.com/brentp/slivar/releases
+  -g --gnotate <path>...     optional paths compressed gnote file (made with slivar make-gnotate)
   """
 
   var args: Table[string, docopt.Value]
@@ -74,7 +74,7 @@ Options:
     ivcf:VCF
     ovcf:VCF
     groups: seq[Group]
-    gno:Gnotater
+    gnos:seq[Gnotater]
     samples:seq[Sample]
 
   if not open(ivcf, $args["--vcf"], threads=1):
@@ -96,21 +96,25 @@ Options:
   if $args["--alias"] != "nil":
     groups = parse_groups($args["--alias"], samples)
 
-  if $args["--gnomad"] != "nil":
-    doAssert gno.open($args["--gnomad"])
-    gno.update_header(ivcf)
+  if $args["--gnotate"] != "nil":
+    for p in @(args["--gnotate"]):
+      var gno:Gnotater
+      doAssert gno.open(p)
+      gno.update_header(ivcf)
+      gnos.add(gno)
 
   ovcf.copy_header(ivcf.header)
   var
     trioTbl: TableRef[string,string]
     grpTbl: TableRef[string, string]
+    iTbl: TableRef[string, string]
 
   if $args["--trio"] != "nil":
     trioTbl = ovcf.getExpressionTable(@(args["--trio"]), $args["--vcf"])
   if $args["--group-expr"] != "nil":
     grpTbl = ovcf.getExpressionTable(@(args["--group-expr"]), $args["--vcf"])
   doAssert ovcf.write_header
-  var ev = newEvaluator(samples, groups, trioTbl, grpTbl, $args["--info"], gno, field_names=id2names(ivcf.header))
+  var ev = newEvaluator(samples, groups, iTbl, trioTbl, grpTbl, $args["--info"], gnos, field_names=id2names(ivcf.header))
 
   if $args["--js"] != "nil":
     var js = $readFile($args["--js"])
@@ -157,8 +161,8 @@ proc main*() =
 
   var dispatcher = {
     "expr": pair(f:expr_main, description:"trio and group expressions and filtering"),
-    "gnotate": pair(f:sl_gnotate.main, description:"rapidly annotate a VCF/BCF with gnomad"),
-    "filter": pair(f:filter.main, description:"filter a vcf with javascript expressions"),
+    "gnotate": pair(f:filter.main, description:"filter and/or annotate a VCF/BCF"),
+    "make-gnotate": pair(f:make_gnotate.main, description:"make a gnotate zip file for a given VCF"),
     }.toTable
 
   stderr.write_line "slivar version: " & slivarVersion
