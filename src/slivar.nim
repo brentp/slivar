@@ -40,7 +40,7 @@ About:
 Options:
 
   -v --vcf <path>            VCF/BCF
-  --region <string>          optional region to limit evaluation. e.g. chr1 or 1:222-333
+  --region <string>          optional region to limit evaluation. e.g. chr1 or 1:222-333 (or a BED file of regions)
   -j --js <path>             path to javascript functions to expose to user
   -p --ped <path>            pedigree file with trio relations
   -a --alias <path>          path to file of group aliases

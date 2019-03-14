@@ -3,6 +3,7 @@ import hts/private/hts_concat
 import math
 import bpbiopkg/pedfile
 import ./duko
+import os
 import ./gnotate
 import ./siset
 import ./groups
@@ -25,6 +26,13 @@ iterator variants*(vcf:VCF, region:string): Variant =
   ## iterator over region or just the variants.
   if region == "" or region == "nil":
     for v in vcf: yield v
+  elif fileExists(region):
+    ## must be in bed format.
+    for l in region.lines:
+      if l[0] == '#' or l.strip().len == 0: continue
+      var toks = l.strip().split(seps={'\t'})
+      for v in vcf.query(&"{toks[0]}:{parseInt(toks[1]) + 1}-{toks[2]}"):
+        yield v
   else:
     for v in vcf.query(region): yield v
 
