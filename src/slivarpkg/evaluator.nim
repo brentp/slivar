@@ -285,6 +285,7 @@ proc set_variant_fields*(ctx:Evaluator, variant:Variant) =
   ctx.variant["QUAL"] = variant.QUAL
   ctx.variant["REF"] = variant.REF
   ctx.variant["ALT"] = variant.ALT
+  ctx.variant["is_multiallelic"] = len(variant.ALT) > 1
   ctx.variant["FILTER"] = variant.FILTER
   ctx.variant["ID"] = $variant.ID
 
