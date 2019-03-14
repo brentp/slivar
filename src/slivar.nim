@@ -122,8 +122,10 @@ Options:
   var t = cpuTime()
   var n = 10000
 
-  var i = 0
-  var nerrors = 0
+  var
+    i = 0
+    nerrors = 0
+    written = 0
   for variant in ivcf.variants($args["--region"]):
     variant.vcf = ovcf
     i += 1
@@ -149,7 +151,8 @@ Options:
 
     if any_pass:
       doAssert ovcf.write_variant(variant)
-  stderr.write_line &"[slivar] Finished. evaluated {i} total variants."
+      written.inc
+  stderr.write_line &"[slivar] Finished. evaluated {i} total variants and wrote {written} passing variants."
 
   ovcf.close()
   ivcf.close()

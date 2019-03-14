@@ -11,6 +11,9 @@ import tables
 import strformat
 import strutils
 
+proc clean(s:string): string =
+  return s.replace("\"", "").replace("'", "")
+
 proc getExpressionTable*(ovcf:VCF, expressions:seq[string], invcf:string): TableRef[string, string] =
   ## parse (split on :) the expressions, return a table, and update the vcf header with a reasonable description.
   result = newTable[string, string]()
@@ -19,7 +22,7 @@ proc getExpressionTable*(ovcf:VCF, expressions:seq[string], invcf:string): Table
     if t.len != 2:
       quit "must specify name:expression pairs. got:" & e
     result[t[0]] = t[1]
-    if ovcf.header.add_info(t[0], ".", "String", &"added by slivar with expression: '{t[1]}' from {invcf}") != Status.OK:
+    if ovcf.header.add_info(t[0], ".", "String", &"added by slivar with expression: '{t[1].clean}' from {invcf}") != Status.OK:
       quit "error adding field to header"
 
 iterator variants*(vcf:VCF, region:string): Variant =
@@ -285,7 +288,7 @@ proc set_variant_fields*(ctx:Evaluator, variant:Variant) =
   ctx.variant["QUAL"] = variant.QUAL
   ctx.variant["REF"] = variant.REF
   ctx.variant["ALT"] = variant.ALT
-  ctx.variant["is_multiallelic"] = len(variant.ALT) > 1
+  ctx.variant["is_multiallelic"] = (len(variant.ALT) > 1)
   ctx.variant["FILTER"] = variant.FILTER
   ctx.variant["ID"] = $variant.ID
 

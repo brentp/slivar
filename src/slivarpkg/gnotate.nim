@@ -65,7 +65,13 @@ proc open*(g:var Gnotater, zpath: string, tmpDir:string="/tmp", missing_val:floa
     g.names.add(l.strip())
   removeFile(path)
 
-  try:
+  var hasMsg = false
+  for p in g.zip.walkFiles:
+    if p.endsWith("message.txt"):
+      hasMsg = true
+      break
+
+  if hasMsg:
     path = g.tmpDir / "message.txt"
     g.zip.extract_file("sli.var/message.txt", path)
     stderr.write_line "[slivar] message for " & zpath & ":"
@@ -73,8 +79,6 @@ proc open*(g:var Gnotater, zpath: string, tmpDir:string="/tmp", missing_val:floa
       if l.strip() != "":
         stderr.write_line "   > " & l
     removeFile(path)
-  except:
-    discard
 
   g.encs = newSeq[uint64]()
   g.values = newSeq[seq[float32]](g.n_fields)
@@ -185,7 +189,8 @@ proc load(g:var Gnotater, chrom: cstring): bool =
   t2 = cpuTime()
   g.readLongs(chrom)
   var ltime = cpuTime() - t2
-  echo &"len: {g.encs.len}. time to extract encs: {etime:.3f} afs: {atime:.3f} longs: {ltime:.3f} total:{cpuTime() - t:.3f}"
+  when defined(gnotate_times):
+    stderr.write_line &"len: {g.encs.len}. time to extract encs: {etime:.3f} afs: {atime:.3f} longs: {ltime:.3f} total:{cpuTime() - t:.3f}"
   for v in g.values:
     doAssert v.len == g.encs.len
   return true
