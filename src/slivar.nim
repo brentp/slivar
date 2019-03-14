@@ -44,7 +44,7 @@ Options:
   -j --js <path>             path to javascript functions to expose to user
   -p --ped <path>            pedigree file with trio relations
   -a --alias <path>          path to file of group aliases
-  -o --out-vcf <path>        VCF/BCF
+  -o --out-vcf <path>        VCF/BCF [default: /dev/stdout]
   --pass-only                only output variants that pass at least one of the filters [default: false]
   --trio <string>...         an expression applied to each trio where "mom", "dad", "kid" labels are available from trios inferred from
                              a ped file.
