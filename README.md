@@ -12,6 +12,8 @@ It facilitates operations on trios and [groups](#groups) and allows arbitrary ex
   `normal.AD[0] = 0 && tumor1.AB  < tumor2.AB && tumor2.AB < tumor3.AB`
 + filter variants with simple expressions:
   `variant.call_rate > 0.9 && variant.FILTER == "PASS" && INFO.AC < 22 && variant.num_hom_alt == 0`
++ see [using slivar for rare disease research](https://github.com/brentp/slivar/wiki/rare-disease)
+
 
 slivar has sub-commands:
 + [expr](#expr): trio and group expressions and filtering
@@ -87,7 +89,7 @@ Note that `slivar` does not give direct access to the genotypes, instead exposin
 homozygous alternate and -1 when the genotype is unknown. It is recommended to **decompose** a VCF before sending to `slivar`
 
 Here it is assumed that `trio_autosomal_recessive` is defined in `functions.js`; an example implementation of that
-and other useful functions is provided [here](https://github.com/brentp/slivar/blob/master/js/functions.js
+and other useful functions is provided [here](https://github.com/brentp/slivar/blob/master/js/functions.js)
 
 #### Groups
 
