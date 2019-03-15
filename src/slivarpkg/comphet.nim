@@ -28,10 +28,9 @@ proc add_ch(a:Variant, b:Variant) =
   var s: string = ""
   discard a.info.get("slivar_comphet", s)
   if s.len > 1:
-    echo "found"
+    # htslib doesn't allow setting an existing field again. so we delete and re-add.
+    doAssert a.info.delete("slivar_comphet") == Status.OK
     s &= ","
-  else:
-    echo "not found"
 
   var balts = join(b.ALT, ",")
   var toadd = &"{$b.CHROM}/{b.start+1}/{b.REF}/{balts}"
@@ -46,7 +45,6 @@ proc write_compound_hets(ovcf:VCF, kids:seq[Sample], tbl:TableRef[string, seq[Va
     var variants = variants
     var found = initHashSet[int]()
     if variants.len < 2: continue
-    shallow(variants)
 
     for ai in 1..variants.high:
       var a = variants[ai].format.genotypes(x).alts
@@ -61,10 +59,9 @@ proc write_compound_hets(ovcf:VCF, kids:seq[Sample], tbl:TableRef[string, seq[Va
           if not is_compound_het(kid, a, b): continue
           found.incl(ai)
           found.incl(bi)
-          var av = variants[ai]
-          var bv = variants[bi]
-          av.add_ch(bv)
-          bv.add_ch(av)
+          variants[ai].add_ch(variants[bi])
+          variants[bi].add_ch(variants[ai])
+
     if found.len == 0: continue
     var ordered = newSeq[int]()
     for i in found:
@@ -124,14 +121,18 @@ proc main*(dropfirst:bool=false) =
     if v.info.get(opts.field, csqs) != Status.OK or csqs.len == 0:
       continue
 
+    var seen = initHashSet[string]()
     for csq in csqs.split(","):
       var fields = csq.split("|")
       var gene = fields[index]
       if gene == "": continue
+      if gene in seen: continue
       if gene notin tbl:
         tbl[gene] = @[v.copy()]
       else:
         tbl[gene].add(v.copy())
+      seen.incl(gene)
+
   if last_rid != -1:
     ovcf.write_compound_hets(kids, tbl)
 
@@ -155,5 +156,3 @@ when isMainModule:
       check not is_compound_het(kid, [1'i8, 1, 1], [1'i8, 0, 1])
 
       check not is_compound_het(kid, [0'i8, 0, 1], [1'i8, 1, 0])
-
-  main()
