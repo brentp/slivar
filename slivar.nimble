@@ -18,7 +18,7 @@ license       = "MIT"
 
 # Dependencies
 
-requires "hts >= 0.2.7", "nimgen", "binaryheap", "zip", "https://github.com/brentp/duktape-nim#dev", "https://github.com/brentp/bpbio", "https://github.com/brentp/nim-minizip"
+requires "hts >= 0.2.7", "nimgen", "binaryheap", "zip", "https://github.com/brentp/duktape-nim#dev", "https://github.com/brentp/bpbio", "https://github.com/brentp/nim-minizip", "argparse"
 srcDir = "src"
 installExt = @["nim"]
 
@@ -33,6 +33,7 @@ task test, "run the tests":
   exec "nim c --lineDir:on --debuginfo -r --threads:on src/slivarpkg/pracode"
   exec "nim c --lineDir:on --debuginfo -r --threads:on src/slivarpkg/groups"
   exec "nim c --lineDir:on --debuginfo -r --threads:on src/slivarpkg/siset"
+  exec "nim c --lineDir:on --debuginfo -r --threads:on src/slivarpkg/comphet"
   exec "bash tests/functional-tests.sh"
 
 task docs, "Builds documentation":
