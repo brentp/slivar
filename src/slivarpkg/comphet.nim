@@ -24,26 +24,30 @@ proc kids(samples:seq[Sample]): seq[Sample] =
     if s.dad == nil or s.mom == nil: continue
     result.add(s)
 
-proc add_ch(a:Variant, b:Variant) =
+proc key(v:Variant): string {.inline.} =
+  var balts = join(v.ALT, ",")
+  &"{$v.CHROM}/{v.start+1}/{v.REF}/{balts}"
+
+proc add_comphet(a:Variant, b:Variant, gene: string) =
   var s: string = ""
   discard a.info.get("slivar_comphet", s)
   if s.len > 1:
     # htslib doesn't allow setting an existing field again. so we delete and re-add.
     doAssert a.info.delete("slivar_comphet") == Status.OK
     s &= ","
-
-  var balts = join(b.ALT, ",")
-  var toadd = &"{$b.CHROM}/{b.start+1}/{b.REF}/{balts}"
-  s &= toadd
+  s &= b.key & "/" & gene
   doAssert a.info.set("slivar_comphet", s) == Status.OK
 
 proc write_compound_hets(ovcf:VCF, kids:seq[Sample], tbl:TableRef[string, seq[Variant]]) =
   var
     x: seq[int32]
 
+  var foundKeys = initHashSet[string]()
+  # need to track variants in this because 1 variant can be a CH with multiple genes/transcripts.
+  var found: seq[Variant]
+
   for gene, variants in tbl.mpairs:
     var variants = variants
-    var found = initHashSet[int]()
     if variants.len < 2: continue
 
     for ai in 1..variants.high:
@@ -57,18 +61,24 @@ proc write_compound_hets(ovcf:VCF, kids:seq[Sample], tbl:TableRef[string, seq[Va
           doAssert ai != bi
           var b = variants[bi].format.genotypes(x).alts
           if not is_compound_het(kid, a, b): continue
-          found.incl(ai)
-          found.incl(bi)
-          variants[ai].add_ch(variants[bi])
-          variants[bi].add_ch(variants[ai])
 
-    if found.len == 0: continue
-    var ordered = newSeq[int]()
-    for i in found:
-      ordered.add(i)
-    sort(ordered, system.cmp)
-    for o in ordered:
-      doAssert ovcf.write_variant(variants[o])
+          if variants[ai].key notin foundKeys:
+            found.add(variants[ai])
+            foundKeys.incl(variants[ai].key)
+          if variants[bi].key notin foundKeys:
+            found.add(variants[bi])
+            foundKeys.incl(variants[bi].key)
+
+          variants[ai].add_comphet(variants[bi], gene)
+          variants[bi].add_comphet(variants[ai], gene)
+
+  sort(found, proc (a:Variant, b:Variant): int =
+    if a.start == b.start:
+      return a.REF.len - b.REF.len
+    return a.start - b.start)
+
+  for v in found:
+    doAssert ovcf.write_variant(v)
 
 proc main*(dropfirst:bool=false) =
   var p = newParser("slivar compound-hets"):
@@ -99,7 +109,7 @@ proc main*(dropfirst:bool=false) =
   if not open(ovcf, "/dev/stdout", mode="w"):
     quit "couldn't open output vcf"
 
-  if ivcf.header.add_info("slivar_comphet", ".", "String", "compound hets called by slivar") != Status.OK:
+  if ivcf.header.add_info("slivar_comphet", ".", "String", "compound hets called by slivar. format is chrom/pos/ref/alt/gene") != Status.OK:
       quit "error adding field to header"
   ovcf.copy_header(ivcf.header)
   doAssert ovcf.write_header
