@@ -10,6 +10,8 @@ sli.var
 *.zip
 *.bin
 src/slivarpkg/filter
+src/slivarpkg/comphet
+*.json
 src/slivarpkg/make_gnotate
 src/slivarpkg/siset
 

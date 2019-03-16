@@ -43,7 +43,7 @@ Options:
   -v --vcf <path>            VCF/BCF
   --region <string>          optional region to limit evaluation. e.g. chr1 or 1:222-333 (or a BED file of regions)
   -j --js <path>             path to javascript functions to expose to user
-  -p --ped <path>            pedigree file with trio relations
+  -p --ped <path>            pedigree file with family relations, sex, and affected status
   -a --alias <path>          path to file of group aliases
   -o --out-vcf <path>        VCF/BCF [default: /dev/stdout]
   --pass-only                only output variants that pass at least one of the filters [default: false]
