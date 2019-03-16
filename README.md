@@ -27,6 +27,7 @@ slivar has sub-commands:
     * [trio](#trio)
     * [Groups](#groups)
  * [Gnotate](#gnotate)
+ * [compound-het](#compound-het)
 * [Installation](#installation)
 * [Attributes](#attributes)
 * [How it works](#how-it-works)
@@ -177,6 +178,12 @@ Note that the names (`gnomad_popmax_af` and `gnomad_num_homalt` in this case) sh
 
 More information on `make-gnotate` is [in the wiki](https://github.com/brentp/slivar/wiki/make-gnotate)
 
+### compound-het
+
+This command is used to find compound heterozygous variants (with phasing-by-inheritance) in trios.
+It is used after filtering to rare(-ish) heterozygotes.
+
+See a full description of use [here](https://github.com/brentp/slivar/wiki/rare-disease#compound-heterozygotes)
 
 ## Installation
 

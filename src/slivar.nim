@@ -3,6 +3,7 @@ import ./slivarpkg/duko
 from ./slivarpkg/version import slivarVersion
 import ./slivarpkg/evaluator
 import ./slivarpkg/groups
+import ./slivarpkg/comphet
 
 import ./slivarpkg/gnotate
 import ./slivarpkg/make_gnotate
@@ -19,7 +20,7 @@ proc expr_main*(dropfirst:bool=false) =
   let doc = """
 slivar -- variant expression for great good
 
-Usage: slivar expr [options --pass-only --out-vcf <path> --vcf <path> --ped <path> --trio=<expression>... --group-expr=<expression>... --info=<expression> --gnotate=<path>...]
+Usage: slivar expr [options --pass-only --vcf <path> --ped <path> --trio=<expression>... --group-expr=<expression>... --info=<expression> --gnotate=<path>...]
 
 About:
 
@@ -42,7 +43,7 @@ Options:
   -v --vcf <path>            VCF/BCF
   --region <string>          optional region to limit evaluation. e.g. chr1 or 1:222-333 (or a BED file of regions)
   -j --js <path>             path to javascript functions to expose to user
-  -p --ped <path>            pedigree file with trio relations
+  -p --ped <path>            pedigree file with family relations, sex, and affected status
   -a --alias <path>          path to file of group aliases
   -o --out-vcf <path>        VCF/BCF [default: /dev/stdout]
   --pass-only                only output variants that pass at least one of the filters [default: false]
@@ -166,6 +167,7 @@ proc main*() =
     "expr": pair(f:expr_main, description:"trio and group expressions and filtering"),
     "gnotate": pair(f:filter.main, description:"filter and/or annotate a VCF/BCF"),
     "make-gnotate": pair(f:make_gnotate.main, description:"make a gnotate zip file for a given VCF"),
+    "compound-hets": pair(f:comphet.main, description:"find compound hets in a (previously filtered and gene-annotated) VCF"),
     }.toOrderedTable
 
   stderr.write_line "slivar version: " & slivarVersion & "\n"
