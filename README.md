@@ -188,7 +188,10 @@ See a full description of use [here](https://github.com/brentp/slivar/wiki/rare-
 ## Installation
 
 get the latest binary from: https://github.com/brentp/slivar/releases/latest
-This will require libhts.so (from [htslib](https://htslib.org)) to be in the usual places or in a directory indicated in `LD_LIBRARY_PATH`.
+
+`slivar_static` does not depend on any libraries and should work on any 64 bit linux system.        
+
+`slivar_shared` will require libhts.so (from [htslib](https://htslib.org)) to be in the usual places or in a directory indicated in `LD_LIBRARY_PATH`.
 
 or use via docker from: [brentp/slivar:latest](https://hub.docker.com/r/brentp/slivar)
 
