@@ -28,14 +28,14 @@ proc key(v:Variant): string {.inline.} =
   var balts = join(v.ALT, ",")
   &"{$v.CHROM}/{v.start+1}/{v.REF}/{balts}"
 
-proc add_comphet(a:Variant, b:Variant, gene: string) =
+proc add_comphet(a:Variant, b:Variant, gene: string, sample:string) =
   var s: string = ""
   discard a.info.get("slivar_comphet", s)
   if s.len > 1:
     # htslib doesn't allow setting an existing field again. so we delete and re-add.
     doAssert a.info.delete("slivar_comphet") == Status.OK
     s &= ","
-  s &= b.key & "/" & gene
+  s &= b.key & "/" & gene & "/" & sample
   doAssert a.info.set("slivar_comphet", s) == Status.OK
 
 proc write_compound_hets(ovcf:VCF, kids:seq[Sample], tbl:TableRef[string, seq[Variant]]) =
@@ -69,8 +69,8 @@ proc write_compound_hets(ovcf:VCF, kids:seq[Sample], tbl:TableRef[string, seq[Va
             found.add(variants[bi])
             foundKeys.incl(variants[bi].key)
 
-          variants[ai].add_comphet(variants[bi], gene)
-          variants[bi].add_comphet(variants[ai], gene)
+          variants[ai].add_comphet(variants[bi], gene, kid.id)
+          variants[bi].add_comphet(variants[ai], gene, kid.id)
 
   sort(found, proc (a:Variant, b:Variant): int =
     if a.start == b.start:
@@ -109,7 +109,7 @@ proc main*(dropfirst:bool=false) =
   if not open(ovcf, "/dev/stdout", mode="w"):
     quit "couldn't open output vcf"
 
-  if ivcf.header.add_info("slivar_comphet", ".", "String", "compound hets called by slivar. format is chrom/pos/ref/alt/gene") != Status.OK:
+  if ivcf.header.add_info("slivar_comphet", ".", "String", "compound hets called by slivar. format is chrom/pos/ref/alt/gene/sample") != Status.OK:
       quit "error adding field to header"
   ovcf.copy_header(ivcf.header)
   doAssert ovcf.write_header
