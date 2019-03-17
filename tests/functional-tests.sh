@@ -59,8 +59,8 @@ run check_slivar_gnotate_load $exe gnotate --js tests/test-functions.js --expr "
 assert_equal 9834 $(bcftools view -H xx.bcf | wc -l)
 rm -f xx.bcf
 
-run check_compound_hets $exe compound-hets -v tests/comphet.vcf --ped tests/ashk-trio.ped -o _xx.vcf
+run check_compound_hets $exe compound-hets -v tests/comphet.vcf --ped tests/ashk-trio.ped -o ixx.vcf
 assert_exit_code 0
-assert_equal $(grep -c expect=yes tests/comphet.vcf) $(grep -c expect=yes _xx.vcf)
-assert_equal $(grep -c expect=no _xx.vcf) 0
-rm -f _xx.vcf
+assert_equal $(grep -c expect=yes tests/comphet.vcf) $(grep -c expect=yes ixx.vcf)
+assert_equal $(grep -c expect=no ixx.vcf) 0
+rm -f ixx.vcf
