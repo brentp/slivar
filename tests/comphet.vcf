@@ -1,0 +1,61 @@
+##fileformat=VCFv4.1
+##ALT=<ID=*:DEL,Description="Represents any possible spanning deletion allele at this location">
+##ALT=<ID=NON_REF,Description="Represents any possible alternative allele at this location">
+##FILTER=<ID=LowQual,Description="Low quality">
+##FILTER=<ID=VQSRTrancheSNP99.00to99.90,Description="Truth sensitivity tranche level for SNP model at VQS Lod: -3.6527 <= x < 0.2363">
+##FILTER=<ID=VQSRTrancheSNP99.90to100.00+,Description="Truth sensitivity tranche level for SNP model at VQS Lod < -2841.3422">
+##FILTER=<ID=VQSRTrancheSNP99.90to100.00,Description="Truth sensitivity tranche level for SNP model at VQS Lod: -2841.3422 <= x < -3.6527">
+##FILTER=<ID=gatkRecommendIndelFilter,Description="QD < 2.0 || FS > 200.0 || ReadPosRankSum < -20.0">
+##FORMAT=<ID=AD,Number=.,Type=Integer,Description="Allelic depths for the ref and alt alleles in the order listed">
+##FORMAT=<ID=DP,Number=1,Type=Integer,Description="Approximate read depth (reads with MQ=255 or with bad mates are filtered)">
+##FORMAT=<ID=GQ,Number=1,Type=Integer,Description="Genotype Quality">
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+##FORMAT=<ID=PGT,Number=1,Type=String,Description="Physical phasing haplotype information, describing how the alternate alleles are phased in relation to one another">
+##FORMAT=<ID=PID,Number=1,Type=String,Description="Physical phasing ID information, where each unique ID within a given sample (but not across samples) connects records within a phasing group">
+##FORMAT=<ID=PL,Number=G,Type=Integer,Description="Normalized, Phred-scaled likelihoods for genotypes as defined in the VCF specification">
+##FORMAT=<ID=RGQ,Number=1,Type=Integer,Description="Unconditional reference genotype confidence, encoded as a phred quality -10*log10 p(genotype call is wrong)">
+##FORMAT=<ID=SB,Number=4,Type=Integer,Description="Per-sample component statistics which comprise the Fisher's Exact Test to detect strand bias.">
+##INFO=<ID=AC,Number=A,Type=Integer,Description="Allele count in genotypes, for each ALT allele, in the same order as listed">
+##INFO=<ID=AF,Number=A,Type=Float,Description="Allele Frequency, for each ALT allele, in the same order as listed">
+##INFO=<ID=AN,Number=1,Type=Integer,Description="Total number of alleles in called genotypes">
+##INFO=<ID=BaseQRankSum,Number=1,Type=Float,Description="Z-score from Wilcoxon rank sum test of Alt Vs. Ref base qualities">
+##INFO=<ID=ClippingRankSum,Number=1,Type=Float,Description="Z-score From Wilcoxon rank sum test of Alt vs. Ref number of hard clipped bases">
+##INFO=<ID=DB,Number=0,Type=Flag,Description="dbSNP Membership">
+##INFO=<ID=DP,Number=1,Type=Integer,Description="Approximate read depth; some reads may have been filtered">
+##INFO=<ID=DS,Number=0,Type=Flag,Description="Were any of the samples downsampled?">
+##INFO=<ID=END,Number=1,Type=Integer,Description="Stop position of the interval">
+##INFO=<ID=FS,Number=1,Type=Float,Description="Phred-scaled p-value using Fisher's exact test to detect strand bias">
+##INFO=<ID=HaplotypeScore,Number=1,Type=Float,Description="Consistency of the site with at most two segregating haplotypes">
+##INFO=<ID=InbreedingCoeff,Number=1,Type=Float,Description="Inbreeding coefficient as estimated from the genotype likelihoods per-sample when compared against the Hardy-Weinberg expectation">
+##INFO=<ID=MLEAC,Number=A,Type=Integer,Description="Maximum likelihood expectation (MLE) for the allele counts (not necessarily the same as the AC), for each ALT allele, in the same order as listed">
+##INFO=<ID=MLEAF,Number=A,Type=Float,Description="Maximum likelihood expectation (MLE) for the allele frequency (not necessarily the same as the AF), for each ALT allele, in the same order as listed">
+##INFO=<ID=MQ,Number=1,Type=Float,Description="RMS Mapping Quality">
+##INFO=<ID=BCSQ,Number=.,Type=String,Description="fake bcftools CSQ">
+##INFO=<ID=expect,Number=.,Type=String,Description="should this be a compound het">
+##INFO=<ID=MQRankSum,Number=1,Type=Float,Description="Z-score From Wilcoxon rank sum test of Alt vs. Ref read mapping qualities">
+##INFO=<ID=NEGATIVE_TRAIN_SITE,Number=0,Type=Flag,Description="This variant was used to build the negative training set of bad variants">
+##INFO=<ID=POSITIVE_TRAIN_SITE,Number=0,Type=Flag,Description="This variant was used to build the positive training set of good variants">
+##INFO=<ID=QD,Number=1,Type=Float,Description="Variant Confidence/Quality by Depth">
+##INFO=<ID=ReadPosRankSum,Number=1,Type=Float,Description="Z-score from Wilcoxon rank sum test of Alt vs. Ref read position bias">
+##INFO=<ID=SOR,Number=1,Type=Float,Description="Symmetric Odds Ratio of 2x2 contingency table to detect strand bias">
+##INFO=<ID=VQSLOD,Number=1,Type=Float,Description="Log odds ratio of being a true variant versus being false under the trained gaussian mixture model">
+##INFO=<ID=culprit,Number=1,Type=String,Description="The annotation which was the worst performing in the Gaussian mixture model, likely the reason why the variant was filtered out">
+##INFO=<ID=set,Number=1,Type=String,Description="Source VCF for the merged record in CombineVariants">
+##contig=<ID=1,length=249250621,assembly=b37>
+##reference=file:///data/diag/diagInternal/tmp/temp/GATK_bundle_2.8/b37/human_g1k_v37_decoy.fasta
+##source=SelectVariants
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	HG002	HG003	HG004
+1	65797	.	T	C	32.92	PASS	MQ=57.00;BCSQ=missense|geneA;expect=yes	GT:AD:DP:GQ	0/1:9,9:18:20	0/1:9,9:18:20	0/0:11,0:11:20
+1	65799	.	T	C	32.92	PASS	MQ=57.00;BCSQ=missense|geneA;expect=yes	GT:AD:DP:GQ	0/1:9,9:18:20	0/0:9,9:18:20	0/1:11,0:11:20
+1	65800	.	T	C	32.92	PASS	MQ=57.00;BCSQ=missense|geneB;expect=no,2DNs	GT:AD:DP:GQ	0/1:9,9:18:20	0/0:9,9:18:20	0/0:11,0:11:20
+1	65801	.	T	C	32.92	PASS	MQ=57.00;BCSQ=missense|geneB;expect=no,2DNs	GT:AD:DP:GQ	0/1:9,9:18:20	0/0:9,9:18:20	0/0:11,0:11:20
+1	65802	.	T	C	32.92	PASS	MQ=57.00;BCSQ=missense|geneC;expect=yes,1DN	GT:AD:DP:GQ	0/1:9,9:18:20	0/0:9,9:18:20	0/0:11,0:11:20
+1	65803	.	T	C	32.92	PASS	MQ=57.00;BCSQ=missense|geneC;expect=yes,1DN	GT:AD:DP:GQ	0/1:9,9:18:20	0/1:9,9:18:20	0/0:11,0:11:20
+1	65804	.	T	C	32.92	PASS	MQ=57.00;BCSQ=missense|geneD;expect=no,same-parent-with-het	GT:AD:DP:GQ	0/1:9,9:18:20	0/1:9,9:18:20	0/0:11,0:11:20
+1	65805	.	T	C	32.92	PASS	MQ=57.00;BCSQ=missense|geneD;expect=no,same-parent-with-het	GT:AD:DP:GQ	0/1:9,9:18:20	0/1:9,9:18:20	0/0:11,0:11:20
+1	65806	.	T	C	32.92	PASS	MQ=57.00;BCSQ=missense|geneE;expect=yes,multiple-matches	GT:AD:DP:GQ	0/1:9,9:18:20	0/1:9,9:18:20	0/0:11,0:11:20
+1	65807	.	T	C	32.92	PASS	MQ=57.00;BCSQ=missense|geneE;expect=yes,multiple-matches	GT:AD:DP:GQ	0/1:9,9:18:20	0/0:9,9:18:20	0/1:11,0:11:20
+1	65808	.	T	C	32.92	PASS	MQ=57.00;BCSQ=missense|geneE;expect=yes,multiple-matches	GT:AD:DP:GQ	0/1:9,9:18:20	0/0:9,9:18:20	0/1:11,0:11:20
+1	65810	.	T	C	32.92	PASS	MQ=57.00;BCSQ=missense|geneF;expect=yes,with-extra-non-matching	GT:AD:DP:GQ	0/1:9,9:18:20	0/1:9,9:18:20	0/0:11,0:11:20
+1	65811	.	T	C	32.92	PASS	MQ=57.00;BCSQ=missense|geneF;expect=yes,with-extra-non-matching	GT:AD:DP:GQ	0/1:9,9:18:20	0/0:9,9:18:20	0/1:11,0:11:20
+1	65812	.	T	C	32.92	PASS	MQ=57.00;BCSQ=missense|geneF;expect=no,extra-non-matching	GT:AD:DP:GQ	0/1:9,9:18:20	0/1:9,9:18:20	0/1:11,0:11:20

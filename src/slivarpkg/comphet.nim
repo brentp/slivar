@@ -110,6 +110,7 @@ proc main*(dropfirst:bool=false) =
     option("-p", "--ped", default="", help="required ped file describing the trios in the VCF")
     option("-f", "--field", default="BCSQ", help="INFO field containing the gene name")
     option("-i", "--index", default="2", help="(1-based) index of the gene-name in the field after splitting on '|'")
+    option("-o", "--out-vcf", default="/dev/stdout", help="path to output VCF/BCF")
 
   let opts = p.parse()
   if opts.ped == "":
@@ -129,7 +130,7 @@ proc main*(dropfirst:bool=false) =
   if kids.len == 0:
     quit &"[slivar] no trios found for {opts.ped} with {opts.vcf}"
 
-  if not open(ovcf, "/dev/stdout", mode="w"):
+  if not open(ovcf, opts.out_vcf, mode="w"):
     quit "couldn't open output vcf"
 
   if ivcf.header.add_info("slivar_comphet", ".", "String", "compound hets called by slivar. format is chrom/pos/ref/alt/gene/sample") != Status.OK:
