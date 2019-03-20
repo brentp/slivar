@@ -4,6 +4,7 @@ import os
 import times
 import algorithm
 import strformat
+import random
 
 import zip/zipfiles
 #import minizip
@@ -48,18 +49,21 @@ proc cmp_long*(a, b:Long): int =
   # can't compare .af here because it screws up lower bound
   return cmp(a.alternate.len, b.alternate.len)
 
+randomize()
+
 proc open*(g:var Gnotater, zpath: string, tmpDir:string="/tmp", missing_val:float32= -1.0'f32): bool =
   g = Gnotater(tmpDir:tmpDir, missing_value:missing_val)
   if not open(g.zip, zpath):
     return false
 
-  var path = g.tmpDir / "chroms.txt"
+  var r = $random(int.high) & $random(int.high)
+  var path = g.tmpDir / &"chroms{r}.txt"
   g.zip.extract_file("sli.var/chroms.txt", path)
   for l in path.lines:
     g.chroms.add(l.strip)
   removeFile(path)
 
-  path = g.tmpDir / "fields.txt"
+  path = g.tmpDir / &"fields{r}.txt"
   g.zip.extract_file("sli.var/fields.txt", path)
   for l in path.lines:
     g.names.add(l.strip())
@@ -72,7 +76,7 @@ proc open*(g:var Gnotater, zpath: string, tmpDir:string="/tmp", missing_val:floa
       break
 
   if hasMsg:
-    path = g.tmpDir / "message.txt"
+    path = g.tmpDir / &"message{r}.txt"
     g.zip.extract_file("sli.var/message.txt", path)
     stderr.write_line "[slivar] message for " & zpath & ":"
     for l in path.lines:

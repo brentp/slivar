@@ -1,3 +1,8 @@
+v0.0.8
+======
++ use random file names so concurrent slivar processes don't clobber files.
+
+
 v0.0.7
 ======
 + [expr] allow --region to be a bed file
