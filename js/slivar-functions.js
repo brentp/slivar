@@ -58,12 +58,21 @@ function trio_autosomal_recessive(kid, dad, mom) {
 	return kid.affected && kid.alts == 2 && mom.alts == 1 && dad.alts == 1 && hiqual(kid, dad, mom)
 }
 
-function xrec(kid, dad, mom) {
+function trio_x_linked_recessive(kid, dad, mom) {
+  if(!hiqual(kid, dad, mom)) { return false; }
   if(kid.alts == 0 || kid.alts == -1) { return false; }
-  if(dad.alts != 0) { return false; }
+  if((dad.alts != 0) != (dad.alts == affected)) { return false; }
   if(mom.alts != 1) { return false; }
-  if(kid.DP < 7 || mom.DP < 7 || dad.DP < 7) { return false; }
-  if(kid.GQ < 10 || mom.GQ < 10 || dad.GQ < 10) { return false; }
   return kid.affected
 }
 
+function trio_x_linked_denovo(kid, dad, mom) {
+  if(!hiqual(kid, dad, mom)) { return false; }
+  if(kid.sex == "unknown"){ return false; }
+  if(!(mom.alts == 0 && dad.alts == 0)){ return false}
+  if(kid.sex == "male") {
+    return kid.alts == 1 || kid.alts == 2;
+  }
+  // female
+  return kid.alts == 1;
+}

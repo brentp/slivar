@@ -135,7 +135,7 @@ Options:
       var persec = n.float64 / secs.float64
       stderr.write_line &"[slivar] {i} {variant.CHROM}:{variant.start} evaluated {n} variants in {secs:.1f} seconds ({persec:.1f}/second)"
       t = cpuTime()
-      if i >= 100000:
+      if i >= 20000:
         n = 100000
       if i >= 500000:
         n = 500000

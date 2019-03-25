@@ -71,7 +71,7 @@ slivar expr \
    # compressed zip that allows fast annotation so that `gnomad_af` is available in the expressions below.
    --gnotate $gnomad_af.zip \ 
    # any valid javascript is allowed in a file here. provide functions to be used below.
-   --js js/functions.js \ 
+   --js js/slivar-functions.js \ 
    --out-vcf annotated.bcf \
    # this filter is applied before the trio filters and can speed evaluation if it is stringent.
    --info "variant.call_rate > 0.9" \ 
@@ -89,8 +89,8 @@ slivar expr \
 Note that `slivar` does not give direct access to the genotypes, instead exposing `alts` where 0 is homozygous reference, 1 is heterozygous, 2 is
 homozygous alternate and -1 when the genotype is unknown. It is recommended to **decompose** a VCF before sending to `slivar`
 
-Here it is assumed that `trio_autosomal_recessive` is defined in `functions.js`; an example implementation of that
-and other useful functions is provided [here](https://github.com/brentp/slivar/blob/master/js/functions.js)
+Here it is assumed that `trio_autosomal_recessive` is defined in `slivar-functions.js`; an example implementation of that
+and other useful functions is provided [here](https://github.com/brentp/slivar/blob/master/js/slivar-functions.js)
 
 #### Groups
 
