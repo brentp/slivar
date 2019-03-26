@@ -61,7 +61,7 @@ function trio_autosomal_recessive(kid, dad, mom) {
 function trio_x_linked_recessive(kid, dad, mom) {
   if(!hiqual(kid, dad, mom)) { return false; }
   if(kid.alts == 0 || kid.alts == -1) { return false; }
-  if((dad.alts != 0) != (dad.alts == affected)) { return false; }
+  if((dad.alts != 0) != dad.affected) { return false; }
   if(mom.alts != 1) { return false; }
   return kid.affected
 }
