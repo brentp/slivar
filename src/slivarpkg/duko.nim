@@ -1,4 +1,5 @@
 import times
+import strformat
 import strutils
 import duktape/js
 export js
@@ -68,7 +69,7 @@ proc compile*(ctx: DTContext, expression: string): Dukexpr {.inline.} =
   result = Dukexpr(ctx:ctx, expr: expression)
   if ctx.duk_pcompile_string(32, expression) != 0:
     var err = ctx.duk_safe_to_string(-1)
-    raise newException(ValueError, $err)
+    raise newException(ValueError, $err & &"\nexpression was:'{expression}'")
   result.vptr = ctx.duk_get_heapptr(-1)
 
 proc check*(d:Dukexpr): bool {.inline.} =
