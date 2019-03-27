@@ -112,7 +112,11 @@ proc main*(dropfirst:bool=false) =
     option("-i", "--index", default="2", help="(1-based) index of the gene-name in the field after splitting on '|'")
     option("-o", "--out-vcf", default="/dev/stdout", help="path to output VCF/BCF")
 
-  let opts = p.parse()
+  var argv = commandLineParams()
+  if len(argv) > 0 and argv[0] == "compound-hets":
+    argv = argv[1..argv.high]
+
+  let opts = p.parse(argv)
   if opts.ped == "":
     echo p.help
     quit "--ped is required"
