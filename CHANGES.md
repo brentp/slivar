@@ -1,6 +1,8 @@
 v0.0.8
 ======
 + use random file names so concurrent slivar processes don't clobber files.
++ more informative error on bad js expression
++ fix for empty groups (#20)
 
 
 v0.0.7

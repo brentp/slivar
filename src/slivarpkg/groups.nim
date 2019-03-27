@@ -64,6 +64,9 @@ proc parse_group_line(groups:var seq[Group], line:string, sample_lookup:TableRef
   var g = newSeqOfCap[seq[Sample]](len(toks))
   for i, snames in toks:
     var col_samples = newSeq[Sample]()
+    if snames == "":
+      g.add(col_samples)
+      continue
     for sname in snames.split(seps={','}):
       if sname notin sample_lookup:
         raise newException(ValueError, &"unknown sample {sname} in line '{line}' for groups")
@@ -84,7 +87,7 @@ proc parse_groups*(path: string, samples:seq[Sample]): seq[Group] =
   result = newSeq[Group]()
   var sample_lookup = samples.to_lookup
   for l in path.lines:
-    var line = l.strip()
+    var line = l.strip(chars={'\n', '\r'})
     if line.len == 0: continue
     if line[0] == '#':
       result.parse_group_header_line(line.strip(chars={'#'}, trailing=false))
@@ -141,6 +144,7 @@ when isMainModule:
       var samples = @[Sample(id:"a"), Sample(id:"b"), Sample(id:"c"), Sample(id:"t1"), Sample(id:"t2"), Sample(id:"n1")]
       expect ValueError:
         var groups = parse_groups(tmpFile, samples)
+        discard groups
 
     test "that multiple groups works correctly":
       "#mom\tdad\tkid\na\tb\tc\n#tumor\tnormal\nt1a\tt1b\nt2a\tt2b".toFile
@@ -166,3 +170,13 @@ when isMainModule:
       var samples = @[Sample(id:"a"), Sample(id:"b"), Sample(id:"c")]
       expect ValueError:
         discard parse_groups(tmpFile, samples)
+
+    test "that empty groups are ok":
+      var samples = @[Sample(id:"a"), Sample(id:"b"), Sample(id:"c")]
+      "#aff\tuns\n\ta,b,c\n".toFile
+      var groups = parse_groups(tmpFile, samples)
+      check groups.len == 1
+      var p = groups[0]
+      check p.rows.len == 1
+      check p.rows[0][0].len == 0
+      check p.rows[0][1].len == 3
