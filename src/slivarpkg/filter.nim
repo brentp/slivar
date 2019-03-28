@@ -30,7 +30,7 @@ Usage: slivar gnotate [options --gnotate <zip>...] <VCF/BCF>
 
 Options:
 
-  -o --out-vcf <path>         required path to VCF/BCF
+  -o --out-vcf <path>         path to VCF/BCF [default: /dev/stdout]
   -j --js <path>              optional path to javascript functions to expose to user
   -g --gnotate <zip>...       optional path(s) to gnotate zip file(s).
   --expr <string>             optional filtering expression
@@ -49,14 +49,11 @@ Additional Options:
   else:
     args = docopt(doc)
 
-  if $args["--out-vcf"] == "nil":
-    stderr.write_line "must specify the --out-vcf"
-    quit doc
   var
     ivcf:VCF
     ovcf:VCF
     gnos:seq[Gnotater]
-    tbl: TableRef[string, string]
+    tbl: seq[NamedExpression]
     threads = parseInt($args["--threads"])
     pass:int
     total:int
@@ -82,12 +79,11 @@ Additional Options:
     samples.add(Sample(id:s))
 
   var expr = if $args["--expr"] == "nil": "" else: $args["--expr"]
-  var ev = newEvaluator(samples, groups, tbl, tbl, tbl, expr, gnos, id2names(ivcf.header))
-  if $args["--js"] != "nil":
-    ev.load_js($readFile($args["--js"]))
-
   ovcf.copy_header(ivcf.header)
   doAssert ovcf.write_header
+  var ev = newEvaluator(samples, groups, tbl, tbl, tbl, expr, gnos, id2names(ovcf.header))
+  if $args["--js"] != "nil":
+    ev.load_js($readFile($args["--js"]))
 
   var ints = newSeq[int32](3 * ivcf.n_samples)
   var floats = newSeq[float32](3 * ivcf.n_samples)
@@ -100,7 +96,7 @@ Additional Options:
     for gno in ev.gnos.mitems:
       discard gno.annotate(variant)
 
-    if expr != "":
+    if expr.len != 0:
       ev.set_variant_fields(variant)
       variant.format.genotypes(ints).alts(alts)
       ev.set_calculated_variant_fields(alts)

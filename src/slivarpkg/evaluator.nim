@@ -5,7 +5,6 @@ import bpbiopkg/pedfile
 import ./duko
 import os
 import ./gnotate
-import ./siset
 import ./groups
 import tables
 import strformat
@@ -14,14 +13,22 @@ import strutils
 proc clean(s:string): string =
   return s.replace("\"", "").replace("'", "")
 
-proc getExpressionTable*(ovcf:VCF, expressions:seq[string], invcf:string): TableRef[string, string] =
-  ## parse (split on :) the expressions, return a table, and update the vcf header with a reasonable description.
-  result = newTable[string, string]()
+type CompiledExpression = object
+  name: string
+  expr: Dukexpr
+
+type NamedExpression* = object
+  name*: string
+  expr*: string
+
+proc getNamedExpressions*(ovcf:VCF, expressions:seq[string], invcf:string): seq[NamedExpression] =
+  ## parse (split on :) the expressions, return a sequence, and update the vcf header with a reasonable description.
+  result = newSeq[NamedExpression]()
   for e in expressions:
     var t = e.split(seps={':'}, maxsplit=1)
     if t.len != 2:
       quit "must specify name:expression pairs. got:" & e
-    result[t[0]] = t[1]
+    result.add(NamedExpression(name:t[0], expr:t[1]))
     if ovcf.header.add_info(t[0], ".", "String", &"added by slivar with expression: '{t[1].clean}' from {invcf}") != Status.OK:
       quit "error adding field to header"
 
@@ -56,23 +63,14 @@ type IGroup* = object
   # even a single colum is a @[Sample] so we need the triply nested level here.
   rows*: seq[seq[seq[ISample]]]
 
-
-type NamedExpression = object
-  name: string
-  expr: Dukexpr
-
 # at each iteration, we need to make sure there is no stale data left in any
 # of the `duk` objects. this could happen if, e.g. variant 123 had a `popmax_AF`
 # in the info field, but variant 124 did not.
 # Due to the implementation, we need tmp to keep the difference without extra allocations.
 # these sets keep the bcf_info_t.key and bcf_fmt_t.id
-type FieldSets = object
-  last: intSet
-  curr: intSet
-
-proc initFieldSets(n:int):FieldSets =
-  result.last = initIntSet(n)
-  result.curr = initIntSet(n)
+type FieldSets[T: uint8|uint16] = object
+  last: set[T]
+  curr: set[T]
 
 type Evaluator* = ref object
   ctx: DTContext
@@ -80,8 +78,8 @@ type Evaluator* = ref object
 
   field_names: seq[idpair]
 
-  info_field_sets: FieldSets
-  fmt_field_sets: FieldSets
+  info_field_sets: FieldSets[uint16]
+  fmt_field_sets: FieldSets[uint8]
 
   # samples_ns is a name-space to store the samples.
   samples_ns: Duko
@@ -90,12 +88,12 @@ type Evaluator* = ref object
   gnos*:seq[Gnotater]
 
   trios: seq[Trio]
-  trio_expressions: seq[NamedExpression]
+  trio_expressions: seq[CompiledExpression]
 
   groups: seq[IGroup]
-  group_expressions: seq[NamedExpression]
+  group_expressions: seq[CompiledExpression]
 
-  float_expressions: seq[NamedExpression]
+  float_expressions: seq[CompiledExpression]
   info_expression*: Dukexpr
 
 template fill[T: int8 | int32 | float32 | string](sample:ISample, name:string, values:var seq[T], nper:int) =
@@ -168,8 +166,8 @@ proc make_igroups(ev:Evaluator, groups: seq[Group], by_name:TableRef[string, ISa
 
     result.add(ig)
 
-proc newEvaluator*(samples: seq[Sample], groups: seq[Group], float_expressions: TableRef[string, string],
-                   trio_expressions: TableRef[string, string], group_expressions: TableRef[string, string],
+proc newEvaluator*(samples: seq[Sample], groups: seq[Group], float_expressions: seq[NamedExpression],
+                   trio_expressions: seq[NamedExpression], group_expressions: seq[NamedExpression],
                    info_expr: string, gnos:seq[Gnotater], field_names:seq[idpair]): Evaluator =
   ## make a new evaluation context for the given string
   var my_fatal: duk_fatal_function = (proc (udata: pointer, msg:cstring) {.stdcall.} =
@@ -179,9 +177,6 @@ proc newEvaluator*(samples: seq[Sample], groups: seq[Group], float_expressions: 
 
   result = Evaluator(ctx:duk_create_heap(nil, nil, nil, nil, my_fatal))
   result.ctx.duk_require_stack_top(500000)
-
-  result.info_field_sets = initFieldSets(field_names.len+1)
-  result.fmt_field_sets = initFieldSets(field_names.len+1)
   result.field_names = field_names
 
   # need this because we can only have 1 object per sample id. this allows fast lookup by id.
@@ -200,15 +195,12 @@ proc newEvaluator*(samples: seq[Sample], groups: seq[Group], float_expressions: 
   discard result.ctx.duk_push_c_function(debug, -1.cint)
   discard result.ctx.duk_put_global_string("debug")
 
-  if trio_expressions != nil:
-    for n, ex in trio_expressions:
-      result.trio_expressions.add(NamedExpression(expr: result.ctx.compile(ex), name: n))
-  if group_expressions != nil:
-    for n, ex in group_expressions:
-      result.group_expressions.add(NamedExpression(expr: result.ctx.compile(ex), name: n))
-  if float_expressions != nil:
-    for n, ex in float_expressions:
-      result.float_expressions.add(NamedExpression(expr: result.ctx.compile(ex), name: n))
+  for ex in trio_expressions:
+    result.trio_expressions.add(CompiledExpression(expr: result.ctx.compile(ex.expr), name: ex.name))
+  for ex in group_expressions:
+    result.group_expressions.add(CompiledExpression(expr: result.ctx.compile(ex.expr), name: ex.name))
+  for ex in float_expressions:
+    result.float_expressions.add(CompiledExpression(expr: result.ctx.compile(ex.expr), name: ex.name))
 
   if info_expr != "" and info_expr != "nil":
     result.info_expression = result.ctx.compile(info_expr)
@@ -336,8 +328,10 @@ proc set_calculated_variant_fields*(ctx:Evaluator, alts: var seq[int8]) =
   ctx.variant["num_hom_alt"] = counts[2]
   ctx.variant["num_unknown"] = counts[3]
 
-proc clear_unused_infos(ev: Evaluator, f:FieldSets) =
+proc clear_unused_infos(ev: Evaluator, f:FieldSets) {.inline.} =
+  # bug: f.last - f.curr must be buggy in stdlib.
   for idx in f.last - f.curr:
+    #if idx in f.curr: continue
     ev.INFO.del(ev.field_names[idx].name)
 
 var info_warn = 0
@@ -347,7 +341,8 @@ proc set_infos*(ev:var Evaluator, variant:Variant, ints: var seq[int32], floats:
   var info = variant.info
 
   swap(ev.info_field_sets.last, ev.info_field_sets.curr)
-  ev.info_field_sets.curr.clear()
+  #zeroMem(ev.info_field_sets.curr.addr, sizeof(ev.info_field_sets.curr))
+  ev.info_field_sets.curr = {}
 
   for field in info.fields:
     if field.vtype == BCF_TYPE.FLOAT:
@@ -380,7 +375,7 @@ proc set_infos*(ev:var Evaluator, variant:Variant, ints: var seq[int32], floats:
         ev.INFO[field.name] = ints
     elif field.vtype == BCF_TYPE.NULL:
       ev.INFO[field.name] = info.has_flag(field.name)
-    ev.info_field_sets.curr.incl(field.i)
+    ev.info_field_sets.curr.incl(field.i.uint8)
   # clear any field in last variant but not in this one.
   ev.clear_unused_infos(ev.info_field_sets)
 
@@ -419,6 +414,8 @@ iterator evaluate_trios(ctx:Evaluator, nerrors: var int, variant:Variant): exRes
         # set INFO of this result so subsequent expressions can use it.
         ctx.INFO[namedexpr.name] = join(matching_samples, ",")
         yield (namedexpr.name, matching_samples, -1'f32)
+      else:
+        ctx.INFO.del(namedexpr.name)
 
 proc alias_objects*(ctx:DTContext, os: seq[ISample], copyname:string) {.inline.} =
   ## add an array of objects and alias them to a new name.
@@ -461,6 +458,7 @@ iterator evaluate_groups(ev:Evaluator, nerrors: var int, variant:Variant): exRes
 
 template clear_unused_formats(ev:Evaluator) =
   for idx in ev.fmt_field_sets.last - ev.fmt_field_sets.curr:
+    #if idx in ev.fmt_field_sets.curr: continue
     for sample in ev.samples:
       sample.duk.del(ev.field_names[idx].name)
 
@@ -468,13 +466,14 @@ proc set_format_fields*(ev:var Evaluator, v:Variant, alts: var seq[int8], ints: 
   # fill the format fields
 
   swap(ev.fmt_field_sets.last, ev.fmt_field_sets.curr)
-  ev.fmt_field_sets.curr.clear()
+  #zeroMem(ev.fmt_field_sets.curr.addr, sizeof(ev.fmt_field_sets.curr))
+  ev.fmt_field_sets.curr = {}
 
   var fmt = v.format
   var has_ad = false
   var has_ab = false
   for f in fmt.fields:
-    ev.fmt_field_sets.curr.incl(f.i)
+    ev.fmt_field_sets.curr.incl(f.i.uint8)
     if f.name == "GT": continue
     if f.name == "AD": has_ad = true
     elif f.name == "AB": has_ab = true

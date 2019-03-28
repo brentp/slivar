@@ -248,7 +248,7 @@ proc main*(dropfirst:bool=false) =
     imod = 500_000
     fields = parse_fields(@(args["--field"]))
     message = $args["--message"]
-    iTbl: TableRef[string, string]
+    iTbl: seq[NamedExpression]
 
   var vcfs = newSeq[VCF](vcf_paths.len)
 
@@ -270,10 +270,10 @@ proc main*(dropfirst:bool=false) =
       quit "couldn't open:" & p
 
   if $args["--expr"] != "nil" and $args["--expr"] != "":
-    iTbl = vcfs[0].getExpressionTable(@(args["--expr"]), vcf_paths[0])
+    iTbl = vcfs[0].getNamedExpressions(@(args["--expr"]), vcf_paths[0])
   var nerrors: int
 
-  var ev = newEvaluator(@[], @[], iTbl, nil, nil, "nil", @[], id2names(vcfs[0].header))
+  var ev = newEvaluator(@[], @[], iTbl, @[], @[], "nil", @[], id2names(vcfs[0].header))
   for v in vcfs[0]:
     if len(v.ALT) > 1:
       quit "input should be decomposed and normalized"
@@ -284,11 +284,11 @@ proc main*(dropfirst:bool=false) =
           # skip first vcf since we already used it.
           if i == 0: continue
 
-          if iTbl != nil:
-            ev = newEvaluator(@[], @[], iTbl, nil, nil, "nil", @[], id2names(ovcf.header))
+          if iTbl.len > 0:
+            ev = newEvaluator(@[], @[], iTbl, @[], @[], "nil", @[], id2names(ovcf.header))
 
           for ov in ovcf.query(last_chrom):
-            if iTbl != nil:
+            if iTbl.len > 0:
               for r in ev.evaluate(v, nerrors):
                 calculated_values[r.name] = r.val
             ov.encode_and_update(fields, kvs, longs, calculated_values)
@@ -298,12 +298,12 @@ proc main*(dropfirst:bool=false) =
 
         longs = newSeqOfCap[PosValue](65536)
         kvs = newSeqOfCap[evalue](65536)
-        ev = newEvaluator(@[], @[], iTbl, nil, nil, "nil", @[], id2names(vcfs[0].header))
+        ev = newEvaluator(@[], @[], iTbl, @[], @[], "nil", @[], id2names(vcfs[0].header))
 
       last_chrom = $v.CHROM
       last_rid = v.rid
 
-    if iTbl != nil:
+    if iTbl.len > 0:
       for r in ev.evaluate(v, nerrors):
         calculated_values[r.name] = r.val
     v.encode_and_update(fields, kvs, longs, calculated_values)
