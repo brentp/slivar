@@ -61,7 +61,7 @@ proc add_comphet(a:Variant, b:Variant, gene: string, sample:string) =
   s &= b.key & "/" & gene & "/" & sample
   doAssert a.info.set("slivar_comphet", s) == Status.OK
 
-proc write_compound_hets(ovcf:VCF, kids:seq[Sample], tbl:TableRef[string, seq[Variant]]) =
+proc write_compound_hets(ovcf:VCF, kids:seq[Sample], tbl:TableRef[string, seq[Variant]]): int =
   var
     x: seq[int32]
 
@@ -102,6 +102,7 @@ proc write_compound_hets(ovcf:VCF, kids:seq[Sample], tbl:TableRef[string, seq[Va
 
   for v in found:
     doAssert ovcf.write_variant(v)
+    result.inc
 
 proc main*(dropfirst:bool=false) =
   var p = newParser("slivar compound-hets"):
@@ -147,11 +148,12 @@ proc main*(dropfirst:bool=false) =
     tbl: TableRef[string,seq[Variant]]
     csqs: string = ""
     index = parseInt(opts.index) - 1
+    nwritten = 0
 
   for v in ivcf:
     if v.rid != last_rid:
       if last_rid != -1:
-        ovcf.write_compound_hets(kids, tbl)
+        nwritten += ovcf.write_compound_hets(kids, tbl)
 
       tbl = newTable[string, seq[Variant]]()
       last_rid = v.rid
@@ -172,10 +174,11 @@ proc main*(dropfirst:bool=false) =
       seen.incl(gene)
 
   if last_rid != -1:
-    ovcf.write_compound_hets(kids, tbl)
+    nwritten += ovcf.write_compound_hets(kids, tbl)
 
   ovcf.close()
   ivcf.close()
+  stderr.write_line &"[slivar compound-hets] wrote {nwritten} variants that were part of a compound het."
 
 when isMainModule:
   import unittest
