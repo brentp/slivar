@@ -32,7 +32,6 @@ task test, "run the tests":
   exec "nim c --lineDir:on --debuginfo -r --threads:on src/slivarpkg/duko"
   exec "nim c --lineDir:on --debuginfo -r --threads:on src/slivarpkg/pracode"
   exec "nim c --lineDir:on --debuginfo -r --threads:on src/slivarpkg/groups"
-  exec "nim c --lineDir:on --debuginfo -r --threads:on src/slivarpkg/siset"
   exec "nim c --lineDir:on --debuginfo -r --threads:on src/slivarpkg/comphet"
   exec "bash tests/functional-tests.sh"
 

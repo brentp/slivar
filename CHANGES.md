@@ -3,6 +3,7 @@ v0.0.8
 + use random file names so concurrent slivar processes don't clobber files.
 + more informative error on bad js expression
 + fix for empty groups (#20)
++ fix bug when later expressions depended on previous ones.
 
 
 v0.0.7

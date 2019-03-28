@@ -220,9 +220,11 @@ proc id2names*(h:Header): seq[idpair] =
   result = newSeq[idpair](hdr.n[0])
   for i in 0..<hdr.n[0].int:
     var idp = cast[seq[bcf_idpair_t]](hdr.id[0])[i]
-    if idp.val == nil: continue
+    if idp.val == nil or idp.key.len == 0: continue
     var name = idp.key
     if idp.val.hrec[1] == nil and idp.val.hrec[2] == nil: continue
+    if idp.val.id >= result.len:
+      result.setLen(idp.val.id + 2)
     result[idp.val.id] = ($name, idp.val.hrec[1] != nil)
 
 proc set_ab(ctx: Evaluator, fmt:FORMAT, ints: var seq[int32], floats: var seq[float32]) =
