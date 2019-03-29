@@ -83,6 +83,7 @@ Options:
 
   var pass_only = bool(args["--pass-only"])
 
+
   if $args["--ped"] != "nil":
     samples = parse_ped($args["--ped"])
     samples = samples.match(ivcf)
@@ -150,7 +151,7 @@ Options:
     if nerrors / i > 0.2 and i >= 1000:
         quit &"too many errors {nerrors} out of {i}. please check your expression"
 
-    if any_pass:
+    if any_pass or (not pass_only):
       doAssert ovcf.write_variant(variant)
       written.inc
   stderr.write_line &"[slivar] Finished. evaluated {i} total variants and wrote {written} passing variants."
