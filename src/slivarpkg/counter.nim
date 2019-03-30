@@ -1,0 +1,44 @@
+# this just counts the occurrence of sample, expr to output a final table at
+# the of a slivar run.
+import tables
+import ./evaluator
+import strutils
+
+type Counter = object
+  samples: seq[string]
+  exprs: seq[string]
+  sampleIndexes: TableRef[string, int]
+  exprIndexes: TableRef[string, int]
+  counts: seq[seq[int]]
+
+proc initCounter*(ev:Evaluator): Counter =
+  result.sampleIndexes = newTable[string, int]()
+  result.exprIndexes = newTable[string, int]()
+  for i, s in ev.samples:
+    result.sampleIndexes[s.ped_sample.id] = i
+    result.samples.add(s.ped_sample.id)
+  for i, e in ev.trio_expressions:
+    result.exprIndexes[e.name] = result.exprIndexes.len
+    result.exprs.add(e.name)
+  for i, e in ev.group_expressions:
+    result.exprIndexes[e.name] = result.exprIndexes.len
+    result.exprs.add(e.name)
+  result.counts = newSeq[seq[int]](ev.samples.len)
+  for i in 0..result.counts.high:
+    result.counts[i] = newSeq[int](result.exprIndexes.len)
+
+proc inc*(c:var Counter, samples:seq[string], e:string) {.inline.} =
+  var jexpr = c.exprIndexes[e]
+  for s in samples:
+      var isample = c.sampleIndexes[s]
+      c.counts[isample][jexpr].inc
+
+proc `$`*(c:Counter): string =
+  var header = "sample\t" & join(c.exprs, "\t")
+  var res = newSeq[string]()
+  for i, s in c.samples:
+    var line:string = s
+    for j, e in c.exprs:
+      line &= '\t' & $c.counts[i][j]
+    res.add(line)
+  return header & '\n' & join(res, "\n")

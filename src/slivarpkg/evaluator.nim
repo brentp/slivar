@@ -14,7 +14,7 @@ proc clean(s:string): string =
   return s.replace("\"", "").replace("'", "")
 
 type CompiledExpression = object
-  name: string
+  name*: string
   expr: Dukexpr
 
 type NamedExpression* = object
@@ -48,7 +48,7 @@ iterator variants*(vcf:VCF, region:string): Variant =
 
 
 type ISample = ref object
-  ped_sample: pedfile.Sample
+  ped_sample*: pedfile.Sample
   duk: Duko
 
 type
@@ -74,7 +74,7 @@ type FieldSets[T: uint8|uint16] = object
 
 type Evaluator* = ref object
   ctx: DTContext
-  samples: seq[Isample]
+  samples*: seq[Isample]
 
   field_names: seq[idpair]
 
@@ -88,10 +88,10 @@ type Evaluator* = ref object
   gnos*:seq[Gnotater]
 
   trios: seq[Trio]
-  trio_expressions: seq[CompiledExpression]
+  trio_expressions*: seq[CompiledExpression]
 
   groups: seq[IGroup]
-  group_expressions: seq[CompiledExpression]
+  group_expressions*: seq[CompiledExpression]
 
   float_expressions: seq[CompiledExpression]
   info_expression*: Dukexpr

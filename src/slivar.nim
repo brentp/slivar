@@ -4,17 +4,16 @@ from ./slivarpkg/version import slivarVersion
 import ./slivarpkg/evaluator
 import ./slivarpkg/groups
 import ./slivarpkg/comphet
-
 import ./slivarpkg/gnotate
 import ./slivarpkg/make_gnotate
 import ./slivarpkg/filter
+import ./slivarpkg/counter
 import strutils
 import hts/vcf
 import os
 import times
 import strformat
 import docopt
-
 
 proc expr_main*(dropfirst:bool=false) =
   let doc = """
@@ -118,6 +117,8 @@ Options:
   doAssert ovcf.write_header
   var ev = newEvaluator(samples, groups, iTbl, trioTbl, grpTbl, $args["--info"], gnos, field_names=id2names(ivcf.header))
 
+  var counter = ev.initCounter()
+
   if $args["--js"] != "nil":
     var js = $readFile($args["--js"])
     ev.load_js(js)
@@ -148,6 +149,8 @@ Options:
       if variant.info.set(ns.name, ssamples) != Status.OK:
         quit "error setting field:" & ns.name
 
+      counter.inc(ns.sampleList, ns.name)
+
     if nerrors / i > 0.2 and i >= 1000:
         quit &"too many errors {nerrors} out of {i}. please check your expression"
 
@@ -158,6 +161,7 @@ Options:
 
   ovcf.close()
   ivcf.close()
+  stderr.write_line $counter
 
 proc main*() =
   type pair = object
