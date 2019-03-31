@@ -69,3 +69,13 @@ assert_exit_code 0
 assert_equal $(grep -c expect=yes tests/comphet.vcf) $(grep -c expect=yes ixx.vcf)
 assert_equal $(grep -c expect=no ixx.vcf) 0
 rm -f ixx.vcf
+
+run check_compound_hets_fields $exe compound-hets -s BCSQ -v tests/comphet.vcf --ped tests/ashk-trio.ped -o ixx.vcf
+assert_exit_code 0
+assert_equal 0 $(grep -cv ^# ixx.vcf)
+rm -f ixx.vcf
+
+run check_compound_hets_fields_matching $exe compound-hets -s ch_samples -v tests/comphet.vcf --ped tests/ashk-trio.ped -o ixx.vcf
+assert_exit_code 0
+assert_equal 2 $(grep -cv ^# ixx.vcf)
+rm -f ixx.vcf
