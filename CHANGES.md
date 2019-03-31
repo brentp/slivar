@@ -1,6 +1,7 @@
 v0.0.9 (dev)
 ============
 + fix bug without --pass-only. slivar always behaved as if --pass-only was used.
++ [compound-hets] fix for multi-sample VCFs with `--sample-field`
 
 v0.0.8
 ======

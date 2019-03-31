@@ -1,6 +1,7 @@
 import hts/vcf
 import bpbiopkg/pedfile
 import strformat
+import strutils
 import algorithm
 import argparse
 import tables
@@ -61,29 +62,48 @@ proc add_comphet(a:Variant, b:Variant, gene: string, sample:string) =
   s &= b.key & "/" & gene & "/" & sample
   doAssert a.info.set("slivar_comphet", s) == Status.OK
 
-proc write_compound_hets(ovcf:VCF, kids:seq[Sample], tbl:TableRef[string, seq[Variant]]): int =
+proc get_samples(v:Variant, sample_fields: seq[string], samples: var seq[string]): bool =
+  if samples.len != 0: samples.setLen(0)
+  var tmp: string
+  for sf in sample_fields:
+      if v.info.get(sf, tmp) != Status.OK: continue
+      samples.add(tmp.split(seps={','}))
+  return sample_fields.len == 0 or samples.len > 0
+
+
+proc write_compound_hets(ovcf:VCF, kids:seq[Sample], tbl:TableRef[string, seq[Variant]], sample_fields: seq[string]): int =
+  # sample_fields is a seq like @['lenient_ar', 'lenient_denovo'] where each is
+  # a key in the INFO field containing a (comma-delimited list of samples)
   var
     x: seq[int32]
 
   var foundKeys = initHashSet[string]()
   # need to track variants in this because 1 variant can be a CH with multiple genes/transcripts.
   var found: seq[Variant]
+  var asamples: seq[string]
+  var bsamples: seq[string]
 
   for gene, variants in tbl.mpairs:
     var variants = variants
     if variants.len < 2: continue
 
     for ai in 1..variants.high:
+      if not variants[ai].get_samples(sample_fields, asamples): continue
+
       var a = variants[ai].format.genotypes(x).alts
       for kid in kids:
+        if sample_fields.len > 0 and kid.id notin asamples: continue
         # quick checks to rule out this variant.
         if a[kid.i] != 1: continue
-        if a[kid.mom.i] + a[kid.dad.i] != 1: continue
+        var parent_alleles = a[kid.mom.i] + a[kid.dad.i]
+        if parent_alleles != 0 and parent_alleles != 1: continue
 
         for bi in 0..<ai:
           doAssert ai != bi
           var b = variants[bi].format.genotypes(x).alts
           if not is_compound_het(kid, a, b): continue
+          if not variants[bi].get_samples(sample_fields, bsamples): continue
+          if sample_fields.len > 0 and kid.id notin bsamples: continue
 
           if variants[ai].key notin foundKeys:
             found.add(variants[ai])
@@ -108,6 +128,7 @@ proc main*(dropfirst:bool=false) =
   var p = newParser("slivar compound-hets"):
     help("find compound-hets in trios from pre-filtered variants")
     option("-v", "--vcf", default="/dev/stdin", help="input VCF")
+    option("-s", "--sample-field", multiple=true, help="optional INFO field that contains list of samples (kids) that have passed previous filters.\ncan be specified multiple times.")
     option("-p", "--ped", default="", help="required ped file describing the trios in the VCF")
     option("-f", "--field", default="BCSQ", help="INFO field containing the gene name")
     option("-i", "--index", default="2", help="(1-based) index of the gene-name in the field after splitting on '|'")
@@ -153,7 +174,7 @@ proc main*(dropfirst:bool=false) =
   for v in ivcf:
     if v.rid != last_rid:
       if last_rid != -1:
-        nwritten += ovcf.write_compound_hets(kids, tbl)
+        nwritten += ovcf.write_compound_hets(kids, tbl, opts.sample_field)
 
       tbl = newTable[string, seq[Variant]]()
       last_rid = v.rid
@@ -174,7 +195,7 @@ proc main*(dropfirst:bool=false) =
       seen.incl(gene)
 
   if last_rid != -1:
-    nwritten += ovcf.write_compound_hets(kids, tbl)
+    nwritten += ovcf.write_compound_hets(kids, tbl, opts.sample_field)
 
   ovcf.close()
   ivcf.close()
