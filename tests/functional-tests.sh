@@ -37,6 +37,10 @@ assert_exit_code 0
 assert_equal 9870 $(bcftools view -H xx.bcf | wc -l)
 
 
+run check_aliased_info $exe expr -v tests/ashk-trio.vcf.gz --info "variant.FILTER == 'PASS' && variant.INFO.DP > 10" --pass-only --trio "denovo:kid.alts == 1 && mom.alts == 0 && dad.alts == 0" --ped tests/ashk-trio.ped -o xx.bcf
+assert_in_stderr "HG002	12"
+assert_equal 12 $(bcftools view -H xx.bcf | wc -l)
+assert_exit_code 0
 
 
 ### groups
@@ -79,3 +83,4 @@ run check_compound_hets_fields_matching $exe compound-hets -s ch_samples -v test
 assert_exit_code 0
 assert_equal 2 $(grep -cv ^# ixx.vcf)
 rm -f ixx.vcf
+

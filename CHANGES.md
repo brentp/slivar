@@ -1,5 +1,9 @@
-v0.0.9 (dev)
+v0.1.0 (dev)
 ============
++ allow accessing INFO via `variant.INFO` as well as `INFO`
+
+v0.0.9
+======
 + fix bug without --pass-only. slivar always behaved as if --pass-only was used.
 + [compound-hets] fix for multi-sample VCFs with `--sample-field`
 

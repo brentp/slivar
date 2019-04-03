@@ -380,6 +380,8 @@ proc set_infos*(ev:var Evaluator, variant:Variant, ints: var seq[int32], floats:
     ev.info_field_sets.curr.incl(field.i.uint8)
   # clear any field in last variant but not in this one.
   ev.clear_unused_infos(ev.info_field_sets)
+  ev.variant.alias(ev.INFO, "INFO")
+
 
 type exResult* = tuple[name:string, sampleList:seq[string], val:float32]
 

@@ -1,1 +1,1 @@
-const slivarVersion* = "0.0.9"
+const slivarVersion* = "0.1.0"

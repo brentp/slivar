@@ -1,4 +1,5 @@
 src/slivarpkg/duko
+*.swp
 src/slivar
 src/slivarpkg/evaluator
 src/slivarpkg/gnotate
