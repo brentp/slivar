@@ -42,6 +42,10 @@ assert_in_stderr "HG002	12"
 assert_equal 12 $(bcftools view -H xx.bcf | wc -l)
 assert_exit_code 0
 
+run check_missing_zip $exe gnotate -g XXXXXXXXXX.zip tests/ashk-trio.vcf.gz
+assert_in_stderr "error opening XXXXXXXXXX.zip"
+assert_exit_code 1
+
 
 ### groups
 

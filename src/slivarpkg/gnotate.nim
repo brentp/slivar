@@ -54,6 +54,7 @@ randomize()
 proc open*(g:var Gnotater, zpath: string, tmpDir:string="/tmp", missing_val:float32= -1.0'f32): bool =
   g = Gnotater(tmpDir:tmpDir, missing_value:missing_val)
   if not open(g.zip, zpath):
+    stderr.write_line &"[slivar] error opening {zpath} for annotation"
     return false
 
   var r = $random(int.high) & $random(int.high)

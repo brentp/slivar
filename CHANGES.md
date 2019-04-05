@@ -1,6 +1,7 @@
 v0.1.0 (dev)
 ============
 + allow accessing INFO via `variant.INFO` as well as `INFO`
++ better error message on missing gnotate file
 
 v0.0.9
 ======
