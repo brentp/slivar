@@ -5,7 +5,7 @@ It facilitates operations on trios and [groups](#groups) and allows arbitrary ex
 
 #### use-cases for `slivar`
 
-+ annotate variants with combined exomes + whole genomes at > 30K variants/second using only a 1.5GB compressed annotation file
++ annotate variants with [gnomad](https://gnomad.broadinstitute.org/) allele frequencies from combined exomes + whole genomes at > 30K variants/second using only a 1.5GB compressed annotation file
 + call *denovo* variants with a simple expression that uses *mom*, *dad*, *kid* labels that is applied to each trio in a cohort (as inferred from a pedigree file).
   `kid.alts == 1 && mom.alts == 0 && dad.alts == 0 && kid.DP > 10 && mom.DP > 10 && dad.DP > 10`
 + define and filter on arbitrary groups with labels. For example, 7 sets of samples each with 1 normal and 3 tumor time-points:

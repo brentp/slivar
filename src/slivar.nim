@@ -100,7 +100,8 @@ Options:
   if $args["--gnotate"] != "nil":
     for p in @(args["--gnotate"]):
       var gno:Gnotater
-      doAssert gno.open(p)
+      if not gno.open(p):
+        quit "[slivar] failed to open gnotate file. please check path"
       gno.update_header(ivcf)
       gnos.add(gno)
 

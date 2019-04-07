@@ -392,7 +392,7 @@ iterator evaluate_floats(ev:Evaluator, nerrors: var int, variant:Variant): exRes
       ev.INFO[namedexpr.name] = val
       yield (namedexpr.name, @[], val)
     except:
-      stderr.write_line "problematic variant:" & variant.tostring()
+      stderr.write_line "[slivar] problematic variant:" & variant.tostring()
       raise
 
 iterator evaluate_trios(ctx:Evaluator, nerrors: var int, variant:Variant): exResult =

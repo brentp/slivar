@@ -304,7 +304,8 @@ when isMainModule:
   var original_field = paramStr(3)
 
   var g:Gnotater
-  doAssert g.open(zip_path, tmpDir="/tmp", missing_val= -1.0'f32)
+  if not g.open(zip_path, tmpDir="/tmp", missing_val= -1.0'f32):
+    quit "[slivar] error opening zip. check path and contents"
   g.update_header(ivcf)
 
   ovcf.copy_header(ivcf.header)
