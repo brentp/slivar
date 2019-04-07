@@ -19,6 +19,7 @@ slivar has sub-commands:
 + [expr](#expr): trio and group expressions and filtering
 + [gnotate](#gnotate): filter and/or annotate a VCF/BCF files
 + [make-gnotate](#gnotate): make a compressed zip file of annotations for use by slivar
++ [compound-hets](#compound-het): true compound hets using phase-by-inheritance within gene annotations
 
 # Table of Contents
 
