@@ -158,7 +158,7 @@ Options:
       counter.inc(ns.sampleList, ns.name)
 
     if nerrors / i > 0.2 and i >= 1000:
-        quit &"too many errors {nerrors} out of {i}. please check your expression"
+      quit &"too many errors {nerrors} out of {i}. please check your expression"
 
     if any_pass or (not pass_only):
       doAssert ovcf.write_variant(variant)

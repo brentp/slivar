@@ -135,16 +135,23 @@ proc set_sample_attributes(ev:Evaluator, by_name: TableRef[string, ISample]) =
     sample.duk["sex"] = if sex == 2: "female" elif sex == 1: "male" else: "unknown"
     sample.duk["id"] = sample.ped_sample.id
     if sample.ped_sample.dad != nil:
+      if sample.ped_sample.dad.id notin by_name: continue #
       if ev.ctx.duk_peval_string_noresult(&"{samples_name}[\"{sample.ped_sample.id}\"].dad = {samples_name}[\"{sample.ped_sample.dad.id}\"]") != 0:
         quit "error setting sample dad"
     if sample.ped_sample.mom != nil:
+      if sample.ped_sample.mom.id notin by_name: continue #
       if ev.ctx.duk_peval_string_noresult(&"{samples_name}[\"{sample.ped_sample.id}\"].mom = {samples_name}[\"{sample.ped_sample.mom.id}\"]") != 0:
         quit "error setting sample mom"
     if ev.ctx.duk_peval_string_noresult(&"{samples_name}[\"{sample.ped_sample.id}\"].kids = []") != 0:
         quit "error setting sample kids"
     for kid in sample.ped_sample.kids:
-      if ev.ctx.duk_peval_string_noresult(&"{samples_name}[\"{sample.ped_sample.id}\"].kids.push({samples_name}[\"{kid.id}\"])") != 0:
-        quit "error setting sample kid"
+      #stderr.write_line &"{samples_name}[\"{sample.ped_sample.id}\"].kids.push({samples_name}[\"{kid.id}\"])"
+      if kid.id notin by_name: continue #
+      if ev.ctx.duk_peval_string(&"{samples_name}[\"{sample.ped_sample.id}\"].kids.push({samples_name}[\"{kid.id}\"])") != 0:
+        var err = $ev.ctx.duk_safe_to_string(-1)
+        quit &"error setting sample kid: {kid.id} for parent: {sample.ped_sample.id}" & "\n" & err
+      else:
+        ev.ctx.pop()
 
 proc trio_kids(samples: seq[Sample]): seq[Sample] =
   ## return all samples that have a mom and dad.
@@ -157,7 +164,7 @@ proc make_one_row(ev:Evaluator, grps: seq[seq[Sample]], by_name: TableRef[string
   for col in grps:
     var v = newSeq[Isample](col.len)
     for i, sample in col:
-      v[i] = by_name[sample.id] #ISample(ped_sample: sample, duk:ev.samples_ns.newObject(sample.id))
+      v[i] = by_name[sample.id]
     result.add(v)
 
 proc make_igroups(ev:Evaluator, groups: seq[Group], by_name:TableRef[string, ISample], sample_expressions: seq[NamedExpression]): seq[IGroup] =
@@ -169,12 +176,13 @@ proc make_igroups(ev:Evaluator, groups: seq[Group], by_name:TableRef[string, ISa
       ig.rows.add(ev.make_one_row(row, by_name))
 
     result.add(ig)
+  if sample_expressions.len == 0: return
+
   # turn samples into a single-column group for each sample
-  for ex in sample_expressions:
-    var ig = IGroup(header: @["sample"], plural: @[false], rows: @[])
-    for sample in ev.samples:
-      ig.rows.add(@[@[by_name[sample.ped_sample.id]]])
-    result.add(ig)
+  var ig = IGroup(header: @["sample"], plural: @[false], rows: @[])
+  for sample in ev.samples:
+    ig.rows.add(@[@[by_name[sample.ped_sample.id]]])
+  result.add(ig)
 
 proc newEvaluator*(samples: seq[Sample], groups: seq[Group], float_expressions: seq[NamedExpression],
                    trio_expressions: seq[NamedExpression], group_expressions: seq[NamedExpression],
@@ -215,7 +223,6 @@ proc newEvaluator*(samples: seq[Sample], groups: seq[Group], float_expressions: 
   for ex in sample_expressions:
     result.group_expressions.add(CompiledExpression(expr: result.ctx.compile(ex.expr), name: ex.name))
 
-
   for ex in float_expressions:
     result.float_expressions.add(CompiledExpression(expr: result.ctx.compile(ex.expr), name: ex.name))
 
@@ -223,7 +230,6 @@ proc newEvaluator*(samples: seq[Sample], groups: seq[Group], float_expressions: 
     result.info_expression = result.ctx.compile(info_expr)
 
   result.groups = result.make_igroups(groups, by_name, sample_expressions)
-  stderr.write_line $result.groups
 
   for kid in samples.trio_kids:
       result.trios.add([by_name[kid.id], by_name[kid.dad.id], by_name[kid.mom.id]])
@@ -476,7 +482,7 @@ iterator evaluate_groups(ev:Evaluator, nerrors: var int, variant:Variant): exRes
       if len(matching_groups) > 0:
         # set INFO of this result so subsequent expressions can use it.
         ev.INFO[namedexpr.name] = join(matching_groups, ",")
-        yield (namedexpr.name, matching_groups, -1'f32)
+        yield ($namedexpr.name, matching_groups, -1'f32)
 
 template clear_unused_formats(ev:Evaluator) =
   for idx in ev.fmt_field_sets.last - ev.fmt_field_sets.curr:
@@ -523,7 +529,6 @@ iterator evaluate*(ev:var Evaluator, variant:Variant, nerrors:var int): exResult
   ev.set_variant_fields(variant)
   var alts = variant.format.genotypes(ints).alts
   ev.set_calculated_variant_fields(alts)
-  # set_infos also updates field_sets.curr
   ev.set_infos(variant, ints, floats)
 
   if ev.info_expression.ctx == nil or ev.info_expression.check:
