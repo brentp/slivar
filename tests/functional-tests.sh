@@ -15,6 +15,14 @@ assert_exit_code 0
 assert_in_stdout "Options:"
 rm -f xx.bcf
 
+## sample expressions
+run check_sample_expressions $exe expr -v tests/ashk-trio.vcf.gz --pass-only --sample-expr "high_depth:sample.DP > 800" --ped tests/ashk-trio.ped -o xx.bcf
+assert_in_stderr "sample	high_depth
+HG002	45
+HG003	31
+HG004	40"
+assert_exit_code 0
+
 run check_denovo $exe expr -v tests/ashk-trio.vcf.gz --js js/slivar-functions.js --pass-only --trio "denovo:kid.alts == 1 && mom.alts == 0 && dad.alts == 0 && (mom.AD[1] + dad.AD[1]) < 2 && kid.GQ > 10 && mom.GQ > 10 && dad.GQ > 10 && kid.DP > 10 && mom.DP > 10 && dad.DP > 10" --ped tests/ashk-trio.ped -o xx.bcf
 assert_exit_code 0
 assert_equal 0 $(bcftools view -H -i 'FMT/GT[0] == "RR"' xx.bcf | wc -l)

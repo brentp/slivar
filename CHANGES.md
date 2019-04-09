@@ -2,6 +2,8 @@ v0.1.0 (dev)
 ============
 + allow accessing INFO via `variant.INFO` as well as `INFO`
 + better error message on missing gnotate file
++ add --sample-expr to `slivar expr` sub-command to allow applying an expression to each sample:
+   `--sample-expr "hi_quality:sample.DP > 10 && sample.GQ > 20"
 
 v0.0.9
 ======

@@ -81,7 +81,7 @@ Additional Options:
   var expr = if $args["--expr"] == "nil": "" else: $args["--expr"]
   ovcf.copy_header(ivcf.header)
   doAssert ovcf.write_header
-  var ev = newEvaluator(samples, groups, tbl, tbl, tbl, expr, gnos, id2names(ovcf.header))
+  var ev = newEvaluator(samples, groups, tbl, tbl, tbl, tbl, expr, gnos, id2names(ovcf.header))
   if $args["--js"] != "nil":
     ev.load_js($readFile($args["--js"]))
 

@@ -139,9 +139,19 @@ normal.alts == 0 && normal.DP > 10 \
 ```
 
 to find a somatic variant that has increasing frequency (AB is allele balance) along the tumor time-points.
-
-
 More detail on groups is provided [here](https://github.com/brentp/slivar/wiki/groups-in-slivar)
+
+#### Sample Expressions
+
+Users can specify a boolean expression that is tested against each `sample` using e.g.:
+
+```
+--sample-expr "hi_quality:sample.DP && sample.GQ > 10"
+```
+
+Each sample that passes this expression will be have its sample id appended to the INFO field of `hi_quality` which
+is added to the output VCF.
+
 
 ### Gnotate
 

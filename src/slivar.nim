@@ -19,7 +19,7 @@ proc expr_main*(dropfirst:bool=false) =
   let doc = """
 slivar -- variant expression for great good
 
-Usage: slivar expr [options --pass-only --vcf <path> --ped <path> --trio=<expression>... --group-expr=<expression>... --info=<expression> --gnotate=<path>...]
+Usage: slivar expr [options --pass-only --vcf <path> --ped <path> --trio=<expression>... --group-expr=<expression>... --sample-expr=<expression>... --info=<expression> --gnotate=<path>...]
 
 About:
 
@@ -49,6 +49,7 @@ Options:
   --trio <string>...         an expression applied to each trio where "mom", "dad", "kid" labels are available from trios inferred from
                              a ped file.
   --group-expr <string>...   expressions applied to the groups defined in the alias option [see: https://github.com/brentp/slivar/wiki/groups-in-slivar].
+  --sample-expr <string>...  boolean expression(s) applied to each sample in the VCF.
   --info <string>            a filter expression using only variables from  the info field and variant attributes. If this filter
                              does not pass, the trio and alias expressions will not be applied.
   -g --gnotate <path>...     optional paths compressed gnote file (made with slivar make-gnotate)
@@ -110,13 +111,17 @@ Options:
     trioTbl: seq[NamedExpression]
     grpTbl: seq[NamedExpression]
     iTbl: seq[NamedExpression]
+    sampleTbl: seq[NamedExpression]
 
   if $args["--trio"] != "nil":
     trioTbl = ovcf.getNamedExpressions(@(args["--trio"]), $args["--vcf"])
   if $args["--group-expr"] != "nil":
     grpTbl = ovcf.getNamedExpressions(@(args["--group-expr"]), $args["--vcf"])
+  if $args["--sample-expr"] != "nil":
+    sampleTbl = ovcf.getNamedExpressions(@(args["--sample-expr"]), $args["--vcf"])
+
   doAssert ovcf.write_header
-  var ev = newEvaluator(samples, groups, iTbl, trioTbl, grpTbl, $args["--info"], gnos, field_names=id2names(ivcf.header))
+  var ev = newEvaluator(samples, groups, iTbl, trioTbl, grpTbl, sampleTbl, $args["--info"], gnos, field_names=id2names(ivcf.header))
 
   var counter = ev.initCounter()
 

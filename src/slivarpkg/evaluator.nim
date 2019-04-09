@@ -93,6 +93,8 @@ type Evaluator* = ref object
   groups: seq[IGroup]
   group_expressions*: seq[CompiledExpression]
 
+  sample_expressions: seq[CompiledExpression]
+
   float_expressions: seq[CompiledExpression]
   info_expression*: Dukexpr
 
@@ -124,6 +126,8 @@ var debug: DTCFunction = (proc (ctx: DTContext): cint {.stdcall.} =
   stderr.write_line $ctx.duk_require_string(-1)
 )
 
+const samples_name = "$S"
+
 proc set_sample_attributes(ev:Evaluator, by_name: TableRef[string, ISample]) =
   for sample in ev.samples:
     sample.duk["affected"] = sample.ped_sample.affected
@@ -131,15 +135,15 @@ proc set_sample_attributes(ev:Evaluator, by_name: TableRef[string, ISample]) =
     sample.duk["sex"] = if sex == 2: "female" elif sex == 1: "male" else: "unknown"
     sample.duk["id"] = sample.ped_sample.id
     if sample.ped_sample.dad != nil:
-      if ev.ctx.duk_peval_string_noresult(&"samples[\"{sample.ped_sample.id}\"].dad = samples[\"{sample.ped_sample.dad.id}\"]") != 0:
+      if ev.ctx.duk_peval_string_noresult(&"{samples_name}[\"{sample.ped_sample.id}\"].dad = {samples_name}[\"{sample.ped_sample.dad.id}\"]") != 0:
         quit "error setting sample dad"
     if sample.ped_sample.mom != nil:
-      if ev.ctx.duk_peval_string_noresult(&"samples[\"{sample.ped_sample.id}\"].mom = samples[\"{sample.ped_sample.mom.id}\"]") != 0:
+      if ev.ctx.duk_peval_string_noresult(&"{samples_name}[\"{sample.ped_sample.id}\"].mom = {samples_name}[\"{sample.ped_sample.mom.id}\"]") != 0:
         quit "error setting sample mom"
-    if ev.ctx.duk_peval_string_noresult(&"samples[\"{sample.ped_sample.id}\"].kids = []") != 0:
+    if ev.ctx.duk_peval_string_noresult(&"{samples_name}[\"{sample.ped_sample.id}\"].kids = []") != 0:
         quit "error setting sample kids"
     for kid in sample.ped_sample.kids:
-      if ev.ctx.duk_peval_string_noresult(&"samples[\"{sample.ped_sample.id}\"].kids.push(samples[\"{kid.id}\"])") != 0:
+      if ev.ctx.duk_peval_string_noresult(&"{samples_name}[\"{sample.ped_sample.id}\"].kids.push({samples_name}[\"{kid.id}\"])") != 0:
         quit "error setting sample kid"
 
 proc trio_kids(samples: seq[Sample]): seq[Sample] =
@@ -156,7 +160,7 @@ proc make_one_row(ev:Evaluator, grps: seq[seq[Sample]], by_name: TableRef[string
       v[i] = by_name[sample.id] #ISample(ped_sample: sample, duk:ev.samples_ns.newObject(sample.id))
     result.add(v)
 
-proc make_igroups(ev:Evaluator, groups: seq[Group], by_name:TableRef[string, ISample]): seq[IGroup] =
+proc make_igroups(ev:Evaluator, groups: seq[Group], by_name:TableRef[string, ISample], sample_expressions: seq[NamedExpression]): seq[IGroup] =
   ## just copy the groups, but turn each sample into an ISample
   for g in groups:
     var ig = IGroup(header:g.header, plural:g.plural)
@@ -165,9 +169,16 @@ proc make_igroups(ev:Evaluator, groups: seq[Group], by_name:TableRef[string, ISa
       ig.rows.add(ev.make_one_row(row, by_name))
 
     result.add(ig)
+  # turn samples into a single-column group for each sample
+  for ex in sample_expressions:
+    var ig = IGroup(header: @["sample"], plural: @[false], rows: @[])
+    for sample in ev.samples:
+      ig.rows.add(@[@[by_name[sample.ped_sample.id]]])
+    result.add(ig)
 
 proc newEvaluator*(samples: seq[Sample], groups: seq[Group], float_expressions: seq[NamedExpression],
                    trio_expressions: seq[NamedExpression], group_expressions: seq[NamedExpression],
+                   sample_expressions: seq[NamedExpression],
                    info_expr: string, gnos:seq[Gnotater], field_names:seq[idpair]): Evaluator =
   ## make a new evaluation context for the given string
   var my_fatal: duk_fatal_function = (proc (udata: pointer, msg:cstring) {.stdcall.} =
@@ -185,7 +196,7 @@ proc newEvaluator*(samples: seq[Sample], groups: seq[Group], float_expressions: 
   if result.ctx.duk_peval_string_no_result(strictO):
     var err = $result.ctx.duk_safe_to_string(-1)
     raise newException(ValueError, err)
-  result.samples_ns = result.ctx.newStrictObject("samples")
+  result.samples_ns = result.ctx.newStrictObject(samples_name)
 
   for sample in samples:
     result.samples.add(ISample(ped_sample:sample, duk:result.samples_ns.newStrictObject(sample.id)))
@@ -199,13 +210,20 @@ proc newEvaluator*(samples: seq[Sample], groups: seq[Group], float_expressions: 
     result.trio_expressions.add(CompiledExpression(expr: result.ctx.compile(ex.expr), name: ex.name))
   for ex in group_expressions:
     result.group_expressions.add(CompiledExpression(expr: result.ctx.compile(ex.expr), name: ex.name))
+
+  # sample expressions get added to group_expressions
+  for ex in sample_expressions:
+    result.group_expressions.add(CompiledExpression(expr: result.ctx.compile(ex.expr), name: ex.name))
+
+
   for ex in float_expressions:
     result.float_expressions.add(CompiledExpression(expr: result.ctx.compile(ex.expr), name: ex.name))
 
   if info_expr != "" and info_expr != "nil":
     result.info_expression = result.ctx.compile(info_expr)
 
-  result.groups = result.make_igroups(groups, by_name)
+  result.groups = result.make_igroups(groups, by_name, sample_expressions)
+  stderr.write_line $result.groups
 
   for kid in samples.trio_kids:
       result.trios.add([by_name[kid.id], by_name[kid.dad.id], by_name[kid.mom.id]])
