@@ -91,7 +91,7 @@ proc write_to(positions:var seq[PosValue], fname:string, fields:seq[field]) =
     if pv.position != last.position:
       var p = last.position
       var vs = join(last.values, "|")
-      fh.write(fmt("{p.position}\t{p.reference}\t{p.alternate}\t{p.filter}\t{vs}\n"))
+      fh.write(fmt("{p.position}\t{p.reference}\t{p.alternate}\t{$p.filter}\t{vs}\n"))
       last = pv
     else:
       for i, f in fields:
@@ -99,7 +99,7 @@ proc write_to(positions:var seq[PosValue], fname:string, fields:seq[field]) =
 
   var p = last.position
   var vs = join(last.values, "|")
-  fh.write(fmt("{p.position}\t{p.reference}\t{p.alternate}\t{p.filter}\t{vs}\n"))
+  fh.write(fmt("{p.position}\t{p.reference}\t{p.alternate}\t{$p.filter}\t{vs}\n"))
   fh.close()
 
 proc write_chrom(zip: var Zip, chrom: string, prefix: string, kvs:var seq[evalue], longs:var seq[PosValue], fields: seq[field]) =
@@ -170,7 +170,7 @@ proc get_values(v:Variant, fields: var seq[field], calculated_values: TableRef[s
         stderr.write_line &"[slivar] using type int for {field.field}"
         field.use_ints = true
       elif st == UndefinedTag:
-        quit &"tag:{field} not found in vcf"
+        quit &"tag:{$field} not found in vcf"
       else:
         stderr.write_line &"[slivar] using type float for {field.field}"
   result = newSeqUninitialized[float32](fields.len)

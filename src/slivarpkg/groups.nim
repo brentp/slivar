@@ -73,7 +73,7 @@ proc parse_group_line(groups:var seq[Group], line:string, sample_lookup:TableRef
       col_samples.add(sample_lookup[sname])
 
     if col_samples.len > 1 and not groups[groups.high].plural[i]:
-      raise newException(ValueError, &"slivar/groups:got > 1 sample in line {line}, column {i}. {col_samples}")
+      raise newException(ValueError, &"slivar/groups:got > 1 sample in line {line}, column {i}. {$col_samples}")
     g.add(col_samples)
   groups[groups.high].rows.add(g)
 
