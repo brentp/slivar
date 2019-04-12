@@ -5,6 +5,7 @@ v0.1.0 (dev)
 + add --sample-expr to `slivar expr` sub-command to allow applying an expression to each sample:
    `--sample-expr "hi_quality:sample.DP > 10 && sample.GQ > 20"
 + expose samples in javascript in `$S` object, e.g. `$S["sampleABC"].DP > 10 && $S["sampleXYZ"].DP > 10`
++ better checking of matching between ped and vcf => don't fail on missing kids
 
 v0.0.9
 ======
