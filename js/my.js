@@ -23,6 +23,11 @@ function x_denovo(kid, mom, dad) {
   return ((mom.AD[1] + dad.AD[1]) < 2);
 }
 
+function uniparent_disomy(kid, mom, dad) {
+  if(!hq(kid, mom, dad)){ return false; }
+  return (kid.alts == 0 || kid.alts == 2) && ((mom.alts == 2 && dad.alts == 0) || (mom.alts == 0 && dad.alts == 2));
+}
+
 function recessive(kid, mom, dad) {
   return hq(kid, mom, dad) && mom.alts == 1 && dad.alts == 1 && kid.alts == 2
 }
