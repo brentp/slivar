@@ -29,6 +29,7 @@ slivar has sub-commands:
     * [Groups](#groups)
  * [Gnotate](#gnotate)
  * [compound-het](#compound-het)
+ * [duo-del](#duo-del)
 * [Installation](#installation)
 * [Attributes](#attributes)
 * [How it works](#how-it-works)
@@ -195,6 +196,14 @@ This command is used to find compound heterozygous variants (with phasing-by-inh
 It is used after filtering to rare(-ish) heterozygotes.
 
 See a full description of use [here](https://github.com/brentp/slivar/wiki/rare-disease#compound-heterozygotes)
+
+## duo-del
+
+slivar duo-del finds structural deletions in parent-child duos using non-transmission of alleles. this 
+can work to find deletions in exome data using genotypes, thereby avoiding the problems associated with
+depth-based CNV calling in exomes.
+
+see: https://github.com/brentp/slivar/wiki/finding-de-novo-deletions-in-parent-child-duos 
 
 ## Installation
 
