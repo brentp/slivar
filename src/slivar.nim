@@ -4,6 +4,7 @@ from ./slivarpkg/version import slivarVersion
 import ./slivarpkg/evaluator
 import ./slivarpkg/groups
 import ./slivarpkg/comphet
+import ./slivarpkg/duodel
 import ./slivarpkg/gnotate
 import ./slivarpkg/make_gnotate
 import ./slivarpkg/filter
@@ -179,6 +180,7 @@ proc main*() =
     "gnotate": pair(f:filter.main, description:"filter and/or annotate a VCF/BCF"),
     "make-gnotate": pair(f:make_gnotate.main, description:"make a gnotate zip file for a given VCF"),
     "compound-hets": pair(f:comphet.main, description:"find compound hets in a (previously filtered and gene-annotated) VCF"),
+    "duo-del": pair(f:duodel.main, description: "find large denovo deletions in parent-child duos using non-transmission from SNP VCF"),
     }.toOrderedTable
 
   stderr.write_line "slivar version: " & slivarVersion & "\n"
@@ -187,7 +189,7 @@ proc main*() =
   if len(args) == 0 or not (args[0] in dispatcher):
     stderr.write_line "Commands: "
     for k, v in dispatcher:
-      echo &"  {k:<12}:   {v.description}"
+      echo &"  {k:<13}:   {v.description}"
     if len(args) > 0 and (args[0] notin dispatcher) and args[0] notin @["-h", "-help"]:
       echo &"unknown program '{args[0]}'"
     quit ""

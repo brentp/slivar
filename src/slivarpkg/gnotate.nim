@@ -38,6 +38,9 @@ type Gnotater* = ref object
 proc close*(g:var Gnotater) =
   g.zip.close()
 
+template names*(g: Gnotater): seq[string] =
+  g.names
+
 proc n_fields(g: Gnotater): int =
   return g.names.len
 

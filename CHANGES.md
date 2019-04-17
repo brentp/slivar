@@ -1,5 +1,11 @@
-v0.1.0 (dev)
+v0.1.1 (dev)
 ============
++ better checks on missing parents/kids
++ new sub-command `duo-del` that uses non-transmission in parent-child duos to find *de novo* structural deletions.
+  e.g. a cluster of sites where kid is 0/0 and parent is 1/1 would be a candidate.
+
+v0.1.0
+======
 + allow accessing INFO via `variant.INFO` as well as `INFO`
 + better error message on missing gnotate file
 + add --sample-expr to `slivar expr` sub-command to allow applying an expression to each sample:
