@@ -169,14 +169,19 @@ proc cull(duo: Duo, candidates: seq[Candidate], i_dist:int=20, genome_dist:int=3
 template min16(i:int32):int16 =
   min(int16.high.int32, i).int16
 
+include ./utils
+
 proc main*(dropfirst:bool=false) =
   ## TODO: find homozygous deletions with ./.
-  var p = newParser("slivar duo-del"):
-    help("find denovo structural deletions in parent-child duos using non-transmission of SNPs")
+  var p = newParser("slivar duodel"):
+    help("""find denovo structural deletions in parent-child duos using non-transmission of SNPs
+    see: https://github.com/brentp/slivar/wiki/finding-de-novo-deletions-in-parent-child-duos
+    """)
     option("-p", "--ped", help="required ped file describing the duos in the VCF")
     option("-g", "--gnotate", help="optional gnotate file to check for flagged variants to exclude")
     option("-s", "--min-sites", default="3", help="minimum number of variants required to define a region (use 1 to output all putative deletions)")
     option("-S", "--min-size", default="50", help="minimum size in base-pairs of a region")
+    option("-x", "--exclude", help="path to BED file of exclude regions e.g. (LCRs or self-chains)")
     flag("-a", "--affected-only", help="only output DEL calls for affected kids")
     arg("vcf", default="/dev/stdin", help="input SNP/indel VCF")
 
@@ -190,13 +195,14 @@ proc main*(dropfirst:bool=false) =
     echo p.help
     quit "--ped is required"
 
+
   var samples = parse_ped(opts.ped)
   var ivcf:VCF
   if not open(ivcf, opts.vcf, threads=2):
     quit "couldn't open VCF"
   samples = samples.match(ivcf)
   var duos = samples.duos(opts.affected_only)
-  stderr.write_line &"found {duos.len} duos"
+  stderr.write_line &"[slivar] found {duos.len} duos"
   var gno:Gnotater
   if opts.gnotate != "":
     if not gno.open(opts.gnotate):
@@ -204,6 +210,11 @@ proc main*(dropfirst:bool=false) =
     gno.update_header(ivcf)
 
   var candidates = newSeq[seq[Candidate]](duos.len)
+
+  var exclude: TableRef[string, Lapper[region]]
+  var empty:seq[region]
+  if opts.exclude != "":
+    exclude = read_bed(opts.exclude)
 
   var GQ: seq[int32]
   var AD: seq[int32]
@@ -224,6 +235,8 @@ proc main*(dropfirst:bool=false) =
     if v.CHROM == "X" or v.CHROM == "chrX" or v.CHROM == "MT" or v.CHROM == "chrM" or v.CHROM == "chrMT": continue
     if v.FILTER notin ["PASS", "", "."]: continue
     if len(v.ALT) > 1: continue
+    if exclude != nil and stripChr(v.CHROM) in exclude and exclude[stripChr(v.CHROM)].find(v.start, v.start + 1, empty):
+      continue
     var LowQual = false
     if gno != nil and gno.annotate(v) and v.info.has_flag(gno.names[0] & "_filter"):
       LowQual = true

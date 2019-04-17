@@ -3,6 +3,7 @@ v0.1.1 (dev)
 + better checks on missing parents/kids
 + new sub-command `duo-del` that uses non-transmission in parent-child duos to find *de novo* structural deletions.
   e.g. a cluster of sites where kid is 0/0 and parent is 1/1 would be a candidate.
+  see: https://github.com/brentp/slivar/wiki/finding-de-novo-deletions-in-parent-child-duos
 
 v0.1.0
 ======

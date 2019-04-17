@@ -1,4 +1,5 @@
 src/slivarpkg/duko
+src/slivarpkg/duodel
 *.swp
 src/slivar
 src/slivarpkg/evaluator
