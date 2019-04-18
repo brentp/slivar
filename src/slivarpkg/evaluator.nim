@@ -21,13 +21,23 @@ type NamedExpression* = object
   name*: string
   expr*: string
 
-proc getNamedExpressions*(ovcf:VCF, expressions:seq[string], invcf:string): seq[NamedExpression] =
+proc assertNewLabel(label: string, previous: seq[NamedExpression]) =
+  for pe in previous:
+    if pe.name == label:
+      quit &"[slivar] ERROR duplicate label '{pe.name}'. Use unique labels"
+
+proc getNamedExpressions*(ovcf:VCF, expressions:seq[string], invcf:string, previousExpressions: varargs[seq[NamedExpression]]): seq[NamedExpression] =
   ## parse (split on :) the expressions, return a sequence, and update the vcf header with a reasonable description.
   result = newSeq[NamedExpression]()
   for e in expressions:
     var t = e.split(seps={':'}, maxsplit=1)
     if t.len != 2:
       quit "must specify name:expression pairs. got:" & e
+
+    assertNewLabel(t[0], result)
+    for p in previousExpressions:
+      assertNewLabel(t[0], p)
+
     result.add(NamedExpression(name:t[0], expr:t[1]))
     if ovcf.header.add_info(t[0], ".", "String", &"added by slivar with expression: '{t[1].clean}' from {invcf}") != Status.OK:
       quit "error adding field to header"

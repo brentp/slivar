@@ -1,3 +1,7 @@
+v0.1.2
+======
++ fix bug where slivar expr would segfault if labels were re-used (now quits with error message)
+
 v0.1.1
 ======
 + better checks on missing parents/kids

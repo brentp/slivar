@@ -15,6 +15,10 @@ assert_exit_code 0
 assert_in_stdout "Options:"
 rm -f xx.bcf
 
+run check_error_repeated_name $exe expr -v tests/ashk-trio.vcf.gz --sample-expr "high_depth:sample.DP > 800" --trio "high_depth:kid.DP > 800" --ped tests/ashk-trio.ped -o xx.bcf
+assert_exit_code 1
+assert_in_stderr "duplicate label"
+
 ## sample expressions
 run check_sample_expressions $exe expr -v tests/ashk-trio.vcf.gz --pass-only --sample-expr "high_depth:sample.DP > 800" --ped tests/ashk-trio.ped -o xx.bcf
 assert_in_stderr "sample	high_depth
@@ -30,7 +34,7 @@ assert_equal "0" "$(bcftools view -H -i 'FMT/DP[0] <= 10 || FMT/DP[1] <= 10 || F
 assert_equal 11 $(bcftools view -H xx.bcf | wc -l)
 
 
-run check_denovo_with_filter $exe expr -v tests/ashk-trio.vcf.gz --pass-only --trio "denovo:variant.FILTER == 'PASS' && kid.alts == 1 && mom.alts == 0 && dad.alts == 0 && (mom.AD[1] + dad.AD[1]) < 2 && kid.GQ > 10 && mom.GQ > 10 && dad.GQ > 10 && kid.DP > 10 && mom.DP > 10 && dad.DP > 10" --ped tests/ashk-trio.ped -o xx.bcf
+run check_denovo_with_filter $exe expr --js js/my.js -v tests/ashk-trio.vcf.gz --pass-only --trio "denovo:variant.FILTER == 'PASS' && kid.alts == 1 && mom.alts == 0 && dad.alts == 0 && (mom.AD[1] + dad.AD[1]) < 2 && kid.GQ > 10 && mom.GQ > 10 && dad.GQ > 10 && kid.DP > 10 && mom.DP > 10 && dad.DP > 10" --ped tests/ashk-trio.ped -o xx.bcf
 
 assert_exit_code 0
 assert_equal 4 $(bcftools view -H xx.bcf | wc -l)

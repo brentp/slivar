@@ -19,7 +19,7 @@ Usage: slivar make-gnotate [options --field <string>... --expr <string>...] <vcf
 Options:
 
   --prefix <string>          prefix for output [default: gno]
-  -f --field <string>...    field(s) to use for value [default: AF_popmax]
+  -f --field <string>...     field(s) to pull from VCF. format is source:dest. e.g. AF_popmax:gnomad_popmax_af [default: AF_popmax]
   -e --expr <string>...      optional name:expression that return floats to be used by --field
   -m --message <string>      optional usage message (or license) to associate with the gnotate file.
 

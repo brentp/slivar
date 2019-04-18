@@ -117,9 +117,9 @@ Options:
   if $args["--trio"] != "nil":
     trioTbl = ovcf.getNamedExpressions(@(args["--trio"]), $args["--vcf"])
   if $args["--group-expr"] != "nil":
-    grpTbl = ovcf.getNamedExpressions(@(args["--group-expr"]), $args["--vcf"])
+    grpTbl = ovcf.getNamedExpressions(@(args["--group-expr"]), $args["--vcf"], trioTbl)
   if $args["--sample-expr"] != "nil":
-    sampleTbl = ovcf.getNamedExpressions(@(args["--sample-expr"]), $args["--vcf"])
+    sampleTbl = ovcf.getNamedExpressions(@(args["--sample-expr"]), $args["--vcf"], trioTbl, grpTbl)
 
   doAssert ovcf.write_header
   var ev = newEvaluator(samples, groups, iTbl, trioTbl, grpTbl, sampleTbl, $args["--info"], gnos, field_names=id2names(ivcf.header))
