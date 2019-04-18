@@ -1,5 +1,5 @@
-v0.1.1 (dev)
-============
+v0.1.1
+======
 + better checks on missing parents/kids
 + new sub-command `duo-del` that uses non-transmission in parent-child duos to find *de novo* structural deletions.
   e.g. a cluster of sites where kid is 0/0 and parent is 1/1 would be a candidate.
