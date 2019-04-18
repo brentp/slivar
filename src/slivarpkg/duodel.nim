@@ -28,7 +28,7 @@ proc hq(sample_i: int, GQ: seq[int32], AD: seq[int32], alts: seq[int8], min_dp=9
     of 0:
       return ab < 0.01
     of 1:
-      return ab > 0.18 and ab < 0.82
+      return ab > 0.3 and ab < 0.7
     of 2:
       return ab > 0.99
     else:
@@ -138,7 +138,7 @@ proc stats(group: seq[Candidate], candidates: seq[Candidate]): CandidateStats =
     elif (Transmit.Maybe in candidates[imin].status) or (Transmit.KidHet in candidates[imin].status):
       result.nearbyN += 1
 
-proc cull(duo: Duo, candidates: seq[Candidate], i_dist:int=20, genome_dist:int=30000, min_sites:int=2, min_size:int=20) =
+proc cull(duo: Duo, candidates: seq[Candidate], i_dist:int=25, genome_dist:int=200000, min_sites:int=2, min_size:int=20) =
    var seeds = newSeq[Candidate]()
    var nlq = 0
    for c in candidates:
@@ -148,20 +148,21 @@ proc cull(duo: Duo, candidates: seq[Candidate], i_dist:int=20, genome_dist:int=3
     if Transmit.No in c.status: seeds.add(c)
 
    var used = initHashSet[int]()
+   shallow(seeds)
    for j, candidate in seeds:
     if candidate.i in used: continue
-    used.incl(candidate.i)
     var group = @[candidate]
-    for k, other in seeds:
+    for k, other in seeds[j..seeds.high]:
       if other.i - seeds[seeds.high].i > i_dist: break
       if other.i in used: continue
       if group.near(other, i_dist, genome_dist):
         group.add(other)
-        used.incl(other.i)
     if group.len < min_sites: continue
     if group[group.high].start - group[0].start < min_size: continue
+    for g in group:
+      used.incl(g.i)
     var stats = group.stats(candidates)
-    if stats.hq_kid_hets / stats.supporting > 0.2: continue
+    if stats.hq_kid_hets / stats.supporting > 0.1: continue
     var parent = duo.parent_label
     echo &"{candidate.chrom}\t{group[0].start}\t{group[group.high].start + 1}\t{group.len}\t{parent}\t{group[group.high].i - group[0].i + 1}\t{duo.kid.id}\t{stats}"
 
@@ -258,6 +259,7 @@ proc main*(dropfirst:bool=false) =
       var m = transmit(duo, GQ, AD, alts)
       if LowQual:
         m.incl(Transmit.LowQual)
+      if Transmit.Uninformative in m: continue
       var c = Candidate(chrom: $v.CHROM, start: v.start, status: m, i: candidates[duo.i].len)
       c.ads[0] = min16(AD[2*duo.kid.i])
       c.ads[1] = min16(AD[2*duo.kid.i+1])
@@ -268,7 +270,6 @@ proc main*(dropfirst:bool=false) =
   for duo in duos:
     duo.cull(candidates[duo.i], min_sites=min_sites, min_size=min_size)
     #stderr.write_line "BREAKING EARLY"
-    break
 
 when isMainModule:
   main()
