@@ -1,6 +1,7 @@
 v0.1.2
 ======
 + fix bug where slivar expr would segfault if labels were re-used (now quits with error message)
++ better help in `slivar make-gnotate`
 
 v0.1.1
 ======
