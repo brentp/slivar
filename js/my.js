@@ -7,7 +7,7 @@ function hq(kid, mom, dad) {
 function hqrv(variant, INFO, af_cutoff) {
 	// hi-quality, rare variant.
 	return (!('gnomad_popmax_af_filter' in INFO) && variant.FILTER == 'PASS'
-         && (!variant.is_multiallelic) && INFO.gnomad_popmax_af_controls < af_cutoff)
+         && (!variant.is_multiallelic) && INFO.gnomad_popmax_af < af_cutoff)
 }
 function denovo(kid, mom, dad){
   if(!hq(kid, mom, dad)){ return false; }
