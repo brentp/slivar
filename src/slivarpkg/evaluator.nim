@@ -245,7 +245,13 @@ proc newEvaluator*(samples: seq[Sample], groups: seq[Group], float_expressions: 
   result.groups = result.make_igroups(groups, by_name, sample_expressions)
 
   for kid in samples.trio_kids(by_name):
-      result.trios.add([by_name[kid.id], by_name[kid.dad.id], by_name[kid.mom.id]])
+    result.trios.add([by_name[kid.id], by_name[kid.dad.id], by_name[kid.mom.id]])
+
+  if trio_expressions.len > 0:
+    if result.trios.len > 0:
+      stderr.write_line &"[slivar] evaluating on {result.trios.len} trios"
+    else:
+      stderr.write_line &"[slivar] WARNING! specified --trio expressions without any trios"
 
   result.INFO = result.ctx.newStrictObject("INFO")
   result.variant = result.ctx.newStrictObject("variant")
