@@ -263,7 +263,7 @@ proc main*(dropfirst:bool=false) =
   ## TODO: find homozygous deletions with ./.
   var p = newParser("slivar duodel"):
     help("""find denovo structural deletions in parent-child duos using non-transmission of SNPs
-    see: https://github.com/brentp/slivar/wiki/finding-de-novo-deletions-in-parent-child-duos
+    see: https://github.com/brentp/slivar/wiki/finding-deletions-in-parent-child-duos
     """)
     option("-p", "--ped", help="required ped file describing the duos in the VCF")
     option("-g", "--gnotate", help="optional gnotate file to check for flagged variants to exclude")

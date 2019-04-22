@@ -203,7 +203,7 @@ slivar duo-del finds structural deletions in parent-child duos using non-transmi
 can work to find deletions in exome data using genotypes, thereby avoiding the problems associated with
 depth-based CNV calling in exomes.
 
-see: https://github.com/brentp/slivar/wiki/finding-de-novo-deletions-in-parent-child-duos 
+see: https://github.com/brentp/slivar/wiki/finding-deletions-in-parent-child-duos
 
 ## Installation
 
