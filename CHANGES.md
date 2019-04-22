@@ -2,6 +2,7 @@ v0.1.2
 ======
 + fix bug where slivar expr would segfault if labels were re-used (now quits with error message)
 + better help in `slivar make-gnotate`
++ improve and document output format for `duo-del` https://github.com/brentp/slivar/wiki/finding-deletions-in-parent-child-duos
 
 v0.1.1
 ======
