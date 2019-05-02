@@ -169,6 +169,7 @@ proc main*(dropfirst:bool=false) =
     tbl: TableRef[string,seq[Variant]]
     csqs: string = ""
     index = parseInt(opts.index) - 1
+    ncsqs = 0
     nwritten = 0
 
   for v in ivcf:
@@ -181,6 +182,7 @@ proc main*(dropfirst:bool=false) =
 
     if v.info.get(opts.field, csqs) != Status.OK or csqs.len == 0:
       continue
+    ncsqs.inc
 
     var seen = initHashSet[string]()
     for csq in csqs.split(","):
@@ -200,6 +202,8 @@ proc main*(dropfirst:bool=false) =
   ovcf.close()
   ivcf.close()
   stderr.write_line &"[slivar compound-hets] wrote {nwritten} variants that were part of a compound het."
+  if ncsqs == 0:
+    quit &"[slvar compound-hets] no variants had the expected {opts.field} field unable to call compound hets"
 
 when isMainModule:
   import unittest
