@@ -161,7 +161,7 @@ proc stats(group: seq[Site], sites: seq[Site]): SiteStats =
     elif (Transmit.Maybe in sites[imin].status) or (Transmit.KidHet in sites[imin].status):
       result.nearbyN += 1
 
-proc normalize(DPs: var seq[seq[uint16]]): seq[seq[float32]] =
+proc normalize*(DPs: var seq[seq[uint16]]): seq[seq[float32]] =
   ## first do within-sample normalization, then across sample normalization
   result = newSeqOfCap[seq[float32]](DPs.len)
   if DPs.len == 0: return

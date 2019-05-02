@@ -16,6 +16,10 @@ import times
 import strformat
 import docopt
 
+proc kids(samples:seq[Sample]): seq[string] =
+  for s in samples:
+    if s.dad != nil and s.mom != nil: result.add(s.id)
+
 proc expr_main*(dropfirst:bool=false) =
   let doc = """
 slivar -- variant expression for great good
@@ -113,6 +117,7 @@ Options:
     grpTbl: seq[NamedExpression]
     iTbl: seq[NamedExpression]
     sampleTbl: seq[NamedExpression]
+    out_samples: seq[string] # only output kids if only trio expressions were specified
 
   if $args["--trio"] != "nil":
     trioTbl = ovcf.getNamedExpressions(@(args["--trio"]), $args["--vcf"])
@@ -123,6 +128,8 @@ Options:
 
   doAssert ovcf.write_header
   var ev = newEvaluator(samples, groups, iTbl, trioTbl, grpTbl, sampleTbl, $args["--info"], gnos, field_names=id2names(ivcf.header))
+  if trioTbl.len != 0 and grpTbl.len == 0 and sampleTbl.len == 0:
+    out_samples = samples.kids
 
   var counter = ev.initCounter()
 
@@ -168,7 +175,17 @@ Options:
 
   ovcf.close()
   ivcf.close()
-  stderr.write_line $counter
+  var summaryPath = getEnv("SLIVAR_SUMMARY_FILE")
+  if summaryPath == "":
+    stderr.write_line counter.tostring(out_samples)
+  else:
+    var fh: File
+    if not open(fh, summaryPath, fmWrite):
+      quit "[slivar] couldn't open summary file:" & summaryPath
+    fh.write(counter.tostring(out_samples))
+    fh.close()
+    stderr.write_line "[slivar] wrote summary table to:" & summaryPath
+
 
 proc main*() =
   type pair = object

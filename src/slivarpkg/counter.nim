@@ -42,3 +42,14 @@ proc `$`*(c:Counter): string =
       line &= '\t' & $c.counts[i][j]
     res.add(line)
   return header & '\n' & join(res, "\n")
+
+proc tostring*(c:Counter, samples: seq[string]): string =
+  var header = "sample\t" & join(c.exprs, "\t")
+  var res = newSeq[string]()
+  for i, s in c.samples:
+    if samples.len > 0 and s notin samples: continue
+    var line:string = s
+    for j, e in c.exprs:
+      line &= '\t' & $c.counts[i][j]
+    res.add(line)
+  return header & '\n' & join(res, "\n")

@@ -197,6 +197,8 @@ proc make_igroups(ev:Evaluator, groups: seq[Group], by_name:TableRef[string, ISa
     ig.rows.add(@[@[by_name[sample.ped_sample.id]]])
   result.add(ig)
 
+const prelude = staticRead("prelude.js")
+
 proc newEvaluator*(samples: seq[Sample], groups: seq[Group], float_expressions: seq[NamedExpression],
                    trio_expressions: seq[NamedExpression], group_expressions: seq[NamedExpression],
                    sample_expressions: seq[NamedExpression],
@@ -214,9 +216,14 @@ proc newEvaluator*(samples: seq[Sample], groups: seq[Group], float_expressions: 
   # need this because we can only have 1 object per sample id. this allows fast lookup by id.
   var by_name = newTable[string,ISample]()
 
-  if result.ctx.duk_peval_string_no_result(strictO):
+  if result.ctx.duk_peval_string(strictO):
     var err = $result.ctx.duk_safe_to_string(-1)
     raise newException(ValueError, err)
+
+  if result.ctx.duk_peval_string(prelude):
+    var err = $result.ctx.duk_safe_to_string(-1)
+    raise newException(ValueError, err)
+
   result.samples_ns = result.ctx.newStrictObject(samples_name)
 
   for sample in samples:

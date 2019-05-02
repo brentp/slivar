@@ -128,7 +128,7 @@ proc main*(dropfirst:bool=false) =
   var p = newParser("slivar compound-hets"):
     help("find compound-hets in trios from pre-filtered variants")
     option("-v", "--vcf", default="/dev/stdin", help="input VCF")
-    option("-s", "--sample-field", multiple=true, help="optional INFO field that contains list of samples (kids) that have passed previous filters.\ncan be specified multiple times.")
+    option("-s", "--sample-field", multiple=true, help="optional INFO field(s) that contains list of samples (kids) that have passed previous filters.\ncan be specified multiple times. this is needed for multi-family VCFs")
     option("-p", "--ped", default="", help="required ped file describing the trios in the VCF")
     option("-f", "--field", default="BCSQ", help="INFO field containing the gene name")
     option("-i", "--index", default="2", help="(1-based) index of the gene-name in the field after splitting on '|'")

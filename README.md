@@ -233,3 +233,10 @@ or use via docker from: [brentp/slivar:latest](https://hub.docker.com/r/brentp/s
  For each variant, each trio (and each sample), it fills the appropriate `attributes`. This can be intensive for
  VCFs with many samples, but this is done **as efficiently as possible** such that `slivar` can evaluate 10's of
  thousand of variants per second even with dozens of trios.
+
+## Summary Table
+
+slivar outputs a summary table with rows of samples and columns of expression where each value
+indicates the number of variants that passed the expression in each sample. By default, this goes to STDOUT
+but if the environment variable `SLIVAR_SUMMARY_FILE` is set, `slivar` will write the summary to that file
+instead.
