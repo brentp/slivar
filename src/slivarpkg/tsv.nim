@@ -12,7 +12,7 @@ proc toIndexLookup(samples:seq[Sample]): TableRef[string,Sample] =
     result[s.id] = s
 
 proc getDP(ads:var seq[int32], sample:Sample): array[3, string] =
-  result = [".", ".", "."]
+  result = [".", "", ""]
   if ads.len == 0: return
   result[0] = &"{ads[2*sample.i] + ads[2*sample.i+1]}"
   if sample.dad != nil:
@@ -21,7 +21,7 @@ proc getDP(ads:var seq[int32], sample:Sample): array[3, string] =
     result[2] = &"{ads[2*sample.mom.i] + ads[2*sample.mom.i+1]}"
 
 proc getAB(ads:var seq[int32], sample:Sample): array[3, string] =
-  result = [".", ".", "."]
+  result = [".", "", ""]
   if ads.len == 0: return
   result[0] = &"{ads[2*sample.i+1].float32 / (ads[2*sample.i] + ads[2*sample.i+1]).float32:g}"
   if sample.dad != nil:
@@ -36,7 +36,7 @@ template lookup(a:int8): string =
   #return lookup[a]
 
 proc getGenotype(alts:seq[int8], sample:Sample): array[3, string] =
-  result = [".", ".", "."]
+  result = [".", "", ""]
   result[0] = lookup(alts[sample.i])
   if sample.dad != nil:
     result[1] = lookup(alts[sample.dad.i])
@@ -136,7 +136,7 @@ or from clinvar with:
     """)
     option("-p", "--ped", default="", help="required ped file describing the trios in the VCF")
     option("-c", "--csq-field", help="INFO field containing the gene name and impact. Usually CSQ or BCSQ")
-    option("-s", "--sample-field", multiple=true, help="INFO field(s) that contains list of samples (kids) that have passed previous filters.\ncan be specified multiple times.")
+    option("-s", "--sample-field", multiple=true, help="INFO field(s) that contains list of samples that have passed previous filters.\ncan be specified multiple times.")
     option("-g", "--gene-description", help="tab-separated lookup of gene (column 1) to description (column 2) to add to output. the gene is case-sensitive")
     option("-i", "--info-field", multiple=true, help="INFO field(s) that should be added to output (e.g. gnomad_popmax_af)")
     option("-o", "--out-vcf", default="/dev/stdout", help="path to output tab-separated file")
@@ -146,18 +146,22 @@ or from clinvar with:
   if len(argv) > 0 and argv[0] == "tsv":
     argv = argv[1..argv.high]
 
-  var tsv_header = @["mode", "family_id", "sample_id", "chr:pos:ref:alt", "genotype(kid,dad,mom)"]
 
   let opts = p.parse(argv)
   if opts.help:
     quit 0
+
+  var extra: string
   if opts.ped == "":
-    echo p.help
-    quit "--ped is required"
+    stderr.write_line "[slivar] no ped file specified, not able to determine family relationships."
+  else:
+    extra = "(sample,dad,mom)"
+
+  var tsv_header = @["mode", "family_id", "sample_id", "chr:pos:ref:alt", "genotype" & extra]
+
   if opts.sample_field.len == 0:
     echo p.help
     quit "must specify at least one --sample-field"
-
 
   var ivcf:VCF
   if not open(ivcf, opts.vcf):
@@ -180,12 +184,19 @@ or from clinvar with:
   for f in opts.sample_field:
     doAssert ivcf.header.get(f, BCF_HEADER_TYPE.BCF_HL_INFO)["Type"] == "String"
 
-  var samples = parse_ped(opts.ped)
-  samples = samples.match(ivcf)
+  var samples: seq[Sample]
+  if opts.ped != "":
+    samples = parse_ped(opts.ped)
+    samples = samples.match(ivcf)
+  else:
+    samples = newSeq[Sample](ivcf.n_samples)
+    for i, sid in ivcf.samples:
+      samples[i] = Sample(id:sid, i:i)
+
   var sampleId2Obj = samples.toIndexLookup
 
-  tsv_header.add("depths(kid,dad,mom)")
-  tsv_header.add("allele_balance(kid,dad,mom)")
+  tsv_header.add("depths" & extra)
+  tsv_header.add("allele_balance" & extra)
   if opts.csq_field != "":
     tsv_header.add("gene_impact_transcript")
     if g2d != nil:
@@ -205,7 +216,7 @@ or from clinvar with:
         if sample_id notin sampleId2Obj: continue
         var sample = sampleId2Obj[sample_id]
         var line = @[f,sample.family_id, sample.id, &"""{v.CHROM}:{v.start+1}:{v.REF}:{join(v.ALT, ",")}"""]
-        line.add(join(getGenotype(alts, sample), ","))
+        line.add(join(getGenotype(alts, sample), ",").replace(",,", ""))
 
         for f in opts.info_field:
           line.add(v.getField(f, ivcf))
@@ -215,8 +226,8 @@ or from clinvar with:
           genes = v.get_gene_info(opts.csq_field, gene_fields, just_gene=true)
           line.add(join(genes, ";"))
 
-        line.add(join(getDP(ad, sample), ","))
-        line.add(join(getAB(ad, sample), ","))
+        line.add(join(getDP(ad, sample), ",").replace(",,", ""))
+        line.add(join(getAB(ad, sample), ",").replace(",,", ""))
 
         if gene_fields.gene != -1:
           line.add(join(v.get_gene_info(opts.csq_field, gene_fields), ";"))
