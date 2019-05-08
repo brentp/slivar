@@ -1,5 +1,6 @@
 v0.1.2
 ======
++ new sub-command `slivar tsv` to output a tab-separated value file from a filtered VCF for final processing
 + fix bug where slivar expr would segfault if labels were re-used (now quits with error message)
 + better help in `slivar make-gnotate`
 + improve and document output format for `duo-del` https://github.com/brentp/slivar/wiki/finding-deletions-in-parent-child-duos

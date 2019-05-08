@@ -29,6 +29,7 @@ slivar has sub-commands:
     * [Groups](#groups)
  * [Gnotate](#gnotate)
  * [compound-het](#compound-het)
+ * [tsv](#tsv)
  * [duo-del](#duo-del)
 * [Installation](#installation)
 * [Attributes](#attributes)
@@ -196,6 +197,20 @@ This command is used to find compound heterozygous variants (with phasing-by-inh
 It is used after filtering to rare(-ish) heterozygotes.
 
 See a full description of use [here](https://github.com/brentp/slivar/wiki/rare-disease#compound-heterozygotes)
+
+### tsv
+
+This command is used to convert a filtered and annotated VCF to a TSV (tab-separated value file) for final 
+filtering. An example use is:
+
+```
+slivar tsv -p $ped -s denovo -s compound_het -c CSQ -i gnomad_popmax_af -i gnomad_nhomalt -g gene_desc.txt $vcf > final.tsv
+```
+
+where `denovo` and `compound_het` indicate the INFO fields that contain lists of samples (as added by slivar) that should be extracted.
+and `gnomad_popmax_af` and `gnomad_nhomalt` are pulled from the INFO field. 
+The `-c` arugment (CSQ) tells `slivar` that it can get gene, transcript and impact information from the CSQ field in the INFO.
+And the `-g` argument is a tab delimited file of gene -> description where the description is added to the text output for quick inspection.
 
 ## duo-del
 

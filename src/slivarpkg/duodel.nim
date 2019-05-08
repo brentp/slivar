@@ -23,7 +23,7 @@ template AB(sample_i:int, AD:seq[int32]): float32 =
 template DP(sample_i: int, AD:seq[int32]): int32 =
   AD[2*sample_i+1] + AD[2*sample_i]
 
-proc hq(sample_i: int, GQ: seq[int32], AD: seq[int32], alts: seq[int8], min_dp=9): bool {.inline.} =
+proc hq*(sample_i: int, GQ: seq[int32], AD: seq[int32], alts: seq[int8], min_dp=9): bool {.inline.} =
   if GQ[sample_i] < 20: return false
   if sample_i.DP(AD) < min_dp: return false
   var ab = sample_i.AB(AD)
@@ -81,13 +81,13 @@ proc duos(samples:seq[Sample], affected_only:bool): seq[Duo] =
     if s.dad != nil: result.add(Duo(kid:s, parent: s.dad, i: result.len, parent_label: "dad"))
 
 type Site = object
-  chrom: string
-  start: int
-  sample_i: int
-  status: set[Transmit]
-  i: int # index of sites used in this duo
-  dps_i: int # index into DPs seq
-  ads: array[4, uint16]
+  chrom*: string
+  start*: int
+  sample_i*: int
+  status*: set[Transmit]
+  i*: int # index of sites used in this duo
+  dps_i*: int # index into DPs seq
+  ads*: array[4, uint16]
 
 proc near(group: seq[Site], other:Site, i_dist:int=3, genome_dist:int=10000): bool =
   for g in group:
@@ -249,7 +249,7 @@ proc cull(duo: Duo, sites: seq[Site], DPs: var seq[seq[float32]], i_dist:int=25,
     s &= &"{stats.hq_kid_hets}\t{stats.kid_hets}\t{stats.hq_parent_hets}\t{stats.hq_parent_hom_alts}"
     echo s
 
-template min16(i:int32):uint16 =
+template min16*(i:int32):uint16 =
   max(0, min(uint16.high.int32, i)).uint16
 
 proc toDP(AD: seq[int32]): seq[uint16] =
