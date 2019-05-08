@@ -109,11 +109,10 @@ proc get_gene_info(v:Variant, csq_field_name:string, gene_fields:GeneIndexes, ju
 
   for tr in s.split(','):
     var toks = tr.split('|')
-    var key = toks[gene_fields.gene]
+    var key = toks[gene_fields.gene].strip()
     if not just_gene:
       key &= "/" & toks[gene_fields.consequence] & "/" & toks[gene_fields.transcript]
-    if key == "": continue
-    if key in result: continue
+    if key.strip().len == 0 or key in result: continue
     result.add(key)
 
 proc gene2description(fname:string): TableRef[string,string] =
