@@ -184,8 +184,8 @@ or from clinvar with:
   samples = samples.match(ivcf)
   var sampleId2Obj = samples.toIndexLookup
 
-  tsv_header.add("depths(kid,mom,dad)")
-  tsv_header.add("allele_balance(kid,mom,dad)")
+  tsv_header.add("depths(kid,dad,mom)")
+  tsv_header.add("allele_balance(kid,dad,mom)")
   if opts.csq_field != "":
     tsv_header.add("gene_impact_transcript")
     if g2d != nil:
