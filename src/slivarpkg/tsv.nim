@@ -132,12 +132,16 @@ proc main*(dropfirst:bool=false) =
 create a --gene-description file e.g. from human phenotype ontology with:
   wget -qO - http://compbio.charite.de/jenkins/job/hpo.annotations.monthly/lastSuccessfulBuild/artifact/annotation/ALL_SOURCES_ALL_FREQUENCIES_genes_to_phenotype.txt | cut -f 2,3 > gene_desc.txt
 or from clinvar with:
-  wget -qO - ftp://ftp.ncbi.nlm.nih.gov/pub/clinvar/gene_condition_source_id | cut -f 2,5 | head | grep -v ^$'\t' > clinvar_gene_desc.txt
+  wget -qO - ftp://ftp.ncbi.nlm.nih.gov/pub/clinvar/gene_condition_source_id | cut -f 2,5 | grep -v ^$'\t' > clinvar_gene_desc.txt
+or gene->pLI with:
+   wget -qO - https://storage.googleapis.com/gnomad-public/release/2.1.1/constraint/gnomad.v2.1.1.lof_metrics.by_gene.txt.bgz | zcat \
+       | cut -f 1,21,24 | tail -n+2 | awk '{ printf("%s\tpLI=%.3g;oe_lof=%.5g\n", $1, $2, $3)}'
+
     """)
     option("-p", "--ped", default="", help="required ped file describing the trios in the VCF")
     option("-c", "--csq-field", help="INFO field containing the gene name and impact. Usually CSQ or BCSQ")
     option("-s", "--sample-field", multiple=true, help="INFO field(s) that contains list of samples that have passed previous filters.\ncan be specified multiple times.")
-    option("-g", "--gene-description", help="tab-separated lookup of gene (column 1) to description (column 2) to add to output. the gene is case-sensitive")
+    option("-g", "--gene-description", multiple=true, help="tab-separated lookup of gene (column 1) to description (column 2) to add to output. the gene is case-sensitive. can be specified multiple times")
     option("-i", "--info-field", multiple=true, help="INFO field(s) that should be added to output (e.g. gnomad_popmax_af)")
     option("-o", "--out-vcf", default="/dev/stdout", help="path to output tab-separated file")
     arg("vcf", default="/dev/stdin", help="input VCF")
@@ -167,9 +171,9 @@ or from clinvar with:
   if not open(ivcf, opts.vcf):
     quit "[slivar tsv] couldn't open vcf:" & opts.vcf
 
-  var g2d:TableRef[string, string]
-  if opts.gene_description != "":
-    g2d = opts.gene_description.gene2description
+  var g2ds:seq[TableRef[string, string]]
+  for gd in opts.gene_description:
+    g2ds.add(gd.gene2description)
 
   for f in opts.info_field:
     doAssert ivcf.header.get(f, BCF_HEADER_TYPE.BCF_HL_INFO)["Type"] != ""
@@ -199,8 +203,8 @@ or from clinvar with:
   tsv_header.add("allele_balance" & extra)
   if opts.csq_field != "":
     tsv_header.add("gene_impact_transcript")
-    if g2d != nil:
-      tsv_header.add("gene_description")
+    for i, g in g2ds:
+      tsv_header.add(&"gene_description_{i+1}")
   echo "#" & join(tsv_header, "\t")
 
   var str:string
@@ -231,16 +235,16 @@ or from clinvar with:
 
         if gene_fields.gene != -1:
           line.add(join(v.get_gene_info(opts.csq_field, gene_fields), ";"))
-          if g2d != nil:
+          for g2d in g2ds:
             var ds = ""
-            for gene in genes:
+            for gi, gene in genes:
               var dss = g2d.getOrDefault(gene)
               if dss == "": continue
-              ds &= g2d.getOrDefault(gene) & ";;"
-            line.add(ds)
+              ds &= g2d.getOrDefault(gene)
+              if gi < genes.high: ds &= ";;"
+            line.add(ds.strip(chars={';'}))
 
         echo join(line, "\t")
-
 
 when isMainModule:
   main()
