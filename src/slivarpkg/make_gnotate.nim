@@ -289,7 +289,7 @@ proc main*(dropfirst:bool=false) =
 
           for ov in ovcf.query(last_chrom):
             if iTbl.len > 0:
-              for r in ev.evaluate(v, nerrors):
+              for r in ev.evaluate(ov, nerrors):
                 calculated_values[r.name] = r.val
             ov.encode_and_update(fields, kvs, longs, calculated_values)
           stderr.write_line &"[slivar] kvs.len for {last_chrom}: {kvs.len} after {vcf_paths[i]}"
@@ -314,6 +314,20 @@ proc main*(dropfirst:bool=false) =
         imod *= 5
 
   if last_rid != -1:
+    stderr.write_line &"[slivar] kvs.len for {last_chrom}: {kvs.len} after {vcf_paths[0]}"
+    for i, ovcf in vcfs:
+      # skip first vcf since we already used it.
+      if i == 0: continue
+
+      if iTbl.len > 0:
+        ev = newEvaluator(@[], @[], iTbl, @[], @[], @[], "nil", @[], id2names(ovcf.header))
+
+      for ov in ovcf.query(last_chrom):
+        if iTbl.len > 0:
+          for r in ev.evaluate(ov, nerrors):
+            calculated_values[r.name] = r.val
+        ov.encode_and_update(fields, kvs, longs, calculated_values)
+      stderr.write_line &"[slivar] kvs.len for {last_chrom}: {kvs.len} after {vcf_paths[i]}"
     fchrom.write(last_chrom & "\n")
     zip.write_chrom(last_chrom, prefix, kvs, longs, fields)
 
