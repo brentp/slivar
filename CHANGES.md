@@ -8,6 +8,7 @@ v0.1.2
 + improve and document output format for `duo-del` https://github.com/brentp/slivar/wiki/finding-deletions-in-parent-child-duos
 + add a prelude function with hasSample(INFO, key, sample) to see if sample has been added to info field by previous filter.
 + allow outputting summary table to file with `SLIVAR_SUMMARY_FILE` environment variable
++ fix for make-gnotate with multiple files (still requires first file to contain all chromosomes)
 
 v0.1.1
 ======
