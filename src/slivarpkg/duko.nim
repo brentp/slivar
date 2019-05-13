@@ -136,7 +136,6 @@ proc newStrictObject*(d: Duko, name: string): Duko =
       var err = $d.ctx.duk_safe_to_string(-1)
       raise newException(ValueError, err)
 
-
   result.vptr = d.ctx.duk_get_heapptr(-1)
   doAssert result.ctx.duk_put_prop_lstring(idx, name, name.len.duk_size_t)
   d.ctx.pop()
@@ -210,36 +209,47 @@ template `[]=`*(o:Duko, key:string, value: SomeFloat) =
 
 template `[]=`*(o:Duko, key:string, value: SomeInteger) =
     ## set the property at key to a value
+    #stderr.write_line "[]= key:", key, " values:", $value, " ", $o.ctx.len
     var idx = o.ctx.duk_push_heapptr(o.vptr)
     o.ctx.duk_push_int(value.duk_int_t)
     if not o.ctx.duk_put_prop_lstring(idx, key, key.len.duk_size_t):
       quit "problem setting:" & key & " -> " & $value
+    #stderr.write_line "done []= key:", key, " values:", $value, " ", $o.ctx.len
     o.ctx.pop()
 
 template `[]=`*(o:Duko, key:string, value: string) =
     ## set the property at key to a value
     var idx = o.ctx.duk_push_heapptr(o.vptr)
     discard o.ctx.duk_push_lstring(value, value.len.duk_size_t)
+    #stderr.write_line "[]= key:", key, " values:", $value, " ", $o.ctx.len
     if not o.ctx.duk_put_prop_lstring(idx, key, key.len.duk_size_t):
       quit "problem setting:" & key & " -> " & $value
+    #stderr.write_line "done []= key:", key, " values:", $value, " ", $o.ctx.len
     o.ctx.pop()
 
 proc `[]=`*(o: Duko, key: string, values: seq[SomeNumber]) {.inline.} =
-  var idx = o.ctx.duk_push_heapptr(o.vptr)
+  #stderr.write_line "[]= key:", key, " values:", $values, " ", $o.ctx.len
   var arr_idx = o.ctx.duk_push_array()
+
   for i, v in values:
     o.ctx.duk_push_number(v.duk_double_t)
+    #stderr.write_line "i:", $i, " v:", v, " arr_idx:", arr_idx, " o.ctx==nil:", o.ctx == nil
     discard o.ctx.duk_put_prop_index(arr_idx, i.duk_uarridx_t)
+  var idx = o.ctx.duk_push_heapptr(o.vptr)
+  #stderr.write_line "idx:", idx
   doAssert o.ctx.duk_put_prop_lstring(idx, key, key.len.duk_size_t)
+  #stderr.write_line "done []= key:", key, " values:", $values, " ", $o.ctx.len
   o.ctx.pop()
 
 proc `[]=`*(o: Duko, key: string, values: seq[string]) {.inline.} =
   var idx = o.ctx.duk_push_heapptr(o.vptr)
   var arr_idx = o.ctx.duk_push_array()
+  #stderr.write_line "[]= key:", key, " values:", $values, " ", $o.ctx.len
   for i, v in values:
     discard o.ctx.duk_push_lstring(v, v.len.duk_size_t)
     discard o.ctx.duk_put_prop_index(arr_idx, i.duk_uarridx_t)
   doAssert o.ctx.duk_put_prop_lstring(idx, key, key.len.duk_size_t)
+  #stderr.write_line "done []= key:", key, " values:", $values, " ", $o.ctx.len
   o.ctx.pop()
 
 proc `[]`*(o: Duko, key:string): float {.inline.} =
@@ -256,6 +266,7 @@ when isMainModule:
   )
 
   suite "duktaper":
+    #[
     test "usage":
       var ctx = duk_create_heap_default()
       var kid = ctx.newObject("kid")
@@ -470,21 +481,37 @@ when isMainModule:
       ctx.duk_eval_string("kid2.some22")
       check ctx.duk_get_number(-1) == 44.0
       ctx.duk_destroy_heap();
+    ]#
 
     proc addo(obj: Duko) =
-        for i in 0..20:
+        for i in 0..8:
           obj["attr" & $i] = i.float
           obj["attrs" & $i] = @[i.float, i.float*2]
+          obj["attrx" & $i] = "asdf"
+
+    proc del(obj: var Duko) =
+      for i in 0..8:
+        obj.del("attr" & $i, "attrs" & $i, "attrx" & $i)
 
     test "many objects":
-      var ctx = duk_create_heap(nil, nil, nil, nil, my_fatal)
+      var ctx = duk_create_heap(nil, nil, nil, nil, nil)
+      ctx.duk_require_stack_top(10)
+      if ctx.duk_peval_string(strictO):
+        var err = $ctx.duk_safe_to_string(-1)
+        raise newException(ValueError, err)
+
+      echo ctx.duk_get_top
       var objs = newSeq[Duko]()
-      for i in 0..6000:
-        objs.add(ctx.newObject("sample" & $i))
+      for i in 0..60:
+        objs.add(ctx.newStrictObject("sample" & $i))
+      echo "added"
       for i in 0..10:
+        echo "i:", i
+        #for obj in objs.mitems:
+        #  #obj.clear
+        #  obj.addo
+        echo ctx.duk_get_top
         for obj in objs.mitems:
-          obj.clear
-          obj.addo
-        for obj in objs:
           obj.addo
           obj.alias("kid")
+          obj.del

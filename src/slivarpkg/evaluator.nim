@@ -477,8 +477,7 @@ proc alias_objects*(ctx:DTContext, os: seq[ISample], copyname:string) {.inline.}
   for i, o in os:
     doAssert ctx.duk_push_heapptr(o.duk.vptr) >= 0
     discard ctx.duk_put_prop_index(idx, i.duk_uarridx_t)
-  doAssert ctx.duk_put_global_literal_raw(copyname, copyname.len.duk_size_t)
-
+  doAssert ctx.duk_put_global_lstring(copyname, copyname.len.duk_size_t)
 
 iterator evaluate_groups(ev:Evaluator, nerrors: var int, variant:Variant): exResult =
     ## note that every group expression is currently applied to every group.
