@@ -229,13 +229,13 @@ template `[]=`*(o:Duko, key:string, value: string) =
 
 proc `[]=`*(o: Duko, key: string, values: seq[SomeNumber]) {.inline.} =
   #stderr.write_line "[]= key:", key, " values:", $values, " ", $o.ctx.len
+  var idx = o.ctx.duk_push_heapptr(o.vptr)
   var arr_idx = o.ctx.duk_push_array()
 
   for i, v in values:
     o.ctx.duk_push_number(v.duk_double_t)
     #stderr.write_line "i:", $i, " v:", v, " arr_idx:", arr_idx, " o.ctx==nil:", o.ctx == nil
     discard o.ctx.duk_put_prop_index(arr_idx, i.duk_uarridx_t)
-  var idx = o.ctx.duk_push_heapptr(o.vptr)
   #stderr.write_line "idx:", idx
   doAssert o.ctx.duk_put_prop_lstring(idx, key, key.len.duk_size_t)
   #stderr.write_line "done []= key:", key, " values:", $values, " ", $o.ctx.len
