@@ -9,6 +9,7 @@ v0.1.2
 + add a prelude function with hasSample(INFO, key, sample) to see if sample has been added to info field by previous filter.
 + allow outputting summary table to file with `SLIVAR_SUMMARY_FILE` environment variable
 + fix for make-gnotate with multiple files (still requires first file to contain all chromosomes)
++ allow more kinds of pedigree files (#30)
 
 v0.1.1
 ======
