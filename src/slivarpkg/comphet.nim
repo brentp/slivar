@@ -52,14 +52,16 @@ proc key(v:Variant): string {.inline.} =
   var balts = join(v.ALT, ",")
   &"{$v.CHROM}/{v.start+1}/{v.REF}/{balts}"
 
-proc add_comphet(a:Variant, b:Variant, gene: string, sample:string) =
+proc add_comphet(a:Variant, b:Variant, gene: string, sample:string, id:int) =
   var s: string = ""
+  #sample/gene/id/chrom/pos/ref/alt
   discard a.info.get("slivar_comphet", s)
   if s.len > 1:
     # htslib doesn't allow setting an existing field again. so we delete and re-add.
     doAssert a.info.delete("slivar_comphet") == Status.OK
     s &= ","
-  s &= b.key & "/" & gene & "/" & sample
+  # NOTE: if this format changes, must change slivar tsv as well
+  s &= &"{sample}/{gene}/{id}/{b.key}"
   doAssert a.info.set("slivar_comphet", s) == Status.OK
 
 proc get_samples(v:Variant, sample_fields: seq[string], samples: var seq[string]): bool =
@@ -71,7 +73,7 @@ proc get_samples(v:Variant, sample_fields: seq[string], samples: var seq[string]
   return sample_fields.len == 0 or samples.len > 0
 
 
-proc write_compound_hets(ovcf:VCF, kids:seq[Sample], tbl:TableRef[string, seq[Variant]], sample_fields: seq[string]): int =
+proc write_compound_hets(ovcf:VCF, kids:seq[Sample], tbl:TableRef[string, seq[Variant]], sample_fields: seq[string], comphet_id: var int): int =
   # sample_fields is a seq like @['lenient_ar', 'lenient_denovo'] where each is
   # a key in the INFO field containing a (comma-delimited list of samples)
   var
@@ -112,8 +114,9 @@ proc write_compound_hets(ovcf:VCF, kids:seq[Sample], tbl:TableRef[string, seq[Va
             found.add(variants[bi])
             foundKeys.incl(variants[bi].key)
 
-          variants[ai].add_comphet(variants[bi], gene, kid.id)
-          variants[bi].add_comphet(variants[ai], gene, kid.id)
+          variants[ai].add_comphet(variants[bi], gene, kid.id, comphet_id)
+          variants[bi].add_comphet(variants[ai], gene, kid.id, comphet_id)
+          comphet_id += 1
 
   sort(found, proc (a:Variant, b:Variant): int =
     if a.start == b.start:
@@ -159,7 +162,8 @@ proc main*(dropfirst:bool=false) =
   if not open(ovcf, opts.out_vcf, mode="w"):
     quit "couldn't open output vcf"
 
-  if ivcf.header.add_info("slivar_comphet", ".", "String", "compound hets called by slivar. format is chrom/pos/ref/alt/gene/sample") != Status.OK:
+  # NOTE: if this format changes, must change slivar tsv as well
+  if ivcf.header.add_info("slivar_comphet", ".", "String", "compound hets called by slivar. format is sample/gene/id/chrom/pos/ref/alt where id is a unique integer indicating the compound-het pair.") != Status.OK:
       quit "error adding field to header"
   ovcf.copy_header(ivcf.header)
   doAssert ovcf.write_header
@@ -171,6 +175,7 @@ proc main*(dropfirst:bool=false) =
     index = parseInt(opts.index) - 1
     ncsqs = 0
     nwritten = 0
+    comphet_id:int = 0
 
   var nvariants = -1
   for v in ivcf:
@@ -179,7 +184,7 @@ proc main*(dropfirst:bool=false) =
       if last_rid != -1:
         if nvariants > 5000 and tbl.len == 0:
           stderr.write_line &"[slivar] warning: no genes found for chromosome preceding rid:{v.rid} check your gene annotations have succeeded"
-        nwritten += ovcf.write_compound_hets(kids, tbl, opts.sample_field)
+        nwritten += ovcf.write_compound_hets(kids, tbl, opts.sample_field, comphet_id)
 
       tbl = newTable[string, seq[Variant]]()
       last_rid = v.rid
@@ -201,7 +206,7 @@ proc main*(dropfirst:bool=false) =
       seen.incl(gene)
 
   if last_rid != -1:
-    nwritten += ovcf.write_compound_hets(kids, tbl, opts.sample_field)
+    nwritten += ovcf.write_compound_hets(kids, tbl, opts.sample_field, comphet_id)
 
   ovcf.close()
   ivcf.close()

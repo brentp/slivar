@@ -23,11 +23,11 @@ proc getDP(ads:var seq[int32], sample:Sample): array[3, string] =
 proc getAB(ads:var seq[int32], sample:Sample): array[3, string] =
   result = [".", "", ""]
   if ads.len == 0: return
-  result[0] = &"{ads[2*sample.i+1].float32 / (ads[2*sample.i] + ads[2*sample.i+1]).float32:g}"
+  result[0] = &"{ads[2*sample.i+1].float32 / max(1, ads[2*sample.i] + ads[2*sample.i+1]).float32:g}"
   if sample.dad != nil:
-    result[1] = &"{ads[2*sample.dad.i+1].float32 / (ads[2*sample.dad.i] + ads[2*sample.dad.i+1]).float32:g}"
+    result[1] = &"{ads[2*sample.dad.i+1].float32 / max(1, ads[2*sample.dad.i] + ads[2*sample.dad.i+1]).float32:g}"
   if sample.mom != nil:
-    result[2] = &"{ads[2*sample.mom.i+1].float32 / (ads[2*sample.mom.i] + ads[2*sample.mom.i+1]).float32:g}"
+    result[2] = &"{ads[2*sample.mom.i+1].float32 / max(1, ads[2*sample.mom.i] + ads[2*sample.mom.i+1]).float32:g}"
 
 template lookup(a:int8): string =
   $a
@@ -143,17 +143,20 @@ or gene->pLI with:
     option("-s", "--sample-field", multiple=true, help="INFO field(s) that contains list of samples that have passed previous filters.\ncan be specified multiple times.")
     option("-g", "--gene-description", multiple=true, help="tab-separated lookup of gene (column 1) to description (column 2) to add to output. the gene is case-sensitive. can be specified multiple times")
     option("-i", "--info-field", multiple=true, help="INFO field(s) that should be added to output (e.g. gnomad_popmax_af)")
-    option("-o", "--out-vcf", default="/dev/stdout", help="path to output tab-separated file")
-    arg("vcf", default="/dev/stdin", help="input VCF")
+    option("-o", "--out", default="/dev/stdout", help="path to output tab-separated file")
+    arg("vcf", help="input VCF", default="/dev/stdin")
 
   var argv = commandLineParams()
   if len(argv) > 0 and argv[0] == "tsv":
     argv = argv[1..argv.high]
 
 
-  let opts = p.parse(argv)
+  var opts = p.parse(argv)
   if opts.help:
     quit 0
+
+  if opts.vcf.len == 0:
+    opts.vcf.add("/dev/stdin")
 
   var extra: string
   if opts.ped == "":
@@ -180,6 +183,13 @@ or gene->pLI with:
     tsv_header.add(f)
 
   var gene_fields :GeneIndexes
+  var outfh: File
+  var has_comphet = false
+  if opts.out == "/dev/stdout":
+    outfh = stdout
+  else:
+    if not open(outfh, opts.out, fmWrite):
+      quit "couldn't open output file:" & opts.out
 
   if opts.csq_field != "":
     set_csq_fields(ivcf, opts.csq_field, gene_fields)
@@ -187,6 +197,8 @@ or gene->pLI with:
 
   for f in opts.sample_field:
     doAssert ivcf.header.get(f, BCF_HEADER_TYPE.BCF_HL_INFO)["Type"] == "String"
+    if f == "slivar_comphet":
+      has_comphet = true
 
   var samples: seq[Sample]
   if opts.ped != "":
@@ -216,7 +228,11 @@ or gene->pLI with:
       if v.format.get("AD", ad) != Status.OK:
         ad.setLen(0)
       var alts = v.format.genotypes(xg).alts
-      for sample_id in str.split(seps={','}):
+      for osample_id in str.split(seps={','}):
+        var sample_id = osample_id
+        if has_comphet and f == "slivar_comphet":
+          var tmp = sample_id.split("/", 1)
+          sample_id = tmp[0]
         if sample_id notin sampleId2Obj: continue
         var sample = sampleId2Obj[sample_id]
         var line = @[f,sample.family_id, sample.id, &"""{v.CHROM}:{v.start+1}:{v.REF}:{join(v.ALT, ",")}"""]
@@ -229,6 +245,11 @@ or gene->pLI with:
         if gene_fields.gene != -1:
           genes = v.get_gene_info(opts.csq_field, gene_fields, just_gene=true)
           line.add(join(genes, ";"))
+
+        if has_comphet and f == "slivar_comphet":
+          # add the compound het id to the "mode" so we can tell which variants
+          # travel together in the spreadsheet.
+          line[0] &= "_" & osample_id.split("/")[2]
 
         line.add(join(getDP(ad, sample), ",").replace(",,", ""))
         line.add(join(getAB(ad, sample), ",").replace(",,", ""))

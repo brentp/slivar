@@ -10,6 +10,7 @@ v0.1.2
 + allow outputting summary table to file with `SLIVAR_SUMMARY_FILE` environment variable
 + fix for make-gnotate with multiple files (still requires first file to contain all chromosomes)
 + allow more kinds of pedigree files (#30)
++ change format of slivar compound het field: adds an id that uniquely identifies the pair of variants.
 
 v0.1.1
 ======

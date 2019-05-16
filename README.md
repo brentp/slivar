@@ -204,7 +204,7 @@ This command is used to convert a filtered and annotated VCF to a TSV (tab-separ
 filtering. An example use is:
 
 ```
-slivar tsv -p $ped -s denovo -s compound_het -c CSQ -i gnomad_popmax_af -i gnomad_nhomalt -g gene_desc.txt $vcf > final.tsv
+slivar tsv -p $ped -s denovo -s compound_het -s autosomal_recessive -c CSQ -i gnomad_popmax_af -i gnomad_nhomalt -g gene_desc.txt $vcf > final.tsv
 ```
 
 where `denovo` and `compound_het` indicate the INFO fields that contain lists of samples (as added by slivar) that should be extracted.
