@@ -266,7 +266,6 @@ when isMainModule:
   )
 
   suite "duktaper":
-    #[
     test "usage":
       var ctx = duk_create_heap_default()
       var kid = ctx.newObject("kid")
@@ -481,7 +480,6 @@ when isMainModule:
       ctx.duk_eval_string("kid2.some22")
       check ctx.duk_get_number(-1) == 44.0
       ctx.duk_destroy_heap();
-    ]#
 
     proc addo(obj: Duko) =
         for i in 0..8:
@@ -500,17 +498,17 @@ when isMainModule:
         var err = $ctx.duk_safe_to_string(-1)
         raise newException(ValueError, err)
 
-      echo ctx.duk_get_top
+      #echo ctx.duk_get_top
       var objs = newSeq[Duko]()
       for i in 0..60:
         objs.add(ctx.newStrictObject("sample" & $i))
-      echo "added"
+      #echo "added"
       for i in 0..10:
-        echo "i:", i
+        #echo "i:", i
         #for obj in objs.mitems:
         #  #obj.clear
         #  obj.addo
-        echo ctx.duk_get_top
+        #echo ctx.duk_get_top
         for obj in objs.mitems:
           obj.addo
           obj.alias("kid")

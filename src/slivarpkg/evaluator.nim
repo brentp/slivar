@@ -210,7 +210,7 @@ proc newEvaluator*(samples: seq[Sample], groups: seq[Group], float_expressions: 
   )
 
   result = Evaluator(ctx:duk_create_heap(nil, nil, nil, nil, my_fatal))
-  result.ctx.duk_require_stack_top(500000)
+  result.ctx.duk_require_stack_top(50)
   result.field_names = field_names
 
   # need this because we can only have 1 object per sample id. this allows fast lookup by id.

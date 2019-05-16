@@ -1,0 +1,9 @@
+##fileformat=VCFv4.2
+##FILTER=<ID=PASS,Description="All filters passed">
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+##contig=<ID=1,length=249250621,assembly=b37>
+##INFO=<ID=AF,Number=A,Type=Float,Description="Allele frequency, for each ALT allele, in the same order as listed">
+##INFO=<ID=culprit,Number=1,Type=String,Description="The annotation which was the worst performing in the Gaussian mixture model, likely the reason why the variant was filtered out">
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	14211109415	14211109355	14212109543
+1	54712	.	C	T	4104.83	PASS	culprit=MQRankSum	GT	./.	./.	./.
+1	2049437	.	C	CCTTTTTTTT,CCTTTTTT,CCTTTTTTTTT,CCTTTTTTT,CCTTT,CCTTTTTTTTTT,CCTT	100	PASS	AF=0.152,0.09,0.037,0.146,0.02,0.017,0.017,0.028,0.008;culprit=DP	GT	./.	./.	./.

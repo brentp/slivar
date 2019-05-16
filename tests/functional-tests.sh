@@ -100,3 +100,7 @@ assert_exit_code 0
 assert_equal 2 $(grep -cv ^# ixx.vcf)
 rm -f ixx.vcf
 
+
+run check_bug $exe expr --vcf tests/bug.vcf --ped tests/bug.ped -o xx.bcf
+assert_exit_code 0
+rm -f xx.bcf
