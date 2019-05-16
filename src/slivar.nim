@@ -198,7 +198,7 @@ proc main*() =
     "gnotate": pair(f:filter.main, description:"filter and/or annotate a VCF/BCF"),
     "make-gnotate": pair(f:make_gnotate.main, description:"make a gnotate zip file for a given VCF"),
     "compound-hets": pair(f:comphet.main, description:"find compound hets in a (previously filtered and gene-annotated) VCF"),
-    "tsv": pair(f:tsv.main, description:"converted a filtered VCF to a spreadsheet for final evaluation"),
+    "tsv": pair(f:tsv.main, description:"converted a filtered VCF to a tab-separated-value spreadsheet for final examination"),
     "duo-del": pair(f:duodel.main, description: "find large denovo deletions in parent-child duos using non-transmission from SNP VCF"),
     }.toOrderedTable
 

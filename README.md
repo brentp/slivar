@@ -201,7 +201,7 @@ See a full description of use [here](https://github.com/brentp/slivar/wiki/rare-
 ### tsv
 
 This command is used to convert a filtered and annotated VCF to a TSV (tab-separated value file) for final 
-filtering. An example use is:
+examination. An example use is:
 
 ```
 slivar tsv -p $ped \

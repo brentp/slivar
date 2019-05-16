@@ -127,7 +127,7 @@ proc gene2description(fname:string): TableRef[string,string] =
 
 proc main*(dropfirst:bool=false) =
   var p = newParser("slivar tsv"):
-    help("""convert filtered VCF to spreadsheet for final filtering
+    help("""convert filtered VCF to tab-separated-value spreadsheet for final filtering
 
 create a --gene-description file e.g. from human phenotype ontology with:
   wget -qO - http://compbio.charite.de/jenkins/job/hpo.annotations.monthly/lastSuccessfulBuild/artifact/annotation/ALL_SOURCES_ALL_FREQUENCIES_genes_to_phenotype.txt | cut -f 2,3 > gene_desc.txt
