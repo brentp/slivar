@@ -204,13 +204,19 @@ This command is used to convert a filtered and annotated VCF to a TSV (tab-separ
 filtering. An example use is:
 
 ```
-slivar tsv -p $ped -s denovo -s compound_het -s autosomal_recessive -c CSQ -i gnomad_popmax_af -i gnomad_nhomalt -g gene_desc.txt $vcf > final.tsv
+slivar tsv -p $ped \
+    -s denovo -s compound_het -s autosomal_recessive \
+    -c CSQ \
+    -i gnomad_popmax_af -i gnomad_nhomalt \
+    -g gene_desc.txt -g clinvar_gene_desc.txt \
+    $vcf > final.tsv
 ```
 
 where `denovo` and `compound_het` indicate the INFO fields that contain lists of samples (as added by slivar) that should be extracted.
 and `gnomad_popmax_af` and `gnomad_nhomalt` are pulled from the INFO field. 
 The `-c` arugment (CSQ) tells `slivar` that it can get gene, transcript and impact information from the CSQ field in the INFO.
-And the `-g` argument is a tab delimited file of gene -> description where the description is added to the text output for quick inspection.
+And the `-g` arguments are tab-delimited files of gene -> description where the description is added to the text output for quick inspection.
+Run `slivar tsv` without any arguments for examples on how to create these for pLI and clinvar.
 
 ## duo-del
 
