@@ -172,9 +172,13 @@ proc main*(dropfirst:bool=false) =
     ncsqs = 0
     nwritten = 0
 
+  var nvariants = -1
   for v in ivcf:
+    nvariants += 1
     if v.rid != last_rid:
       if last_rid != -1:
+        if nvariants > 5000 and tbl.len == 0:
+          stderr.write_line &"[slivar] warning: no genes found for chromosome preceding rid:{v.rid} check your gene annotations have succeeded"
         nwritten += ovcf.write_compound_hets(kids, tbl, opts.sample_field)
 
       tbl = newTable[string, seq[Variant]]()
