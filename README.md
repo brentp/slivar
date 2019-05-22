@@ -206,14 +206,14 @@ examination. An example use is:
 
 ```
 slivar tsv -p $ped \
-    -s denovo -s autosomal_recessive -s x_recessive \
+    -s denovo -s x_recessive \
     -c CSQ \
     -i gnomad_popmax_af -i gnomad_nhomalt \
     -g gene_desc.txt -g clinvar_gene_desc.txt \
     $vcf > final.tsv
 ```
 
-where `denovo` and `autosomal_recessive` and `x_recessive` indicate the INFO fields that contain lists of samples (as added by slivar) that should be extracted.
+where `denovo` and `x_recessive` indicate the INFO fields that contain lists of samples (as added by slivar) that should be extracted.
 and `gnomad_popmax_af` and `gnomad_nhomalt` are pulled from the INFO field. 
 The `-c` arugment (CSQ) tells `slivar` that it can get gene, transcript and impact information from the CSQ field in the INFO.
 And the `-g` arguments are tab-delimited files of gene -> description where the description is added to the text output for quick inspection.
