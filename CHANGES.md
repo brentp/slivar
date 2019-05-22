@@ -1,3 +1,7 @@
+v0.1.3 (dev)
+======
++ add new sample attributes `hom_ref`, `het`, `hom_alt`, `unknown` which are synonyms of `alts == 0`, `alts == 1`, `alts == 2`, `alts == -1` respectively.
+
 v0.1.2
 ======
 + new sub-command `slivar tsv` to output a tab-separated value file from a filtered VCF for final processing

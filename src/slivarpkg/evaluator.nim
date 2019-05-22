@@ -60,6 +60,7 @@ iterator variants*(vcf:VCF, region:string): Variant =
 type ISample = ref object
   ped_sample*: pedfile.Sample
   duk: Duko
+  last_alts: int
 
 type
  idpair* = tuple[name:string, info:bool]
@@ -113,6 +114,57 @@ template fill[T: int8 | int32 | float32 | string](sample:ISample, name:string, v
     sample.duk[name] = values[sample.ped_sample.i]
   elif nper <= 2:
     sample.duk[name] = values[(nper*sample.ped_sample.i)..<(nper*(sample.ped_sample.i+1))]
+
+
+template set_with_obj*(ctx:DTContext, idx: int, key:string, value: bool) =
+    ## set the property at key to a value to a heap-pointer at idx
+    ctx.duk_push_boolean(value.duk_bool_t)
+    doAssert ctx.duk_put_prop_lstring(idx, key, key.len.duk_size_t)
+
+template set_with_obj*(ctx:DTContext, idx: int, key:string, value: int8) =
+    ## set the property at key to a value to a heap-pointer at idx
+    ctx.duk_push_int(value.duk_int_t)
+    doAssert ctx.duk_put_prop_lstring(idx, key, key.len.duk_size_t)
+
+proc set_hom_het_alts(ctx:Evaluator, alts: var seq[int8]) =
+  # this is more complex than seems necessary because it tries to minimize
+  # the number of api calls. so it unsets the last value and then sets the
+  # current value. it also tries to avoid any calls if the current value
+  # is the same as the last.
+  for sample in ctx.samples:
+    var alt = alts[sample.ped_sample.i]
+    # don't need to reset if this alt is same as last one.
+    if alt == sample.last_alts: continue
+    var sctx = sample.duk.ctx
+    var idx = sctx.duk_push_heapptr(sample.duk.vptr)
+    case sample.last_alts:
+      of 0:
+        sctx.set_with_obj(idx, "hom_ref", false)
+      of 1:
+        sctx.set_with_obj(idx, "het", false)
+      of 2:
+        sctx.set_with_obj(idx, "homalt", false)
+      of -1:
+        sctx.set_with_obj(idx, "unknown", false)
+      else:
+        sctx.set_with_obj(idx, "hom_ref", false)
+        sctx.set_with_obj(idx, "het", false)
+        sctx.set_with_obj(idx, "hom_alt", false)
+        sctx.set_with_obj(idx, "unknown", false)
+
+    case alt:
+      of 0:
+        sctx.set_with_obj(idx, "hom_ref", true)
+      of 1:
+        sctx.set_with_obj(idx, "het", true)
+      of 2:
+        sctx.set_with_obj(idx, "hom_alt", true)
+      else:
+        sctx.set_with_obj(idx, "unknown", true)
+
+    sctx.set_with_obj(idx, "alts", alt)
+    sctx.pop()
+    sample.last_alts = alt
 
 template fill[T: int8 | int32 | float32 | string](trio:Trio, name:string, values:var seq[T], nper:int) =
   for s in trio:
@@ -227,7 +279,7 @@ proc newEvaluator*(samples: seq[Sample], groups: seq[Group], float_expressions: 
   result.samples_ns = result.ctx.newStrictObject(samples_name)
 
   for sample in samples:
-    result.samples.add(ISample(ped_sample:sample, duk:result.samples_ns.newStrictObject(sample.id)))
+    result.samples.add(ISample(ped_sample:sample, last_alts: -2, duk:result.samples_ns.newStrictObject(sample.id)))
     by_name[sample.id] = result.samples[result.samples.high]
 
   result.gnos = gnos
@@ -302,6 +354,8 @@ proc load_js*(ev:Evaluator, code:string) =
       var err = ev.ctx.duk_safe_to_string(-1)
       quit "error evaluating code in:" & code & ":" & $err
     ev.ctx.pop()
+
+
 
 proc set_format_field(ctx: Evaluator, f:FormatField, fmt:FORMAT, ints: var seq[int32], floats: var seq[float32]) =
 
@@ -519,8 +573,9 @@ proc set_format_fields*(ev:var Evaluator, v:Variant, alts: var seq[int8], ints: 
   # fill the format fields
 
   swap(ev.fmt_field_sets.last, ev.fmt_field_sets.curr)
-  #zeroMem(ev.fmt_field_sets.curr.addr, sizeof(ev.fmt_field_sets.curr))
   ev.fmt_field_sets.curr = {}
+
+  ev.set_hom_het_alts(alts)
 
   var fmt = v.format
   var has_ad = false
@@ -534,8 +589,6 @@ proc set_format_fields*(ev:var Evaluator, v:Variant, alts: var seq[int8], ints: 
   if has_ad and not has_ab:
     ev.set_ab(fmt, ints, floats)
 
-  for sample in ev.samples:
-    sample.fill("alts", alts, 1)
 
   ev.clear_unused_formats()
 
