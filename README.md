@@ -7,7 +7,7 @@ It facilitates operations on trios and [groups](#groups) and allows arbitrary ex
 
 + annotate variants with [gnomad](https://gnomad.broadinstitute.org/) allele frequencies from combined exomes + whole genomes at > 30K variants/second using only a 1.5GB compressed annotation file
 + call *denovo* variants with a simple expression that uses *mom*, *dad*, *kid* labels that is applied to each trio in a cohort (as inferred from a pedigree file).
-  `kid.alts == 1 && mom.alts == 0 && dad.alts == 0 && kid.DP > 10 && mom.DP > 10 && dad.DP > 10`
+  `kid.het && mom.hom_ref && dad.hom_ref && kid.DP > 10 && mom.DP > 10 && dad.DP > 10`
 + define and filter on arbitrary groups with labels. For example, 7 sets of samples each with 1 normal and 3 tumor time-points:
   `normal.AD[0] = 0 && tumor1.AB  < tumor2.AB && tumor2.AB < tumor3.AB`
 + filter variants with simple expressions:
@@ -54,7 +54,7 @@ of `kid`, `mom`, `dad` that is applied to each possible trio. For example, a sim
 variant.FILTER == 'PASS' && \                         # 
 variant.call_rate > 0.95 && \                         # genotype must be known for most of cohort.
 INFO.gnomad_af < 0.001 && \                           # rare in gnomad (must be in INFO [but see below])
-kid.alts == 1 && mom.alts == 0 && dad.alts == 0 && \  # alts are 0:hom_ref, 1:het, 2:hom_alt, -1:unknown
+kid.het && mom.hom_ref && dad.hom_ref && \            # also unknown
 kid.DP > 7 && mom.DP > 7 && dad.DP > 7 && \           # sufficient depth in all
 (mom.AD[1] + dad.AD[1]) == 0                          # no evidence for alternate in the parents
 ```
@@ -78,7 +78,7 @@ slivar expr \
    --out-vcf annotated.bcf \
    # this filter is applied before the trio filters and can speed evaluation if it is stringent.
    --info "variant.call_rate > 0.9" \ 
-   --trio "denovo:kid.alts == 1 && mom.alts == 0 && dad.alts == 0 \
+   --trio "denovo:kid.het && mom.hom_ref && dad.hom_ref \
                    && kid.AB > 0.25 && kid.AB < 0.75 \
                    && (mom.AD[1] + dad.AD[1]) == 0 \
                    && kid.GQ >= 20 && mom.GQ >= 20 && dad.GQ >= 20 \
@@ -89,7 +89,8 @@ slivar expr \
 
 ```
 
-Note that `slivar` does not give direct access to the genotypes, instead exposing `alts` where 0 is homozygous reference, 1 is heterozygous, 2 is
+Note that `slivar` does not give direct access to the genotypes, instead exposing 
+`hom_ref`, `het`, `hom_alt` and `unknown` or via `alts` where 0 is homozygous reference, 1 is heterozygous, 2 is
 homozygous alternate and -1 when the genotype is unknown. It is recommended to **decompose** a VCF before sending to `slivar`
 
 Here it is assumed that `trio_autosomal_recessive` is defined in `slivar-functions.js`; an example implementation of that
@@ -133,7 +134,7 @@ ss3	ss16	ss17	ss18	ss19
 where, again each row is a sample and the ID's (starting with "ss") will be injected for each sample to allow a single
 expression like:
 ```bash
-normal.alts == 0 && normal.DP > 10 \
+normal.hom_ref && normal.DP > 10 \
   && tumor1.AB > 0 \
   && tumor1.AB < tumor2.AB \
   && tumor2.AB < tumor3.AB \
@@ -245,6 +246,7 @@ or use via docker from: [brentp/slivar:latest](https://hub.docker.com/r/brentp/s
  + calculated variant attributes include: `aaf`, `hwe_score`, `call_rate`, `num_hom_ref`, `num_het`, `num_hom_alt`, `num_unknown`
 
  + sample attributes (via `kid`, `mom`, `dad`) include in the FORMAT. available as e.g. kid.AD[1]
+ + sample attributes for `hom_ref`, `het`, hom_alt`, `unknown` which are synonums for `sample.alts` of 0, 1, 2, -1 respectively.
  + sample attributes from the ped for `affected`, `sex`, `id` are available as, e.g. kid.sex.
  + sample relations are available as `mom`, `dad`, `kids`. `mom` and `dad` will be undefined if not available and kids will be an empty array.
 
