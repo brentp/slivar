@@ -592,28 +592,41 @@ proc set_format_fields*(ev:var Evaluator, v:Variant, alts: var seq[int8], ints: 
 
   ev.clear_unused_formats()
 
+proc has_sample_expressions*(ev: Evaluator): bool {.inline.} =
+  return ev.trio_expressions.len > 0 or ev.group_expressions.len > 0
+
 
 iterator evaluate*(ev:var Evaluator, variant:Variant, nerrors:var int): exResult =
   for gno in ev.gnos.mitems:
     discard gno.annotate(variant)
-  var ints = newSeq[int32](3 * variant.n_samples)
-  var floats = newSeq[float32](3 * variant.n_samples)
 
-  ## the most expensive part is pulling out the format fields so we pull all fields
-  ## and set values for all samples.
-  ## once all that is done, we evaluate the expressions.
-  ## the field_sets make it so that we only clear fields from the duk objects that were
-  ## set last variant, but not this variant.
-  ev.set_variant_fields(variant)
-  var alts = variant.format.genotypes(ints).alts
-  ev.set_calculated_variant_fields(alts)
-  ev.set_infos(variant, ints, floats)
+  if ev.info_expression.ctx == nil and not ev.has_sample_expressions:
+      # if there's no info expression, they might just want gnomad annotations.
+      yield ("", @[], 0.0'f32)
+  else:
 
-  if ev.info_expression.ctx == nil or ev.info_expression.check:
-    for r in ev.evaluate_floats(nerrors, variant): yield r
+    var ints = newSeq[int32](2 * variant.n_samples)
+    var floats = newSeq[float32](2 * variant.n_samples)
 
-    if ev.trios.len > 0 or ev.groups.len > 0:
-      ev.set_format_fields(variant, alts, ints, floats)
-      for r in ev.evaluate_trios(nerrors, variant): yield r
-      for r in ev.evaluate_groups(nerrors, variant): yield r
+    ## the most expensive part is pulling out the format fields so we pull all fields
+    ## and set values for all samples.
+    ## once all that is done, we evaluate the expressions.
+    ## the field_sets make it so that we only clear fields from the duk objects that were
+    ## set last variant, but not this variant.
+    ev.set_variant_fields(variant)
+    var alts = variant.format.genotypes(ints).alts
+    ev.set_calculated_variant_fields(alts)
+    ev.set_infos(variant, ints, floats)
+
+    if ev.info_expression.ctx == nil or ev.info_expression.check:
+      for r in ev.evaluate_floats(nerrors, variant): yield r
+
+      if not ev.has_sample_expressions:
+        # if there are no sample expressions, they may just be using gnotate with an info filter.
+        yield ("", @[], 0.0'f32)
+
+      elif ev.trios.len > 0 or ev.groups.len > 0:
+        ev.set_format_fields(variant, alts, ints, floats)
+        for r in ev.evaluate_trios(nerrors, variant): yield r
+        for r in ev.evaluate_groups(nerrors, variant): yield r
 

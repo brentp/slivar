@@ -1,6 +1,7 @@
 v0.1.3 (dev)
 ======
 + add new sample attributes `hom_ref`, `het`, `hom_alt`, `unknown` which are synonyms of `alts == 0`, `alts == 1`, `alts == 2`, `alts == -1` respectively.
++ remove `slivar gnotate` sub-command. the same functionality can be had from `slivar expr` with `-g` and `--info`.
 
 v0.1.2
 ======

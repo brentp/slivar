@@ -16,8 +16,7 @@ It facilitates operations on trios and [groups](#groups) and allows arbitrary ex
 
 
 slivar has sub-commands:
-+ [expr](#expr): trio and group expressions and filtering
-+ [gnotate](#gnotate): filter and/or annotate a VCF/BCF files
++ [expr](#expr): filter and/or annotate with INFO, trio, sample, group expressions
 + [make-gnotate](#gnotate): make a compressed zip file of annotations for use by slivar
 + [compound-hets](#compound-het): true compound hets using phase-by-inheritance within gene annotations
 
@@ -27,7 +26,6 @@ slivar has sub-commands:
  * [expr](#expr)
     * [trio](#trio)
     * [Groups](#groups)
- * [Gnotate](#gnotate)
  * [compound-het](#compound-het)
  * [tsv](#tsv)
  * [duo-del](#duo-del)
@@ -43,6 +41,9 @@ slivar has sub-commands:
 `expr` allows filtering on (abstracted) trios and groups. For example, given a VCF (and ped/fam file) with
 100 trios, `slivar` will apply an expression with `kid`, `mom`, `dad` identifiers to each trio that it automatically
 extracts.
+
+`expr` can also be used, for example to annotate with population allele frequencies from a `gnotate` file without
+any sample filtering.
 
 #### trio
 
@@ -154,25 +155,6 @@ Users can specify a boolean expression that is tested against each `sample` usin
 
 Each sample that passes this expression will be have its sample id appended to the INFO field of `hi_quality` which
 is added to the output VCF.
-
-
-### Gnotate
-
-The `gnotate` sub-command allows filtering and/or annotating.
-More extensive documentation and justification for annotating with `gnotate` are [here](https://github.com/brentp/slivar/wiki/gnotate)
-
-`gnotate` uses a compressed, reduced representation of a single value pulled from a (population VCF) along with a boolean that indicates a
-non-pass filter. This can, for example, reduce the 600+ GB of data for the **whole genome and exome** from gnomad to a 1.5GB file
-distributed [here](https://s3.amazonaws.com/gemini-annotations/gnomad-2.1.zip).
-The zip file encodes the popmax_AF (whichever is higher between whole genome and exome) and the presence of FILTER for every variant
-in gnomad.  
-
-It can annotate at faster than 30K variants per second (limited by speed of parsing the query VCF).
-
-```
-slivar gnotate --vcf $input_vcf -o $output_bcf --threads 3 --gnotate encoded.zip
-```
-It's also possible to use `gnotate` as a filtering command without specifying any `--gnotate` arguments.
 
 
 #### make-gnotate

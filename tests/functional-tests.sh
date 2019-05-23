@@ -54,7 +54,7 @@ assert_in_stderr "HG002	12"
 assert_equal 12 $(bcftools view -H xx.bcf | wc -l)
 assert_exit_code 0
 
-run check_missing_zip $exe gnotate -g XXXXXXXXXX.zip tests/ashk-trio.vcf.gz
+run check_missing_zip $exe expr -g XXXXXXXXXX.zip -v tests/ashk-trio.vcf.gz
 assert_in_stderr "error opening XXXXXXXXXX.zip"
 assert_exit_code 1
 
@@ -70,17 +70,17 @@ assert_equal 4 $(bcftools view -H xx.bcf | wc -l)
 #### filter
 
 rm -f xx.bcf
-run check_slivar_gnotate $exe gnotate --expr "variant.call_rate < 0" -o xx.bcf tests/ashk-trio.vcf.gz
+run check_slivar_gnotate $exe expr --info "variant.call_rate < 0" -o xx.bcf -v tests/ashk-trio.vcf.gz
 assert_exit_code 0
 assert_equal 0 $(bcftools view -H xx.bcf | wc -l)
 
 rm -f xx.bcf
-run check_slivar_gnotate_all $exe gnotate --expr "variant.call_rate > -1" -o xx.bcf tests/ashk-trio.vcf.gz
+run check_slivar_gnotate_all $exe expr --info "variant.call_rate > -1" -o xx.bcf -v tests/ashk-trio.vcf.gz
 assert_exit_code 0
 assert_equal $(bcftools view -H tests/ashk-trio.vcf.gz | wc -l) $(bcftools view -H xx.bcf | wc -l)
 
 rm -f xx.bcf
-run check_slivar_gnotate_load $exe gnotate --js tests/test-functions.js --expr "call_rate(variant)" -o xx.bcf tests/ashk-trio.vcf.gz
+run check_slivar_gnotate_load $exe expr --js tests/test-functions.js --info "call_rate(variant)" -o xx.bcf -v tests/ashk-trio.vcf.gz
 assert_equal 9834 $(bcftools view -H xx.bcf | wc -l)
 rm -f xx.bcf
 

@@ -7,7 +7,6 @@ import ./slivarpkg/comphet
 import ./slivarpkg/duodel
 import ./slivarpkg/gnotate
 import ./slivarpkg/make_gnotate
-import ./slivarpkg/filter
 import ./slivarpkg/tsv
 import ./slivarpkg/counter
 import strutils
@@ -71,7 +70,7 @@ Options:
   if $args["--vcf"] == "nil":
     stderr.write_line "must specify the --vcf"
     quit doc
-  if $args["--ped"] == "nil" and $args["--alias"] == "nil":
+  if $args["--ped"] == "nil" and $args["--alias"] == "nil" and $args["--info"] == "nil" and len(@(args["--gnotate"])) == 0:
       stderr.write_line "must specify either --ped or --alias"
       quit doc
   if $args["--out-vcf"] == "nil":
@@ -134,6 +133,10 @@ Options:
 
   var counter = ev.initCounter()
 
+  # set pass only if they have only info expr, otherwise, there's no point.
+  if not pass_only and ev.info_expression.ctx != nil and not ev.has_sample_expressions:
+    pass_only = true
+
   if $args["--js"] != "nil":
     var js = $readFile($args["--js"])
     ev.load_js(js)
@@ -158,13 +161,14 @@ Options:
         n = 500000
     var any_pass = false
     for ns in ev.evaluate(variant, nerrors):
-      if pass_only and ns.sampleList.len == 0: continue
+      if pass_only and ns.sampleList.len == 0 and ns.name != "": continue
       any_pass = true
-      var ssamples = join(ns.sampleList, ",")
-      if variant.info.set(ns.name, ssamples) != Status.OK:
-        quit "error setting field:" & ns.name
+      if ns.name != "": # if name is "", then they didn't have any sample expressions.
+        var ssamples = join(ns.sampleList, ",")
+        if variant.info.set(ns.name, ssamples) != Status.OK:
+          quit "error setting field:" & ns.name
 
-      counter.inc(ns.sampleList, ns.name)
+        counter.inc(ns.sampleList, ns.name)
 
     if nerrors / i > 0.2 and i >= 1000:
       quit &"too many errors {nerrors} out of {i}. please check your expression"
@@ -176,16 +180,17 @@ Options:
 
   ovcf.close()
   ivcf.close()
-  var summaryPath = getEnv("SLIVAR_SUMMARY_FILE")
-  if summaryPath == "":
-    stderr.write_line counter.tostring(out_samples)
-  else:
-    var fh: File
-    if not open(fh, summaryPath, fmWrite):
-      quit "[slivar] couldn't open summary file:" & summaryPath
-    fh.write(counter.tostring(out_samples))
-    fh.close()
-    stderr.write_line "[slivar] wrote summary table to:" & summaryPath
+  if ev.has_sample_expressions:
+    var summaryPath = getEnv("SLIVAR_SUMMARY_FILE")
+    if summaryPath == "":
+      stderr.write_line counter.tostring(out_samples)
+    else:
+      var fh: File
+      if not open(fh, summaryPath, fmWrite):
+        quit "[slivar] couldn't open summary file:" & summaryPath
+      fh.write(counter.tostring(out_samples))
+      fh.close()
+      stderr.write_line "[slivar] wrote summary table to:" & summaryPath
 
 
 proc main*() =
@@ -194,8 +199,7 @@ proc main*() =
     description: string
 
   var dispatcher = {
-    "expr": pair(f:expr_main, description:"trio and group expressions and filtering"),
-    "gnotate": pair(f:filter.main, description:"filter and/or annotate a VCF/BCF"),
+    "expr": pair(f:expr_main, description:"filter and/or annotate with INFO, trio, sample, group expressions"),
     "make-gnotate": pair(f:make_gnotate.main, description:"make a gnotate zip file for a given VCF"),
     "compound-hets": pair(f:comphet.main, description:"find compound hets in a (previously filtered and gene-annotated) VCF"),
     "tsv": pair(f:tsv.main, description:"converted a filtered VCF to a tab-separated-value spreadsheet for final examination"),
@@ -204,6 +208,8 @@ proc main*() =
 
   stderr.write_line "slivar version: " & slivarVersion & "\n"
   var args = commandLineParams()
+  if len(args) > 0 and args[0] == "gnotate":
+    quit "[slivar] the `gnotate` sub-command has been removed. Use `slivar expr` (with --info) to get the same functionality."
 
   if len(args) == 0 or not (args[0] in dispatcher):
     stderr.write_line "Commands: "
