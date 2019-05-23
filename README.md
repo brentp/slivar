@@ -247,8 +247,8 @@ or use via docker from: [brentp/slivar:latest](https://hub.docker.com/r/brentp/s
                            `is_multiallelic`
  + calculated variant attributes include: `aaf`, `hwe_score`, `call_rate`, `num_hom_ref`, `num_het`, `num_hom_alt`, `num_unknown`
 
- + sample attributes (via `kid`, `mom`, `dad`) include in the FORMAT. available as e.g. kid.AD[1]
- + sample attributes for `hom_ref`, `het`, hom_alt`, `unknown` which are synonums for `sample.alts` of 0, 1, 2, -1 respectively.
+ + sample attributes (via `kid`, `mom`, `dad`) included in the FORMAT. available as e.g. `kid.AD[1]`, `mom.DP`, etc.
+ + sample attributes for `hom_ref`, `het`, `hom_alt`, `unknown` which are synonums for `sample.alts` of 0, 1, 2, -1 respectively.
  + sample attributes from the ped for `affected`, `sex`, `id` are available as, e.g. kid.sex.
  + sample relations are available as `mom`, `dad`, `kids`. `mom` and `dad` will be undefined if not available and kids will be an empty array.
 
