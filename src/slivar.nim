@@ -176,7 +176,7 @@ Options:
     if any_pass or (not pass_only):
       doAssert ovcf.write_variant(variant)
       written.inc
-  stderr.write_line &"[slivar] Finished. evaluated {i} total variants and wrote {written} passing variants."
+  stderr.write_line &"[slivar] Finished. evaluated {i} total variants and wrote {written} variants that passed your slivar expressions."
 
   ovcf.close()
   ivcf.close()
