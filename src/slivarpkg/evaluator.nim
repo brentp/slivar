@@ -42,11 +42,25 @@ proc getNamedExpressions*(ovcf:VCF, expressions:seq[string], invcf:string, previ
     if ovcf.header.add_info(t[0], ".", "String", &"added by slivar with expression: '{t[1].clean}' from {invcf}") != Status.OK:
       quit "error adding field to header"
 
+proc looks_like_region_file(f:string): bool =
+  var fh:File
+  if not open(fh, f):
+    stderr.write_line &"[slivar] tried '{f}' as a region file but couldn't open. Trying as an actual region"
+    return false
+  defer:
+    fh.close()
+  for l in fh.lines:
+    if l[0] == '#' or l.strip().len == 0: continue
+    var toks = l.strip().split("\t")
+    if toks.len >= 3 and toks[1].isdigit and toks[2].isdigit: return true
+    stderr.write_line &"[slivar] tried '{f}' as a region file but it did not have proper format. Trying as an actual region"
+    return false
+
 iterator variants*(vcf:VCF, region:string): Variant =
   ## iterator over region or just the variants.
   if region == "" or region == "nil":
     for v in vcf: yield v
-  elif fileExists(region):
+  elif fileExists(region) and looks_like_region_file(region):
     ## must be in bed format.
     for l in region.lines:
       if l[0] == '#' or l.strip().len == 0: continue
