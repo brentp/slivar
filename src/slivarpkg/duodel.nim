@@ -278,6 +278,9 @@ proc main*(dropfirst:bool=false) =
     argv = argv[1..argv.high]
 
   let opts = p.parse(argv)
+  if opts.help:
+    echo p.help
+    quit 0
 
   if opts.ped == "":
     echo p.help
