@@ -76,13 +76,23 @@ type GeneIndexes = object
   consequence: int
   transcript: int
 
-proc set_csq_fields(ivcf:VCF, field:string, gene_fields: var GeneIndexes) =
+  columns: OrderedTableRef[string, int]
+
+proc set_csq_fields(ivcf:VCF, field:string, gene_fields: var GeneIndexes, csq_columns: seq[string]) =
   gene_fields.gene = -1
   gene_fields.consequence = -1
   gene_fields.transcript = -1
+  gene_fields.columns = newOrderedTable[string, int]()
   var desc = ivcf.header.get(field, BCF_HEADER_TYPE.BCF_HL_INFO)["Description"]
   var adesc = desc.split("Format:")[1].strip().strip(chars={'"', '\''}).multiReplace(("[", ""), ("]", ""), ("'", ""), ("*", "")).split("|")
   for v in adesc.mitems: v = v.toUpperAscii
+
+  for cq in csq_columns:
+    gene_fields.columns[cq] = adesc.find(cq.toUpperAscii)
+    if gene_fields.columns[cq.toUpperAscii] == -1:
+      raise newException(KeyError, &"[slivar] requested csq column '{cq}' did not found in {csq_columns}")
+
+
   for check in ["SYMBOL", "GENE"]:
     gene_fields.gene = adesc.find(check)
     if gene_fields.gene != -1: break
@@ -112,8 +122,11 @@ proc get_gene_info(v:Variant, csq_field_name:string, gene_fields:GeneIndexes, ju
     var key = toks[gene_fields.gene].strip()
     if not just_gene:
       key &= "/" & toks[gene_fields.consequence] & "/" & toks[gene_fields.transcript]
+      for c, ci in gene_fields.columns:
+        key &= "/" & toks[ci]
     if key.strip().len == 0 or key in result: continue
     result.add(key)
+
 
 proc gene2description(fname:string): TableRef[string,string] =
   result = newTable[string, string](1024)
@@ -140,6 +153,7 @@ or gene->pLI with:
     """)
     option("-p", "--ped", default="", help="required ped file describing the trios in the VCF")
     option("-c", "--csq-field", help="INFO field containing the gene name and impact. Usually CSQ or BCSQ")
+    option("--csq-column", multiple=true, help="CSQ sub-field(s) to extract (in addition to gene, impact, transcript). may be specified multiple times.")
     option("-s", "--sample-field", multiple=true, help="INFO field(s) that contains list of samples that have passed previous filters.\ncan be specified multiple times.")
     option("-g", "--gene-description", multiple=true, help="tab-separated lookup of gene (column 1) to description (column 2) to add to output. the gene is case-sensitive. can be specified multiple times")
     option("-i", "--info-field", multiple=true, help="INFO field(s) that should be added to output (e.g. gnomad_popmax_af)")
@@ -192,7 +206,7 @@ or gene->pLI with:
       quit "couldn't open output file:" & opts.out
 
   if opts.csq_field != "":
-    set_csq_fields(ivcf, opts.csq_field, gene_fields)
+    set_csq_fields(ivcf, opts.csq_field, gene_fields, opts.csq_column)
     tsv_header.add("gene")
 
   for f in opts.sample_field:
@@ -215,6 +229,9 @@ or gene->pLI with:
   tsv_header.add("allele_balance" & extra)
   if opts.csq_field != "":
     tsv_header.add("gene_impact_transcript")
+
+    if opts.csq_column.len > 0:
+      tsv_header[tsv_header.high] &= "_" & join(opts.csq_column,  "_")
     for i, g in g2ds:
       tsv_header.add(&"gene_description_{i+1}")
   echo "#" & join(tsv_header, "\t")
