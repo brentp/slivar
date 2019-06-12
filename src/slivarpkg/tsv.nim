@@ -84,14 +84,17 @@ proc set_csq_fields(ivcf:VCF, field:string, gene_fields: var GeneIndexes, csq_co
   gene_fields.transcript = -1
   gene_fields.columns = newOrderedTable[string, int]()
   var desc = ivcf.header.get(field, BCF_HEADER_TYPE.BCF_HL_INFO)["Description"]
-  var adesc = desc.split("Format:")[1].strip().strip(chars={'"', '\''}).multiReplace(("[", ""), ("]", ""), ("'", ""), ("*", "")).split("|")
+  var adesc: seq[string]
+  if "Format: '" in desc:
+    adesc = desc.split("Format: '")[1].split("'")[0].strip().strip(chars={'"', '\''}).multiReplace(("[", ""), ("]", ""), ("'", ""), ("*", "")).split("|")
+  else:
+    adesc = desc.split("Format: ")[1].split("'")[0].strip().strip(chars={'"', '\''}).multiReplace(("[", ""), ("]", ""), ("'", ""), ("*", "")).split("|")
   for v in adesc.mitems: v = v.toUpperAscii
 
   for cq in csq_columns:
     gene_fields.columns[cq] = adesc.find(cq.toUpperAscii)
-    if gene_fields.columns[cq.toUpperAscii] == -1:
-      raise newException(KeyError, &"[slivar] requested csq column '{cq}' did not found in {csq_columns}")
-
+    if gene_fields.columns[cq] == -1:
+      raise newException(KeyError, &"[slivar] requested csq column '{cq}' not found in {adesc}")
 
   for check in ["SYMBOL", "GENE"]:
     gene_fields.gene = adesc.find(check)
@@ -123,7 +126,7 @@ proc get_gene_info(v:Variant, csq_field_name:string, gene_fields:GeneIndexes, ju
     if not just_gene:
       key &= "/" & toks[gene_fields.consequence] & "/" & toks[gene_fields.transcript]
       for c, ci in gene_fields.columns:
-        key &= "/" & toks[ci]
+        key &= "/" & (if ci < toks.len: toks[ci] else: "")
     if key.strip().len == 0 or key in result: continue
     result.add(key)
 
@@ -234,7 +237,7 @@ or gene->pLI with:
       tsv_header[tsv_header.high] &= "_" & join(opts.csq_column,  "_")
     for i, g in g2ds:
       tsv_header.add(&"gene_description_{i+1}")
-  echo "#" & join(tsv_header, "\t")
+  outfh.write_line "#" & join(tsv_header, "\t")
 
   var str:string
   var xg:seq[int32]
@@ -282,7 +285,7 @@ or gene->pLI with:
               if gi < genes.high: ds &= ";;"
             line.add(ds.strip(chars={';'}))
 
-        echo join(line, "\t")
+        out_fh.write_line join(line, "\t")
 
 when isMainModule:
   main()
