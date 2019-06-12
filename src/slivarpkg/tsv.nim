@@ -83,12 +83,11 @@ proc set_csq_fields(ivcf:VCF, field:string, gene_fields: var GeneIndexes, csq_co
   gene_fields.consequence = -1
   gene_fields.transcript = -1
   gene_fields.columns = newOrderedTable[string, int]()
+
   var desc = ivcf.header.get(field, BCF_HEADER_TYPE.BCF_HL_INFO)["Description"]
-  var adesc: seq[string]
-  if "Format: '" in desc:
-    adesc = desc.split("Format: '")[1].split("'")[0].strip().strip(chars={'"', '\''}).multiReplace(("[", ""), ("]", ""), ("'", ""), ("*", "")).split("|")
-  else:
-    adesc = desc.split("Format: ")[1].split("'")[0].strip().strip(chars={'"', '\''}).multiReplace(("[", ""), ("]", ""), ("'", ""), ("*", "")).split("|")
+  var spl = (if "Format: '" in desc: "Format: '" else: "Format: ")
+  var adesc = desc.split(spl)[1].split("'")[0].strip().strip(chars={'"', '\''}).multiReplace(("[", ""), ("]", ""), ("'", ""), ("*", "")).split("|")
+
   for v in adesc.mitems: v = v.toUpperAscii
 
   for cq in csq_columns:
