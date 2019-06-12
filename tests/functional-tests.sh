@@ -104,3 +104,11 @@ rm -f ixx.vcf
 run check_bug $exe expr --vcf tests/bug.vcf --ped tests/bug.ped -o xx.bcf
 assert_exit_code 0
 rm -f xx.bcf
+
+# TSV
+run check_tsv $exe tsv -i DP -c BCSQ --csq-column dna_change -s denovo --ped tests/ashk-trio.ped  tests/with-bcsq.vcf -o xx.tsv
+assert_exit_code 0
+assert_equal $(grep -c $'DP\t' xx.tsv) 1
+assert_equal 4 $(grep -c ^denovo xx.tsv)
+
+rm xx.tsv
