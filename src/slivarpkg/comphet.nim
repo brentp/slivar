@@ -213,13 +213,16 @@ proc main*(dropfirst:bool=false) =
       continue
 
     # if there are variants without any of the sample fields, we can skip them.
-    var has_any = false
-    var samples = ""
-    for f in opts.sample_field:
-      if v.info.get(f, samples) == Status.OK and samples.len > 0:
-        has_any = true
-        break
-    if not has_any: continue
+    if opts.sample_field.len > 0:
+      var has_any = false
+      var samples = ""
+      for f in opts.sample_field:
+        if v.info.get(f, samples) == Status.OK and samples.len > 0:
+          has_any = true
+          break
+      if not has_any: continue
+    else:
+      stderr.write_line "[slivar compound-het] WARNING: no sample fields specified, using only genotypes to call compound hets"
 
     ncsqs.inc
 

@@ -46,17 +46,17 @@
 ##reference=file:///data/diag/diagInternal/tmp/temp/GATK_bundle_2.8/b37/human_g1k_v37_decoy.fasta
 ##source=SelectVariants
 #CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	HG002	HG003	HG004
-1	65797	.	T	C	32.92	PASS	MQ=57.00;BCSQ=missense|geneA;expect=yes	GT:AD:DP:GQ	0/1:9,9:18:20	0/1:9,9:18:20	0/0:11,0:11:20
-1	65799	.	T	C	32.92	PASS	MQ=57.00;BCSQ=missense|geneA;expect=yes	GT:AD:DP:GQ	0/1:9,9:18:20	0/0:9,9:18:20	0/1:11,0:11:20
-1	65800	.	T	C	32.92	PASS	MQ=57.00;BCSQ=missense|geneB;expect=no,2DNs	GT:AD:DP:GQ	0/1:9,9:18:20	0/0:9,9:18:20	0/0:11,0:11:20
-1	65801	.	T	C	32.92	PASS	MQ=57.00;BCSQ=missense|geneB;expect=no,2DNs	GT:AD:DP:GQ	0/1:9,9:18:20	0/0:9,9:18:20	0/0:11,0:11:20
-1	65802	.	T	C	32.92	PASS	MQ=57.00;BCSQ=missense|geneC;expect=yes,1DN	GT:AD:DP:GQ	0/1:9,9:18:20	0/0:9,9:18:20	0/0:11,0:11:20
-1	65803	.	T	C	32.92	PASS	MQ=57.00;BCSQ=missense|geneC;expect=yes,1DN	GT:AD:DP:GQ	0/1:9,9:18:20	0/1:9,9:18:20	0/0:11,0:11:20
-1	65804	.	T	C	32.92	PASS	MQ=57.00;BCSQ=missense|geneD;expect=no,same-parent-with-het	GT:AD:DP:GQ	0/1:9,9:18:20	0/1:9,9:18:20	0/0:11,0:11:20
-1	65805	.	T	C	32.92	PASS	MQ=57.00;BCSQ=missense|geneD;expect=no,same-parent-with-het	GT:AD:DP:GQ	0/1:9,9:18:20	0/1:9,9:18:20	0/0:11,0:11:20
-1	65806	.	T	C	32.92	PASS	MQ=57.00;BCSQ=missense|geneE;expect=yes,multiple-matches	GT:AD:DP:GQ	0/1:9,9:18:20	0/1:9,9:18:20	0/0:11,0:11:20
-1	65807	.	T	C	32.92	PASS	MQ=57.00;BCSQ=missense|geneE;expect=yes,multiple-matches	GT:AD:DP:GQ	0/1:9,9:18:20	0/0:9,9:18:20	0/1:11,0:11:20
-1	65808	.	T	C	32.92	PASS	MQ=57.00;BCSQ=missense|geneE;expect=yes,multiple-matches	GT:AD:DP:GQ	0/1:9,9:18:20	0/0:9,9:18:20	0/1:11,0:11:20
-1	65810	.	T	C	32.92	PASS	MQ=57.00;BCSQ=missense|geneF;expect=yes,with-extra-non-matching;ch_samples=HG002	GT:AD:DP:GQ	0/1:9,9:18:20	0/1:9,9:18:20	0/0:11,0:11:20
-1	65811	.	T	C	32.92	PASS	MQ=57.00;BCSQ=missense|geneF;expect=yes,with-extra-non-matching;ch_samples=HG002	GT:AD:DP:GQ	0/1:9,9:18:20	0/0:9,9:18:20	0/1:11,0:11:20
-1	65812	.	T	C	32.92	PASS	MQ=57.00;BCSQ=missense|geneF;expect=no,extra-non-matching	GT:AD:DP:GQ	0/1:9,9:18:20	0/1:9,9:18:20	0/1:11,0:11:20
+1	65797	.	T	C	32.92	PASS	ch_samples=HG002;MQ=57.00;BCSQ=missense|geneA;expect=yes	GT:AD:DP:GQ	0/1:9,9:18:20	0/1:9,9:18:20	0/0:11,0:11:20
+1	65799	.	T	C	32.92	PASS	ch_samples=HG002;MQ=57.00;BCSQ=missense|geneA;expect=yes	GT:AD:DP:GQ	0/1:9,9:18:20	0/0:9,9:18:20	0/1:11,0:11:20
+1	65800	.	T	C	32.92	PASS	ch_samples=HG002;MQ=57.00;BCSQ=missense|geneB;expect=no,2DNs	GT:AD:DP:GQ	0/1:9,9:18:20	0/0:9,9:18:20	0/0:11,0:11:20
+1	65801	.	T	C	32.92	PASS	ch_samples=HG002;MQ=57.00;BCSQ=missense|geneB;expect=no,2DNs	GT:AD:DP:GQ	0/1:9,9:18:20	0/0:9,9:18:20	0/0:11,0:11:20
+1	65802	.	T	C	32.92	PASS	ch_samples=HG002;MQ=57.00;BCSQ=missense|geneC;expect=yes,1DN	GT:AD:DP:GQ	0/1:9,9:18:20	0/0:9,9:18:20	0/0:11,0:11:20
+1	65803	.	T	C	32.92	PASS	ch_samples=HG002;MQ=57.00;BCSQ=missense|geneC;expect=yes,1DN	GT:AD:DP:GQ	0/1:9,9:18:20	0/1:9,9:18:20	0/0:11,0:11:20
+1	65804	.	T	C	32.92	PASS	ch_samples=HG002;MQ=57.00;BCSQ=missense|geneD;expect=no,same-parent-with-het	GT:AD:DP:GQ	0/1:9,9:18:20	0/1:9,9:18:20	0/0:11,0:11:20
+1	65805	.	T	C	32.92	PASS	ch_samples=HG002;MQ=57.00;BCSQ=missense|geneD;expect=no,same-parent-with-het	GT:AD:DP:GQ	0/1:9,9:18:20	0/1:9,9:18:20	0/0:11,0:11:20
+1	65806	.	T	C	32.92	PASS	ch_samples=HG002;MQ=57.00;BCSQ=missense|geneE;expect=yes,multiple-matches	GT:AD:DP:GQ	0/1:9,9:18:20	0/1:9,9:18:20	0/0:11,0:11:20
+1	65807	.	T	C	32.92	PASS	ch_samples=HG002;MQ=57.00;BCSQ=missense|geneE;expect=yes,multiple-matches	GT:AD:DP:GQ	0/1:9,9:18:20	0/0:9,9:18:20	0/1:11,0:11:20
+1	65808	.	T	C	32.92	PASS	ch_samples=HG002;MQ=57.00;BCSQ=missense|geneE;expect=yes,multiple-matches	GT:AD:DP:GQ	0/1:9,9:18:20	0/0:9,9:18:20	0/1:11,0:11:20
+1	65810	.	T	C	32.92	PASS	ch_samples=HG002;MQ=57.00;BCSQ=missense|geneF;expect=yes,with-extra-non-matching;ch_samples=HG002	GT:AD:DP:GQ	0/1:9,9:18:20	0/1:9,9:18:20	0/0:11,0:11:20
+1	65811	.	T	C	32.92	PASS	ch_samples=HG002;MQ=57.00;BCSQ=missense|geneF;expect=yes,with-extra-non-matching;ch_samples=HG002	GT:AD:DP:GQ	0/1:9,9:18:20	0/0:9,9:18:20	0/1:11,0:11:20
+1	65812	.	T	C	32.92	PASS	ch_samples=HG002;MQ=57.00;BCSQ=missense|geneF;expect=no,extra-non-matching	GT:AD:DP:GQ	0/1:9,9:18:20	0/1:9,9:18:20	0/1:11,0:11:20

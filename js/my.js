@@ -9,6 +9,7 @@ function hqrv(variant, INFO, af_cutoff) {
 	return (!('gnomad_popmax_af_filter' in INFO) && variant.FILTER == 'PASS'
          && (!variant.is_multiallelic) && INFO.gnomad_popmax_af < af_cutoff)
 }
+
 function denovo(kid, mom, dad){
   if(!hq(kid, mom, dad)){ return false; }
   // check genotypes match expected pattern
@@ -30,7 +31,7 @@ function hq_ab(sample) {
     return sample.AB < 0.01
   }
   if(sample.alts == 1){
-    return sample.AB > 0.3 && sample.AB < 0.7
+    return sample.AB > 0.2 && sample.AB < 0.8
   }
   if(sample.alts == 2){
     return sample.AB > 0.99
@@ -65,5 +66,5 @@ function lenient_ar(kid, mom, dad) {
 	 return hq(kid, mom, dad) &&
        (mom.alts == 1 || dad.alts == 1) && kid.alts >= 1 && mom.alts != -1 && dad.alts != -1 &&
         dad.alts != 2 && mom.alts != 2
-        && (kid.AB > 0.25 && kid.AB < 0.75)
+        && (kid.AB > 0.2 && kid.AB < 0.8)
 }

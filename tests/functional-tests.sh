@@ -97,7 +97,7 @@ rm -f ixx.vcf
 
 run check_compound_hets_fields_matching $exe compound-hets -s ch_samples -v tests/comphet.vcf --ped tests/ashk-trio.ped -o ixx.vcf
 assert_exit_code 0
-assert_equal 2 $(grep -cv ^# ixx.vcf)
+assert_equal 9 $(grep -cv ^# ixx.vcf)
 rm -f ixx.vcf
 
 
