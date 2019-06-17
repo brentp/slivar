@@ -1,10 +1,11 @@
 # this just counts the occurrence of sample, expr to output a final table at
 # the of a slivar run.
 import tables
+import bpbiopkg/pedfile
 import ./evaluator
 import strutils
 
-type Counter = object
+type Counter* = object
   samples: seq[string]
   exprs: seq[string]
   sampleIndexes: TableRef[string, int]
@@ -26,6 +27,21 @@ proc initCounter*(ev:Evaluator): Counter =
   result.counts = newSeq[seq[int]](ev.samples.len)
   for i in 0..result.counts.high:
     result.counts[i] = newSeq[int](result.exprIndexes.len)
+
+proc initCounter*(kids: seq[Sample]): Counter =
+  # for compound hets
+  result.samples = newSeq[string](kids.len)
+  result.sampleIndexes = newTable[string, int]()
+  result.exprs = @["compound-het"]
+  for i, k in kids:
+    result.samples[i] = k.id
+    result.sampleIndexes[k.id] = i
+  result.exprIndexes = newTable[string, int]()
+  result.exprIndexes["compound-het"] = 0
+  result.counts = newSeq[seq[int]](kids.len)
+  for i in 0..result.counts.high:
+    result.counts[i] = newSeq[int](result.exprIndexes.len)
+
 
 proc inc*(c:var Counter, samples:seq[string], e:string) {.inline.} =
   var jexpr = c.exprIndexes[e]
@@ -53,3 +69,10 @@ proc tostring*(c:Counter, samples: seq[string]): string =
       line &= '\t' & $c.counts[i][j]
     res.add(line)
   return header & '\n' & join(res, "\n")
+
+proc tostring*(c:Counter, samples: seq[pedfile.Sample]): string =
+
+  var s = newSeq[string](samples.len)
+  for i, smp in samples:
+    s[i] = smp.id
+  return c.tostring(s)

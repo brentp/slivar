@@ -1,5 +1,6 @@
 import hts/vcf
 import bpbiopkg/pedfile
+import ./counter
 import strformat
 import strutils
 import algorithm
@@ -22,12 +23,22 @@ proc compound_denovo(kid: pedfile.Sample, a:openarray[int8], b:openarray[int8]):
   if kid.denovo(b) and kid.inherited(a): return true
   return false
 
-proc is_compound_het*(kid: pedfile.Sample, a:openarray[int8], b:openarray[int8]): bool {.inline.} =
+proc is_compound_het*(kid: pedfile.Sample, a:openarray[int8], b:openarray[int8], allow_non_trios: bool=false): bool {.inline.} =
   # check if the kid (with mom and dad) has either a classic compound het
   # where each parent transmits 1 het to the kid or where 1 het is transmitted
   # and the other is de novo.
-  doAssert kid.dad != nil and kid.mom != nil
   if a[kid.i] != 1 or b[kid.i] != 1: return false
+  if allow_non_trios:
+    if kid.dad == nil and kid.mom == nil:
+      return true
+    if kid.dad == nil or kid.mom == nil:
+      var p = if kid.mom == nil: kid.dad else: kid.mom
+      # parent must be het at 1 and only 1 site. assume the missing parent is
+      # het at the other site.
+      return (a[p.i] == 0 and b[p.i] == 1) or (a[p.i] == 1 and b[p.i] == 0)
+
+
+  doAssert kid.dad != nil and kid.mom != nil
 
   if a[kid.dad.i] == -1 or a[kid.mom.i] == -1: return false
   if b[kid.dad.i] == -1 or b[kid.mom.i] == -1: return false
@@ -43,10 +54,13 @@ proc is_compound_het*(kid: pedfile.Sample, a:openarray[int8], b:openarray[int8])
   # check that different parents have the different alleles.
   return a[kid.dad.i] + b[kid.dad.i] == 1 and a[kid.mom.i] + b[kid.mom.i] == 1
 
-proc kids(samples:seq[Sample]): seq[Sample] =
+proc kids(samples:seq[Sample], allow_non_trios:bool): seq[Sample] =
   for s in samples:
-    if s.dad == nil or s.mom == nil: continue
-    result.add(s)
+    if allow_non_trios and (s.kids.len == 0):
+      # NOTE we skip parents here on purpose.
+      result.add(s)
+    elif s.dad != nil and s.mom != nil:
+      result.add(s)
 
 proc key(v:Variant): string {.inline.} =
   var balts = join(v.ALT, ",")
@@ -73,7 +87,7 @@ proc get_samples(v:Variant, sample_fields: seq[string], samples: var seq[string]
   return sample_fields.len == 0 or samples.len > 0
 
 
-proc write_compound_hets(ovcf:VCF, kids:seq[Sample], tbl:TableRef[string, seq[Variant]], sample_fields: seq[string], comphet_id: var int): int =
+proc write_compound_hets(ovcf:VCF, kids:seq[Sample], tbl:TableRef[string, seq[Variant]], sample_fields: seq[string], comphet_id: var int, allow_non_trios: bool, cnt: var Counter): int =
   # sample_fields is a seq like @['lenient_ar', 'lenient_denovo'] where each is
   # a key in the INFO field containing a (comma-delimited list of samples)
   var
@@ -97,13 +111,15 @@ proc write_compound_hets(ovcf:VCF, kids:seq[Sample], tbl:TableRef[string, seq[Va
         if sample_fields.len > 0 and kid.id notin asamples: continue
         # quick checks to rule out this variant.
         if a[kid.i] != 1: continue
-        var parent_alleles = a[kid.mom.i] + a[kid.dad.i]
-        if parent_alleles != 0 and parent_alleles != 1: continue
+        if not allow_non_trios:
+          var parent_alleles = a[kid.mom.i] + a[kid.dad.i]
+          if parent_alleles != 0 and parent_alleles != 1: continue
 
         for bi in 0..<ai:
           doAssert ai != bi
           var b = variants[bi].format.genotypes(x).alts
-          if not is_compound_het(kid, a, b): continue
+          if not is_compound_het(kid, a, b, allow_non_trios): continue
+
           if not variants[bi].get_samples(sample_fields, bsamples): continue
           if sample_fields.len > 0 and kid.id notin bsamples: continue
 
@@ -114,6 +130,7 @@ proc write_compound_hets(ovcf:VCF, kids:seq[Sample], tbl:TableRef[string, seq[Va
             found.add(variants[bi])
             foundKeys.incl(variants[bi].key)
 
+          cnt.inc(@[kid.id, kid.id], "compound-het")
           variants[ai].add_comphet(variants[bi], gene, kid.id, comphet_id)
           variants[bi].add_comphet(variants[ai], gene, kid.id, comphet_id)
           comphet_id += 1
@@ -136,6 +153,7 @@ proc main*(dropfirst:bool=false) =
     option("-f", "--field", default="BCSQ", help="INFO field containing the gene name")
     option("-i", "--index", default="2", help="(1-based) index of the gene-name in the field after splitting on '|'")
     option("-o", "--out-vcf", default="/dev/stdout", help="path to output VCF/BCF")
+    flag("-a", "--allow-non-trios", help="allow samples with one or both parent unspecified. if this mode is used, any pair of heterozygotes co-occuring in the same gene, sample will be reported for samples without both parents that don't have kids. if a single parent is present some additional filtering is done.")
 
   var argv = commandLineParams()
   if len(argv) > 0 and argv[0] == "compound-hets":
@@ -155,9 +173,11 @@ proc main*(dropfirst:bool=false) =
     quit "couldn't open vcf:" & opts.vcf
 
   samples = samples.match(ivcf)
-  var kids = samples.kids
+
+  var kids = samples.kids(opts.allow_non_trios)
   if kids.len == 0:
     quit &"[slivar] no trios found for {opts.ped} with {opts.vcf}"
+  var counter = initCounter(kids)
 
   if not open(ovcf, opts.out_vcf, mode="w"):
     quit "couldn't open output vcf"
@@ -183,14 +203,24 @@ proc main*(dropfirst:bool=false) =
     if v.rid != last_rid:
       if last_rid != -1:
         if nvariants > 5000 and tbl.len == 0:
-          stderr.write_line &"[slivar] warning: no genes found for chromosome preceding rid:{v.rid} check your gene annotations have succeeded"
-        nwritten += ovcf.write_compound_hets(kids, tbl, opts.sample_field, comphet_id)
+          stderr.write_line &"[slivar] warning: no genes found for chromosome preceding rid:{v.rid} check your gene annotations have succeeded and that you are pulling the correct sample field(s)"
+        nwritten += ovcf.write_compound_hets(kids, tbl, opts.sample_field, comphet_id, opts.allow_non_trios, counter)
 
       tbl = newTable[string, seq[Variant]]()
       last_rid = v.rid
 
     if v.info.get(opts.field, csqs) != Status.OK or csqs.len == 0:
       continue
+
+    # if there are variants without any of the sample fields, we can skip them.
+    var has_any = false
+    var samples = ""
+    for f in opts.sample_field:
+      if v.info.get(f, samples) == Status.OK and samples.len > 0:
+        has_any = true
+        break
+    if not has_any: continue
+
     ncsqs.inc
 
     var seen = initHashSet[string]()
@@ -206,13 +236,25 @@ proc main*(dropfirst:bool=false) =
       seen.incl(gene)
 
   if last_rid != -1:
-    nwritten += ovcf.write_compound_hets(kids, tbl, opts.sample_field, comphet_id)
+    nwritten += ovcf.write_compound_hets(kids, tbl, opts.sample_field, comphet_id, opts.allow_non_trios, counter)
 
   ovcf.close()
   ivcf.close()
   stderr.write_line &"[slivar compound-hets] wrote {nwritten} variants that were part of a compound het."
   if ncsqs == 0:
     quit &"[slvar compound-hets] no variants had the expected {opts.field} field unable to call compound hets"
+
+  var summaryPath = getEnv("SLIVAR_SUMMARY_FILE")
+  if summaryPath == "":
+    stderr.write_line counter.tostring(kids)
+  else:
+    var fh: File
+    if not open(fh, summaryPath, fmWrite):
+      quit "[slivar] couldn't open summary file:" & summaryPath
+    fh.write(counter.tostring(kids))
+    fh.close()
+    stderr.write_line "[slivar] wrote summary table to:" & summaryPath
+
 
 when isMainModule:
   import unittest

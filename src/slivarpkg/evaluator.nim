@@ -212,12 +212,10 @@ proc set_sample_attributes(ev:Evaluator, by_name: TableRef[string, ISample]) =
     sample.duk["id"] = sample.ped_sample.id
     if sample.ped_sample.dad != nil:
       if sample.ped_sample.dad.id notin by_name: continue #
-      if ev.ctx.duk_peval_string_noresult(&"{samples_name}[\"{sample.ped_sample.id}\"].dad = {samples_name}[\"{sample.ped_sample.dad.id}\"]") != 0:
-        quit "error setting sample dad"
+      sample.duk.alias(by_name[sample.ped_sample.dad.id].duk, "dad")
     if sample.ped_sample.mom != nil:
       if sample.ped_sample.mom.id notin by_name: continue #
-      if ev.ctx.duk_peval_string_noresult(&"{samples_name}[\"{sample.ped_sample.id}\"].mom = {samples_name}[\"{sample.ped_sample.mom.id}\"]") != 0:
-        quit "error setting sample mom"
+      sample.duk.alias(by_name[sample.ped_sample.mom.id].duk, "mom")
     if ev.ctx.duk_peval_string_noresult(&"{samples_name}[\"{sample.ped_sample.id}\"].kids = []") != 0:
         quit "error setting sample kids"
     for kid in sample.ped_sample.kids:
