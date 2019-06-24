@@ -1,10 +1,11 @@
-v0.1.4 (dev)
-============
+v0.1.4
+======
 + better error messages on bad VCF
 + [tsv] add --csq-column to `slivar tsv` to allow extracting extra CSQ fields
 + general usability improvements
 + [compound-het]: support singleton (kid only) or duo's (kid and 1 parent) to compound het. this will give many false positives because
   the variants can't be phased, but the number can still be quite small given sufficient filtering on population allele frequency.
+  requires --allow-non-trios argument
 
 v0.1.3
 ======
