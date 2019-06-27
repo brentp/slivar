@@ -1,3 +1,9 @@
+v0.1.5 (dev)
+======
++ !!MAJOR: fix bug with `hom_alt` alias for `alts == 2`. Since v0.1.3, `hom_alt` would not get set to false for samples, variants after
+  being set once.
++ update [wiki](https://github.com/brentp/slivar/wiki/rare-disease#full-analysis-for-trios-with-unaffected-parents) to simplify rare disease analysis.
+
 v0.1.4
 ======
 + better error messages on bad VCF
@@ -6,7 +12,6 @@ v0.1.4
 + [compound-het]: support singleton (kid only) or duo's (kid and 1 parent) to compound het. this will give many false positives because
   the variants can't be phased, but the number can still be quite small given sufficient filtering on population allele frequency.
   requires --allow-non-trios argument
-+ fix bug with `hom_alt` alias for `alts == 2`
 
 v0.1.3
 ======
