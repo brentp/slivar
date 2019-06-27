@@ -6,6 +6,7 @@ v0.1.4
 + [compound-het]: support singleton (kid only) or duo's (kid and 1 parent) to compound het. this will give many false positives because
   the variants can't be phased, but the number can still be quite small given sufficient filtering on population allele frequency.
   requires --allow-non-trios argument
++ fix bug with `hom_alt` alias for `alts == 2`
 
 v0.1.3
 ======

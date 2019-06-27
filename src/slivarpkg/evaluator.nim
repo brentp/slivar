@@ -157,7 +157,7 @@ proc set_hom_het_alts(ctx:Evaluator, alts: var seq[int8]) =
       of 1:
         sctx.set_with_obj(idx, "het", false)
       of 2:
-        sctx.set_with_obj(idx, "homalt", false)
+        sctx.set_with_obj(idx, "hom_alt", false)
       of -1:
         sctx.set_with_obj(idx, "unknown", false)
       else:
