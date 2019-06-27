@@ -5,6 +5,8 @@ v0.1.5 (dev)
 + update [wiki](https://github.com/brentp/slivar/wiki/rare-disease#full-analysis-for-trios-with-unaffected-parents) to simplify rare disease analysis.
 + tune javascript in [my.js](https://raw.githubusercontent.com/brentp/slivar/master/js/my.js) and rare-disease expressions so that many analyses will run
   better than twice as fast.
++ [expr] add `--skip-non-variable` which further improves speed by not evaluating javascript for a trio if all members are hom-ref or unknown (but can the same variant will
+  still be evlauated for trios with at least 1 sample that has a variant at that site.
 
 v0.1.4
 ======

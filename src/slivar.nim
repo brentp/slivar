@@ -51,6 +51,7 @@ Options:
   -a --alias <path>          path to file of group aliases
   -o --out-vcf <path>        VCF/BCF [default: /dev/stdout]
   --pass-only                only output variants that pass at least one of the filters [default: false]
+  --skip-non-variable        don't evaluate expression unless at least 1 sample is variable at the variant this can improve speed [default: false]
   --trio <string>...         an expression applied to each trio where "mom", "dad", "kid" labels are available from trios inferred from
                              a ped file.
   --group-expr <string>...   expressions applied to the groups defined in the alias option [see: https://github.com/brentp/slivar/wiki/groups-in-slivar].
@@ -127,7 +128,7 @@ Options:
     sampleTbl = ovcf.getNamedExpressions(@(args["--sample-expr"]), $args["--vcf"], trioTbl, grpTbl)
 
   doAssert ovcf.write_header
-  var ev = newEvaluator(samples, groups, iTbl, trioTbl, grpTbl, sampleTbl, $args["--info"], gnos, field_names=id2names(ivcf.header))
+  var ev = newEvaluator(samples, groups, iTbl, trioTbl, grpTbl, sampleTbl, $args["--info"], gnos, field_names=id2names(ivcf.header), args["--skip-non-variable"])
   if trioTbl.len != 0 and grpTbl.len == 0 and sampleTbl.len == 0:
     out_samples = samples.kids
 

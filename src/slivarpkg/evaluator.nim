@@ -123,6 +123,8 @@ type Evaluator* = ref object
   float_expressions: seq[CompiledExpression]
   info_expression*: Dukexpr
 
+  skip_non_variable_sites: bool
+
 template fill[T: int8 | int32 | float32 | string](sample:ISample, name:string, values:var seq[T], nper:int) =
   if nper == 1:
     sample.duk[name] = values[sample.ped_sample.i]
@@ -266,14 +268,14 @@ const prelude = staticRead("prelude.js")
 proc newEvaluator*(samples: seq[Sample], groups: seq[Group], float_expressions: seq[NamedExpression],
                    trio_expressions: seq[NamedExpression], group_expressions: seq[NamedExpression],
                    sample_expressions: seq[NamedExpression],
-                   info_expr: string, gnos:seq[Gnotater], field_names:seq[idpair]): Evaluator =
+                   info_expr: string, gnos:seq[Gnotater], field_names:seq[idpair], skip_non_variable_sites: bool): Evaluator =
   ## make a new evaluation context for the given string
   var my_fatal: duk_fatal_function = (proc (udata: pointer, msg:cstring) {.stdcall.} =
     stderr.write_line "slivar fatal error:"
     quit $msg
   )
 
-  result = Evaluator(ctx:duk_create_heap(nil, nil, nil, nil, my_fatal))
+  result = Evaluator(ctx:duk_create_heap(nil, nil, nil, nil, my_fatal), skip_non_variable_sites:skip_non_variable_sites)
   result.ctx.duk_require_stack_top(50)
   result.field_names = field_names
 
@@ -512,9 +514,16 @@ iterator evaluate_floats(ev:Evaluator, nerrors: var int, variant:Variant): exRes
       raise
 
 iterator evaluate_trios(ctx:Evaluator, nerrors: var int, variant:Variant): exResult =
+    var alts: seq[int8]
+    if ctx.skip_non_variable_sites:
+      var ints:seq[int32]
+      alts = variant.format.genotypes(ints).alts
     for i, namedexpr in ctx.trio_expressions:
       var matching_samples = newSeq[string]()
       for trio in ctx.trios:
+
+        if ctx.skip_non_variable_sites and alts[trio[0].ped_sample.i] <= 0 and alts[trio[1].ped_sample.i] <= 0 and alts[trio[2].ped_sample.i] <= 0: continue
+
         trio[0].duk.alias("kid")
         trio[1].duk.alias("dad")
         trio[2].duk.alias("mom")
@@ -555,6 +564,7 @@ iterator evaluate_groups(ev:Evaluator, nerrors: var int, variant:Variant): exRes
         for row in group.rows:
           for k, col in row:
             if not group.plural[k]:
+              # TODO: allow skipping if all are hom-ref
               col[0].duk.alias(group.header[k])
             else:
               ev.ctx.alias_objects(col, group.header[k])
