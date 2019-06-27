@@ -9,20 +9,20 @@ function hq1(sample) {
 
 function hqrv(variant, INFO, af_cutoff) {
   // hi-quality, rare variant.
-  return variant.FILTER == 'PASS' && INFO.gnomad_popmax_af < af_cutoff
+  return INFO.gnomad_popmax_af < af_cutoff && variant.FILTER == 'PASS'
 }
 
 function denovo(kid, mom, dad){
-  if(!hq(kid, mom, dad)){ return false; }
   // check genotypes match expected pattern
-  if(!(kid.alts == 1 && mom.alts == 0 && dad.alts == 0)){ return false; }
-  return ((mom.AD[1] + dad.AD[1]) < 2) && kid.AB > 0.2 && kid.AB < 0.8;
+  if(!(kid.het && mom.hom_ref && dad.hom_ref && kid.AB > 0.2 && kid.AB < 0.8)){ return false; }
+  if(!hq(kid, mom, dad)){ return false; }
+  return ((mom.AD[1] + dad.AD[1]) < 2)
 }
 
 function x_denovo(kid, mom, dad) {
+  if(!(kid.alts >= 1 && mom.hom_ref && dad.hom_ref && kid.AB > 0.3)){ return false; }
   if(!hq(kid, mom, dad)) { return false; }
   if(kid.sex != 'male') { return false; }
-  if(!(mom.alts == 0 && dad.alts == 0 && kid.alts >= 1 && kid.AB > 0.3)){ return false; }
   return ((mom.AD[1] + dad.AD[1]) < 2);
 }
 
@@ -49,20 +49,19 @@ function uniparent_disomy(kid, mom, dad) {
 }
 
 function recessive(kid, mom, dad) {
-  return hq(kid, mom, dad) && mom.alts == 1 && dad.alts == 1 && kid.alts == 2
+  return mom.het && dad.het && kid.alts == 2 && hq(kid, mom, dad)
 }
 
-function x_recessive(kid, mom, dad) {
-  return (hq(kid, mom, dad) && mom.alts == 1 && dad.alts == 0 && kid.alts >= 1
-              && kid.sex == 'male' && mom.AB > 0.25 && mom.AB < 0.75 && kid.AB > 0.75)
+function x_recessive(kid, mom, dad) { 
+  return (mom.het && kid.AB > 0.75 && dad.hom_ref && kid.alts >= 1 && hq(kid, mom, dad)
+              && kid.sex == 'male' && mom.AB > 0.25 && mom.AB < 0.75)
 }
-
 
 // heterozygous (1 side of compound het)
 function solo_ch_het_side(sample) {
-  return hq1(sample) && sample.AB > 0.2 && sample.AB < 0.8
+  return sample.AB > 0.2 && sample.AB < 0.8 && hq1(sample)
 }
 
 function comphet_side(kid, mom, dad) {
-  return solo_ch_het_side(kid) && hq1(mom) && hq1(dad) && (solo_ch_het_side(mom) != solo_ch_het_side(dad)) && mom.alts != 2 && dad.alts != 2;
+  return kid.het && (solo_ch_het_side(mom) != solo_ch_het_side(dad)) && mom.alts != 2 && dad.alts != 2 && solo_ch_het_side(kid) && hq1(mom) && hq1(dad);
 }

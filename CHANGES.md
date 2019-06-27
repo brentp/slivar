@@ -3,6 +3,8 @@ v0.1.5 (dev)
 + !!MAJOR: fix bug with `hom_alt` alias for `alts == 2`. Since v0.1.3, `hom_alt` would not get set to false for samples, variants after
   being set once.
 + update [wiki](https://github.com/brentp/slivar/wiki/rare-disease#full-analysis-for-trios-with-unaffected-parents) to simplify rare disease analysis.
++ tune javascript in [my.js](https://raw.githubusercontent.com/brentp/slivar/master/js/my.js) and rare-disease expressions so that many analyses will run
+  better than twice as fast.
 
 v0.1.4
 ======
