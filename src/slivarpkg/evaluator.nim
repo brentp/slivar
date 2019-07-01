@@ -125,6 +125,9 @@ type Evaluator* = ref object
 
   skip_non_variable_sites: bool
 
+  info_white_list: seq[string]
+  format_white_list: seq[string]
+
 template fill[T: int8 | int32 | float32 | string](sample:ISample, name:string, values:var seq[T], nper:int) =
   if nper == 1:
     sample.duk[name] = values[sample.ped_sample.i]
@@ -265,6 +268,12 @@ proc make_igroups(ev:Evaluator, groups: seq[Group], by_name:TableRef[string, ISa
 
 const prelude = staticRead("prelude.js")
 
+proc getEnvNotEmpty(key: string): seq[string] =
+  var s = getEnv(key)
+  if s == "": return
+  for f in s.split(","):
+    result.add(f)
+
 proc newEvaluator*(samples: seq[Sample], groups: seq[Group], float_expressions: seq[NamedExpression],
                    trio_expressions: seq[NamedExpression], group_expressions: seq[NamedExpression],
                    sample_expressions: seq[NamedExpression],
@@ -278,6 +287,9 @@ proc newEvaluator*(samples: seq[Sample], groups: seq[Group], float_expressions: 
   result = Evaluator(ctx:duk_create_heap(nil, nil, nil, nil, my_fatal), skip_non_variable_sites:skip_non_variable_sites)
   result.ctx.duk_require_stack_top(50)
   result.field_names = field_names
+
+  result.info_white_list = getEnvNotEmpty("SLIVAR_INFO_WHITELIST")
+  result.format_white_list = getEnvNotEmpty("SLIVAR_FORMAT_WHITELIST")
 
   # need this because we can only have 1 object per sample id. this allows fast lookup by id.
   var by_name = newTable[string,ISample]()
@@ -343,24 +355,31 @@ proc id2names*(h:Header): seq[idpair] =
       result.setLen(idp.val.id + 2)
     result[idp.val.id] = ($name, idp.val.hrec[1] != nil)
 
-proc set_ab(ctx: Evaluator, fmt:FORMAT, ints: var seq[int32], floats: var seq[float32]) =
+proc set_ab(ctx: Evaluator, fmt:FORMAT, ints: var seq[int32]) =
   if fmt.get("AD", ints) != Status.OK:
     return
-  floats.setLen(int(ints.len / 2))
-  for i, f in floats.mpairs:
-    var r = ints[2*i]
-    var a = ints[2*i+1]
-    if r < 0 or a < 0: f = -1.0
-    else: f = a.float32 / max(a + r, 1).float32
+  var
+    r: float32
+    a: float32
   for trio in ctx.trios:
     for s in trio:
-      s.duk["AB"] = floats[s.ped_sample.i]
+      r = ints[2 * s.ped_sample.i].float32
+      a = ints[2 * s.ped_sample.i + 1].float32
+      if r < 0 or a < 0:
+        s.duk["AB"] = -1.0
+      else:
+        s.duk["AB"] = a / max(a + r, 1)
 
   for g in ctx.groups:
     for row in g.rows:
       for col in row:
         for s in col:
-          s.duk["AB"] = floats[s.ped_sample.i]
+          r = ints[2 * s.ped_sample.i].float32
+          a = ints[2 * s.ped_sample.i + 1].float32
+          if r < 0 or a < 0:
+            s.duk["AB"] = -1.0
+          else:
+            s.duk["AB"] = a / max(a + r, 1)
 
 proc load_js*(ev:Evaluator, code:string) =
     discard ev.ctx.duk_push_string(code)
@@ -393,6 +412,7 @@ proc set_format_field(ctx: Evaluator, f:FormatField, fmt:FORMAT, ints: var seq[i
     quit "Unknown field type:" & $f.vtype & " in field:" & f.name
 
 proc set_variant_fields*(ctx:Evaluator, variant:Variant) =
+  ctx.variant["FILTER"] = variant.FILTER
   ctx.variant["CHROM"] = $variant.CHROM
   ctx.variant["start"] = variant.start
   ctx.variant["stop"] = variant.stop
@@ -401,7 +421,6 @@ proc set_variant_fields*(ctx:Evaluator, variant:Variant) =
   ctx.variant["REF"] = variant.REF
   ctx.variant["ALT"] = variant.ALT
   ctx.variant["is_multiallelic"] = (len(variant.ALT) > 1)
-  ctx.variant["FILTER"] = variant.FILTER
   ctx.variant["ID"] = $variant.ID
 
 proc sum(counts: array[4, int]): int {.inline.} =
@@ -465,6 +484,8 @@ proc set_infos*(ev:var Evaluator, variant:Variant, ints: var seq[int32], floats:
   ev.info_field_sets.curr = {}
 
   for field in info.fields:
+    if ev.info_white_list.len > 0 and field.name notin ev.info_white_list:
+      continue
     if field.vtype == BCF_TYPE.FLOAT:
       if info.get(field.name, floats) != Status.OK:
         quit "couldn't get field:" & field.name
@@ -603,14 +624,15 @@ proc set_format_fields*(ev:var Evaluator, v:Variant, alts: var seq[int8], ints: 
   var has_ad = false
   var has_ab = false
   for f in fmt.fields:
+    if ev.format_white_list.len > 0 and f.name notin ev.format_white_list:
+      continue
     ev.fmt_field_sets.curr.incl(f.i.uint8)
     if f.name == "GT": continue
     if f.name == "AD": has_ad = true
     elif f.name == "AB": has_ab = true
     ev.set_format_field(f, fmt, ints, floats)
   if has_ad and not has_ab:
-    ev.set_ab(fmt, ints, floats)
-
+    ev.set_ab(fmt, ints)
 
   ev.clear_unused_formats()
 

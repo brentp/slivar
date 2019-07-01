@@ -144,7 +144,7 @@ proc del*(o: var Duko, keys: varargs[string]) {.inline.} =
   ## delete the value at key from the object.
   var idx = o.ctx.duk_push_heapptr(o.vptr)
   for key in keys:
-    doAssert o.ctx.duk_del_prop_lstring(idx, key, key.len.duk_size_t) == 1
+    discard o.ctx.duk_del_prop_lstring(idx, key, key.len.duk_size_t)
   o.ctx.pop()
 
 proc clear*(o: var Duko) {.inline.} =
