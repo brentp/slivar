@@ -7,6 +7,8 @@ v0.1.5 (dev)
   better than twice as fast.
 + [expr] add `--skip-non-variable` which further improves speed by not evaluating javascript for a trio if all members are hom-ref or unknown (but can the same variant will
   still be evlauated for trios with at least 1 sample that has a variant at that site.
++ [compound-het] major speed increase for large cohorts. 
++ [compound-het] remove -i/--index option as this is now discovered from the header for the CSQ/BCSQ field.
 
 v0.1.4
 ======

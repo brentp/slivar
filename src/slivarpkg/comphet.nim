@@ -78,12 +78,14 @@ proc add_comphet(a:Variant, b:Variant, gene: string, sample:string, id:int) =
   s &= &"{sample}/{gene}/{id}/{b.key}"
   doAssert a.info.set("slivar_comphet", s) == Status.OK
 
-proc get_samples(v:Variant, sample_fields: seq[string], samples: var seq[string]): bool =
-  if samples.len != 0: samples.setLen(0)
+proc get_samples(v:Variant, sample_fields: seq[string], samples: var HashSet[string]): bool =
+  if samples.len != 0:
+    samples.init(4)
   var tmp: string
   for sf in sample_fields:
       if v.info.get(sf, tmp) != Status.OK: continue
-      samples.add(tmp.split(seps={','}))
+      for s in tmp.split(seps={','}):
+        samples.incl(s)
   return sample_fields.len == 0 or samples.len > 0
 
 
@@ -92,21 +94,34 @@ proc write_compound_hets(ovcf:VCF, kids:seq[Sample], tbl:TableRef[string, seq[Va
   # a key in the INFO field containing a (comma-delimited list of samples)
   var
     x: seq[int32]
+    a: seq[int8]
+    b: seq[int8]
 
   var foundKeys = initHashSet[string]()
   # need to track variants in this because 1 variant can be a CH with multiple genes/transcripts.
   var found: seq[Variant]
-  var asamples: seq[string]
-  var bsamples: seq[string]
 
   for gene, variants in tbl.mpairs:
     var variants = variants
     if variants.len < 2: continue
 
-    for ai in 1..variants.high:
-      if not variants[ai].get_samples(sample_fields, asamples): continue
+    # cache so we don't re-get the same alts repeatedly
+    # especially important because getting the b alts is inside
+    # of the kids loop.
+    var cache = newSeq[seq[int8]](variants.len)
+    cache[0] = variants[0].format.genotypes(x).alts
 
-      var a = variants[ai].format.genotypes(x).alts
+    # for each variant, just grab a hashset of samples 1 time.
+    var sample_cache = newSeq[HashSet[string]](variants.len)
+    discard variants[0].get_samples(sample_fields, sample_cache[0])
+
+    for ai in 1..variants.high:
+      if not variants[ai].get_samples(sample_fields, sample_cache[ai]):
+        continue
+      let asamples = sample_cache[ai]
+
+      a = variants[ai].format.genotypes(x).alts
+      cache[ai] = a
       for kid in kids:
         if sample_fields.len > 0 and kid.id notin asamples: continue
         # quick checks to rule out this variant.
@@ -117,11 +132,12 @@ proc write_compound_hets(ovcf:VCF, kids:seq[Sample], tbl:TableRef[string, seq[Va
 
         for bi in 0..<ai:
           doAssert ai != bi
-          var b = variants[bi].format.genotypes(x).alts
-          if not is_compound_het(kid, a, b, allow_non_trios): continue
+          b = cache[bi]
 
-          if not variants[bi].get_samples(sample_fields, bsamples): continue
+          let bsamples = sample_cache[bi]
+          #if not variants[bi].get_samples(sample_fields, bsamples): continue
           if sample_fields.len > 0 and kid.id notin bsamples: continue
+          if not is_compound_het(kid, a, b, allow_non_trios): continue
 
           if variants[ai].key notin foundKeys:
             found.add(variants[ai])
@@ -144,14 +160,23 @@ proc write_compound_hets(ovcf:VCF, kids:seq[Sample], tbl:TableRef[string, seq[Va
     doAssert ovcf.write_variant(v)
     result.inc
 
+proc get_csq_fields(ivcf:VCF, field: string): seq[string] =
+  var desc = ivcf.header.get(field, BCF_HEADER_TYPE.BCF_HL_INFO)["Description"]
+  echo desc
+  var spl = (if "Format: '" in desc: "Format: '" else: "Format: ")
+  var adesc = desc.split(spl)[1].split("'")[0].strip().strip(chars={'"', '\''}).multiReplace(("[", ""), ("]", ""), ("'", ""), ("*", "")).split("|")
+
+  for v in adesc.mitems: v = v.toUpperAscii
+  return adesc
+
+
 proc main*(dropfirst:bool=false) =
   var p = newParser("slivar compound-hets"):
     help("find compound-hets in trios from pre-filtered variants")
     option("-v", "--vcf", default="/dev/stdin", help="input VCF")
     option("-s", "--sample-field", multiple=true, help="optional INFO field(s) that contains list of samples (kids) that have passed previous filters.\ncan be specified multiple times. this is needed for multi-family VCFs")
     option("-p", "--ped", default="", help="required ped file describing the trios in the VCF")
-    option("-f", "--field", default="BCSQ", help="INFO field containing the gene name")
-    option("-i", "--index", default="2", help="(1-based) index of the gene-name in the field after splitting on '|'")
+    option("-f", "--field", default="BCSQ", help="INFO field containing the gene name (usually CSQ or BCSQ)")
     option("-o", "--out-vcf", default="/dev/stdout", help="path to output VCF/BCF")
     flag("-a", "--allow-non-trios", help="allow samples with one or both parent unspecified. if this mode is used, any pair of heterozygotes co-occuring in the same gene, sample will be reported for samples without both parents that don't have kids. if a single parent is present some additional filtering is done.")
 
@@ -192,10 +217,16 @@ proc main*(dropfirst:bool=false) =
     last_rid = -1
     tbl: TableRef[string,seq[Variant]]
     csqs: string = ""
-    index = parseInt(opts.index) - 1
+    index: int = -1
     ncsqs = 0
     nwritten = 0
     comphet_id:int = 0
+
+  var adesc = ivcf.get_csq_fields(opts.field)
+  for check in ["SYMBOL", "GENE"]:
+    index = adesc.find(check)
+    if index != -1: break
+  doAssert index != -1, &"[slivar] error! no gene-like field found in {opts.field}"
 
   var nvariants = -1
   for v in ivcf:

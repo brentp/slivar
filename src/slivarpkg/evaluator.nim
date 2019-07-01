@@ -411,19 +411,15 @@ proc set_format_field(ctx: Evaluator, f:FormatField, fmt:FORMAT, ints: var seq[i
   if f.vtype == BCF_TYPE.FLOAT:
     if fmt.get(f.name, floats) != Status.OK:
       quit "couldn't get format field:" & f.name
-    for trio in ctx.trios:
-      trio.fill(f.name, floats, f.n_per_sample)
-    for g in ctx.groups.mitems:
-      g.fill(f.name, floats, f.n_per_sample)
+    for sample in ctx.samples.mitems:
+      sample.fill(f.name, floats, f.n_per_sample)
   elif f.vtype == BCF_TYPE.CHAR:
     discard
   elif f.vtype in {BCF_TYPE.INT32, BCF_TYPE.INT16, BCF_TYPE.INT8}:
     if fmt.get(f.name, ints) != Status.OK:
       quit "couldn't get format field:" & f.name
-    for trio in ctx.trios:
-      trio.fill(f.name, ints, f.n_per_sample)
-    for g in ctx.groups.mitems:
-      g.fill(f.name, ints, f.n_per_sample)
+    for sample in ctx.samples.mitems:
+      sample.fill(f.name, ints, f.n_per_sample)
   else:
     quit "Unknown field type:" & $f.vtype & " in field:" & f.name
 
@@ -630,7 +626,6 @@ template clear_unused_formats(ev:Evaluator) =
 
 proc set_format_fields*(ev:var Evaluator, v:Variant, alts: var seq[int8], ints: var seq[int32], floats: var seq[float32]) =
   # fill the format fields
-
   swap(ev.fmt_field_sets.last, ev.fmt_field_sets.curr)
   ev.fmt_field_sets.curr = {}
 

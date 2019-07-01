@@ -16,6 +16,9 @@ import times
 import strformat
 import docopt
 
+
+#import nimprof; stderr.write_line "[slivar] !!! importing nimprof"
+
 proc kids(samples:seq[Sample]): seq[string] =
   for s in samples:
     if s.dad != nil and s.mom != nil: result.add(s.id)
@@ -207,7 +210,7 @@ proc main*() =
     "duo-del": pair(f:duodel.main, description: "find large denovo deletions in parent-child duos using non-transmission from SNP VCF"),
     }.toOrderedTable
 
-  stderr.write_line "slivar version: " & slivarVersion & "\n"
+  stderr.write_line "slivar version: " & slivarVersion
   var args = commandLineParams()
   if len(args) > 0 and args[0] == "gnotate":
     quit "[slivar] the `gnotate` sub-command has been removed. Use `slivar expr` (with --info) to get the same functionality."
