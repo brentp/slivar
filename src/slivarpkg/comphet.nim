@@ -79,8 +79,7 @@ proc add_comphet(a:Variant, b:Variant, gene: string, sample:string, id:int) =
   doAssert a.info.set("slivar_comphet", s) == Status.OK
 
 proc get_samples(v:Variant, sample_fields: seq[string], samples: var HashSet[string]): bool =
-  if samples.len != 0:
-    samples.init(4)
+  samples.init(4)
   var tmp: string
   for sf in sample_fields:
       if v.info.get(sf, tmp) != Status.OK: continue
