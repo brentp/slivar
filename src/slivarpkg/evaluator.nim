@@ -291,6 +291,10 @@ proc newEvaluator*(samples: seq[Sample], groups: seq[Group], float_expressions: 
   result.info_white_list = getEnvNotEmpty("SLIVAR_INFO_WHITELIST")
   result.format_white_list = getEnvNotEmpty("SLIVAR_FORMAT_WHITELIST")
 
+  let strict = getEnv("SLIVAR_NO_ATTRIBUTE_CHECKING") == ""
+  if not strict:
+    stderr.write_line "[slivar] using non-strict mode. missing attributes will not show a warning or error"
+
   # need this because we can only have 1 object per sample id. this allows fast lookup by id.
   var by_name = newTable[string,ISample]()
 
@@ -302,11 +306,19 @@ proc newEvaluator*(samples: seq[Sample], groups: seq[Group], float_expressions: 
     var err = $result.ctx.duk_safe_to_string(-1)
     raise newException(ValueError, err)
 
-  result.samples_ns = result.ctx.newStrictObject(samples_name)
 
-  for sample in samples:
-    result.samples.add(ISample(ped_sample:sample, last_alts: -2, duk:result.samples_ns.newStrictObject(sample.id)))
-    by_name[sample.id] = result.samples[result.samples.high]
+  if strict:
+    result.samples_ns = result.ctx.newStrictObject(samples_name)
+
+    for sample in samples:
+      result.samples.add(ISample(ped_sample:sample, last_alts: -2, duk:result.samples_ns.newStrictObject(sample.id)))
+      by_name[sample.id] = result.samples[result.samples.high]
+  else:
+    result.samples_ns = result.ctx.newObject(samples_name)
+
+    for sample in samples:
+      result.samples.add(ISample(ped_sample:sample, last_alts: -2, duk:result.samples_ns.newObject(sample.id)))
+      by_name[sample.id] = result.samples[result.samples.high]
 
   result.gnos = gnos
   discard result.ctx.duk_push_c_function(debug, -1.cint)
@@ -338,8 +350,12 @@ proc newEvaluator*(samples: seq[Sample], groups: seq[Group], float_expressions: 
     else:
       stderr.write_line &"[slivar] WARNING! specified --trio expressions without any trios"
 
-  result.INFO = result.ctx.newStrictObject("INFO")
-  result.variant = result.ctx.newStrictObject("variant")
+  if strict:
+    result.INFO = result.ctx.newStrictObject("INFO")
+    result.variant = result.ctx.newStrictObject("variant")
+  else:
+    result.INFO = result.ctx.newObject("INFO")
+    result.variant = result.ctx.newObject("variant")
   result.set_sample_attributes(by_name)
 
 proc id2names*(h:Header): seq[idpair] =

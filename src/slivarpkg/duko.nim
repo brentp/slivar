@@ -187,8 +187,8 @@ proc newObject*(d:Duko, name: string): Duko =
 
 template alias*(dfrom: Duko, dto:Duko, copyname:string="") =
   ## create an alias of a Duko to another e.g. kid.alias(mom, "mom")
-  var name = if copyname.len == 0: dto.name else: copyname
-  var idx = dfrom.ctx.duk_push_heapptr(dfrom.vptr)
+  let name = if copyname.len == 0: dto.name else: copyname
+  let idx = dfrom.ctx.duk_push_heapptr(dfrom.vptr)
   doAssert dfrom.ctx.duk_push_heapptr(dto.vptr) >= 0
   doAssert dfrom.ctx.duk_put_prop_lstring(idx, name, name.len.duk_size_t)
   dfrom.ctx.duk_pop
