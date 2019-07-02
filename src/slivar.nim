@@ -216,7 +216,7 @@ proc main*() =
     quit "[slivar] the `gnotate` sub-command has been removed. Use `slivar expr` (with --info) to get the same functionality."
 
   if len(args) == 0 or not (args[0] in dispatcher):
-    stderr.write_line "Commands: "
+    stderr.write_line "\nCommands: "
     for k, v in dispatcher:
       echo &"  {k:<13}:   {v.description}"
     if len(args) > 0 and (args[0] notin dispatcher) and args[0] notin @["-h", "-help"]:
