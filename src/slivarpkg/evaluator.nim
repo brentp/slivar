@@ -293,7 +293,8 @@ proc newEvaluator*(samples: seq[Sample], groups: seq[Group], float_expressions: 
 
   let strict = getEnv("SLIVAR_NO_ATTRIBUTE_CHECKING") == ""
   if not strict:
-    stderr.write_line "[slivar] using non-strict mode. missing attributes will not show a warning or error"
+    if getEnv("SLIVAR_QUIET") == "":
+      stderr.write_line "[slivar] using non-strict mode. missing attributes will not show a warning or error"
 
   # need this because we can only have 1 object per sample id. this allows fast lookup by id.
   var by_name = newTable[string,ISample]()
@@ -346,7 +347,8 @@ proc newEvaluator*(samples: seq[Sample], groups: seq[Group], float_expressions: 
 
   if trio_expressions.len > 0:
     if result.trios.len > 0:
-      stderr.write_line &"[slivar] evaluating on {result.trios.len} trios"
+      if getEnv("SLIVAR_QUIET") == "":
+        stderr.write_line &"[slivar] evaluating on {result.trios.len} trios"
     else:
       stderr.write_line &"[slivar] WARNING! specified --trio expressions without any trios"
 
@@ -371,12 +373,19 @@ proc id2names*(h:Header): seq[idpair] =
       result.setLen(idp.val.id + 2)
     result[idp.val.id] = ($name, idp.val.hrec[1] != nil)
 
+
+proc c_memset*(p: pointer, value: cint, size: csize): pointer {.
+  importc: "memset", header: "<string.h>", discardable.}
+
+
 proc set_ab(ctx: Evaluator, fmt:FORMAT, ints: var seq[int32]) =
   if fmt.get("AD", ints) != Status.OK:
     return
+
   var
     r: float32
     a: float32
+
   for trio in ctx.trios:
     for s in trio:
       r = ints[2 * s.ped_sample.i].float32
@@ -639,9 +648,17 @@ proc set_format_fields*(ev:var Evaluator, v:Variant, alts: var seq[int8], ints: 
       continue
     ev.fmt_field_sets.curr.incl(f.i.uint8)
     if f.name == "GT": continue
-    if f.name == "AD": has_ad = true
-    elif f.name == "AB": has_ab = true
     ev.set_format_field(f, fmt, ints, floats)
+    if f.name == "AD":
+      has_ad = true
+      if ev.samples.len * 2 != ints.len:
+        stderr.write_line &"""[slivar] error !!! please decompose and normalize after setting Number=A for the AD field in your VCF header"""
+        stderr.write_line &"""         expected 2 values per sample for 'AD' field, but got {ints.len / ev.samples.len:.1f} for variant: {v.CHROM}:{v.start + 1}:{v.REF}:{join(v.ALT, ",")}"""
+        quit """         see: https://github.com/brentp/slivar/wiki/decomposing-and-subsetting-vcfs"""
+
+    elif f.name == "AB":
+      has_ab = true
+
   if has_ad and not has_ab:
     ev.set_ab(fmt, ints)
 

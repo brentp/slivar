@@ -68,7 +68,7 @@ proc tostring*(c:Counter, samples: seq[string]): string =
     for j, e in c.exprs:
       line &= '\t' & $c.counts[i][j]
     res.add(line)
-  return header & '\n' & join(res, "\n")
+  return header & '\n' & join(res, "\n") & '\n'
 
 proc tostring*(c:Counter, samples: seq[pedfile.Sample]): string =
 

@@ -1,4 +1,9 @@
-v0.1.5 (dev)
+v0.1.6
+======
++ better checks for length of AD field
++ add pslivar to parallelize calls to slivar expr
+
+v0.1.5
 ======
 + !!MAJOR: fix bug with `hom_alt` alias for `alts == 2`. Since v0.1.3, `hom_alt` would not get set to false for samples, variants after
   being set once.

@@ -74,10 +74,11 @@ proc open*(g:var Gnotater, zpath: string, tmpDir:string="/tmp", missing_val:floa
   removeFile(path)
 
   var hasMsg = false
-  for p in g.zip.walkFiles:
-    if p.endsWith("message.txt"):
-      hasMsg = true
-      break
+  if getEnv("SLIVAR_QUIET") == "":
+    for p in g.zip.walkFiles:
+      if p.endsWith("message.txt"):
+        hasMsg = true
+        break
 
   if hasMsg:
     path = g.tmpDir / &"message{r}.txt"

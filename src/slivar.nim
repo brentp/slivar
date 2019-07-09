@@ -91,15 +91,17 @@ Options:
     quit "couldn't open:" & $args["--vcf"]
 
   var pass_only = bool(args["--pass-only"])
+  let verbose=getEnv("SLIVAR_QUIET") == ""
 
 
   if $args["--ped"] != "nil":
-    samples = parse_ped($args["--ped"])
-    samples = samples.match(ivcf)
+    samples = parse_ped($args["--ped"], verbose=verbose)
+    samples = samples.match(ivcf, verbose=verbose)
   else:
     for i, s in ivcf.samples:
       samples.add(Sample(id: s, i:i))
-  stderr.write_line &"{samples.len} samples matched in VCF and PED to be evaluated"
+  if getEnv("SLIVAR_QUIET") == "":
+    stderr.write_line &"[slivar] {samples.len} samples matched in VCF and PED to be evaluated"
 
   if not open(ovcf, $args["--out-vcf"], mode="w"):
     quit "couldn't open:" & $args["--out-vcf"]
@@ -180,7 +182,8 @@ Options:
     if any_pass or (not pass_only):
       doAssert ovcf.write_variant(variant)
       written.inc
-  stderr.write_line &"[slivar] Finished. evaluated {i} total variants and wrote {written} variants that passed your slivar expressions."
+  if getEnv("SLIVAR_QUIET") == "":
+    stderr.write_line &"[slivar] Finished. evaluated {i} total variants and wrote {written} variants that passed your slivar expressions."
 
   ovcf.close()
   ivcf.close()
@@ -194,7 +197,8 @@ Options:
         quit "[slivar] couldn't open summary file:" & summaryPath
       fh.write(counter.tostring(out_samples))
       fh.close()
-      stderr.write_line "[slivar] wrote summary table to:" & summaryPath
+      if getEnv("SLIVAR_QUIET") == "":
+        stderr.write_line "[slivar] wrote summary table to:" & summaryPath
 
 
 proc main*() =
@@ -210,7 +214,8 @@ proc main*() =
     "duo-del": pair(f:duodel.main, description: "find large denovo deletions in parent-child duos using non-transmission from SNP VCF"),
     }.toOrderedTable
 
-  stderr.write_line "slivar version: " & slivarVersion
+  if getEnv("SLIVAR_QUIET") == "":
+    stderr.write_line "slivar version: " & slivarVersion
   var args = commandLineParams()
   if len(args) > 0 and args[0] == "gnotate":
     quit "[slivar] the `gnotate` sub-command has been removed. Use `slivar expr` (with --info) to get the same functionality."

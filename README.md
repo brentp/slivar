@@ -22,6 +22,8 @@ slivar has sub-commands:
 
 # Table of Contents
 
+* [Installation](#installation)
+* [QuickStart](#QuickStart)
 * [Commands](#commands)
  * [expr](#expr)
     * [trio](#trio)
@@ -29,10 +31,24 @@ slivar has sub-commands:
  * [compound-het](#compound-het)
  * [tsv](#tsv)
  * [duo-del](#duo-del)
-* [Installation](#installation)
 * [Attributes](#attributes)
 * [How it works](#how-it-works)
 
+
+## Installation
+
+get the latest binary from: https://github.com/brentp/slivar/releases/latest
+
+`slivar_static` does not depend on any libraries and should work on any 64 bit linux system.        
+
+`slivar_shared` will require libhts.so (from [htslib](https://htslib.org)) to be in the usual places or in a directory indicated in `LD_LIBRARY_PATH`.
+
+or use via docker from: [brentp/slivar:latest](https://hub.docker.com/r/brentp/slivar)
+
+## QuickStart
+
+To get started quickly, grab a static binary [for the latest release](https://github.com/brentp/slivar/releases/latest) and
+then follow [this example](https://github.com/brentp/slivar/releases/latest)
 
 ## Commands
 
@@ -210,16 +226,6 @@ can work to find deletions in exome data using genotypes, thereby avoiding the p
 depth-based CNV calling in exomes.
 
 see: https://github.com/brentp/slivar/wiki/finding-deletions-in-parent-child-duos
-
-## Installation
-
-get the latest binary from: https://github.com/brentp/slivar/releases/latest
-
-`slivar_static` does not depend on any libraries and should work on any 64 bit linux system.        
-
-`slivar_shared` will require libhts.so (from [htslib](https://htslib.org)) to be in the usual places or in a directory indicated in `LD_LIBRARY_PATH`.
-
-or use via docker from: [brentp/slivar:latest](https://hub.docker.com/r/brentp/slivar)
 
 ## Attributes
 
