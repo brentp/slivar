@@ -33,6 +33,8 @@ slivar has sub-commands:
  * [duo-del](#duo-del)
 * [Attributes](#attributes)
 * [How it works](#how-it-works)
+* [Gnotation Files](#gnotation-files)
+
 
 
 ## Installation
@@ -59,7 +61,8 @@ then follow [this example](https://github.com/brentp/slivar/releases/latest)
 extracts.
 
 `expr` can also be used, for example to annotate with population allele frequencies from a `gnotate` file without
-any sample filtering. See [the wiki](https://github.com/brentp/slivar/wiki/gnotate) for more detail.
+any sample filtering. See [the wiki](https://github.com/brentp/slivar/wiki/gnotate) for more detail and [the gnotate](#gnotation-files)
+section for gnotation files that we distribute for `slivar`.
 
 #### trio
 
@@ -253,3 +256,28 @@ slivar outputs a summary table with rows of samples and columns of expression wh
 indicates the number of variants that passed the expression in each sample. By default, this goes to STDOUT
 but if the environment variable `SLIVAR_SUMMARY_FILE` is set, `slivar` will write the summary to that file
 instead.
+
+## Gnotation Files
+
+Users can create their own gnotation files with `slivar make-gnotate`, but we provide:
+
++ gnomad for hg37 with AF popmax, numhomalts (total and controls only) [here](https://s3.amazonaws.com/slivar/gnomad.hg37.zip)
++ gnomad for hg38 with AF popmax, numhomalts (updated in release v0.1.2) [here](https://s3.amazonaws.com/slivar/gnomad.hg38.v2.zip)
++ spliceai scores (maximum value of the 4 scores in spliceai) [here](https://s3.amazonaws.com/slivar/spliceai.hg37.zip)
+
++ [topmed allele frequencies (via dbsnp)](https://slivar.s3.amazonaws.com/topmed.hg38.dbsnp.151.zip) these can be used with `INFO.topmed_af`. Useful when analyzing data in hg38 because [some variants in hg38 are not visible in GRCh37](https://twitter.com/brent_p/status/1139540523364917248)
+
+The available fields can be seen with, for example:
+
+```
+$ unzip -l gnomad.hg38.v2.zip | grep -oP "gnotate-[^.]+" | sort -u
+gnotate-gnomad_nhomalt
+gnotate-gnomad_nhomalt_controls
+gnotate-gnomad_popmax_af
+gnotate-gnomad_popmax_af_controls
+gnotate-variant
+```
+
+indicating that `INFO.gnomad_nhomalt`, `INFO.gnomad_nhomalt_controls`, `INFO.gnomad_popmax_af` and `INFO.gnomad_popmax_af_controls` will be
+the fields after they are added to the INFO.
+
