@@ -50,7 +50,7 @@ or use via docker from: [brentp/slivar:latest](https://hub.docker.com/r/brentp/s
 ## QuickStart
 
 To get started quickly, grab a static binary [for the latest release](https://github.com/brentp/slivar/releases/latest) and
-then follow [this example](https://github.com/brentp/slivar/releases/latest)
+then follow [this example](https://github.com/brentp/slivar/wiki/rare-disease#full-analysis-for-trios-with-unaffected-parents)
 
 ## Commands
 
