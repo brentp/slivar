@@ -228,7 +228,7 @@ proc annotate_missing(g:Gnotater, v:Variant): bool {.inline.} =
   return false
 
 proc values_at(g: Gnotater, i: int): seq[float32] =
-  result.setLen(g.n_fields)
+  result = newSeq[float32](g.n_fields)
   for k in 0..g.values.high:
     # g.values  is shape (n_fields, n_variants)
     result[k] = g.values[k][i]
@@ -265,15 +265,19 @@ proc annotate*(g:var Gnotater, v:Variant): bool {.inline.} =
     var l = Long(position:v.start.uint32, reference:v.REF, alternate:alt)
     var i = lowerBound(g.longs, l, cmp_long)
     # since these can be ordered differently, we have to check until we get to a different position or a match.
-    while i < g.longs.high:
+    while i < g.longs.len:
       if i > g.longs.high or g.longs[i].position != q.position:
         return g.annotate_missing(v)
       if g.longs[i].reference == l.reference and g.longs[i].alternate == l.alternate:
         break
       i += 1
 
+    if i > g.values.high:
+      return g.annotate_missing(v)
+
     values = g.longs[i].values
     filtered = g.longs[i].filter
+    doAssert values.len != 0
 
   for i, value in values:
     var ivalues = @[value]

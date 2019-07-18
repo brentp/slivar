@@ -3,7 +3,7 @@ import strutils
 import os
 import hts/vcf
 import strformat
-import bpbiopkg/pedfile
+import ./pedfile
 import tables
 
 proc toIndexLookup(samples:seq[Sample]): TableRef[string,Sample] =

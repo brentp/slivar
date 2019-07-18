@@ -2,6 +2,7 @@ v0.1.6
 ======
 + better checks for length of AD field
 + add pslivar to parallelize calls to slivar expr
++ fix for empty groups (#38)
 
 v0.1.5
 ======

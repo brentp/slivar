@@ -1,4 +1,4 @@
-import bpbiopkg/pedfile
+import ./slivarpkg/pedfile
 import ./slivarpkg/duko
 from ./slivarpkg/version import slivarVersion
 import ./slivarpkg/evaluator

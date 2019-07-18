@@ -1,5 +1,5 @@
 import hts/vcf
-import bpbiopkg/pedfile
+import ./pedfile
 import ./counter
 import strformat
 import strutils

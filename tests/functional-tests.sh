@@ -6,7 +6,7 @@ test -e ssshtest || wget -q https://raw.githubusercontent.com/ryanlayer/ssshtest
 set -o nounset
 
 set -e
-nim c --boundChecks:on -x:on src/slivar
+nim c -d:debug --boundChecks:on -x:on src/slivar
 set +e
 exe=./src/slivar
 
@@ -14,6 +14,19 @@ run check_help_works $exe expr --help
 assert_exit_code 0
 assert_in_stdout "Options:"
 rm -f xx.bcf
+
+
+run check_ragged_groups $exe expr --alias tests/ragged.group -v tests/ashk-trio.vcf.gz \
+	--group-expr "missing_dad:dad.DP > 100" \
+	--group-expr "ok_mom:mom.DP > 100" \
+	-o xx.bcf
+assert_exit_code 0
+# in groups, dad is empty in 2nd row, so we skip in the first column, but mom can have variants
+# in the 2nd case
+assert_in_stderr "sample	missing_dad	ok_mom
+HG002	4295	4552
+HG003	0	0
+HG004	0	4552"
 
 run check_error_repeated_name $exe expr -v tests/ashk-trio.vcf.gz --sample-expr "high_depth:sample.DP > 800" --trio "high_depth:kid.DP > 800" --ped tests/ashk-trio.ped -o xx.bcf
 assert_exit_code 1

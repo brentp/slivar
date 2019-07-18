@@ -35,7 +35,7 @@
 #
 ]#
 
-import bpbiopkg/pedfile
+import ./pedfile
 import strutils
 import strformat
 import tables
@@ -59,7 +59,8 @@ proc parse_group_line(groups:var seq[Group], line:string, sample_lookup:TableRef
   var toks = line.split(seps={'\t'})
   if toks.len != groups[groups.high].header.len:
     var sheader = join(groups[groups.high].header, "\t")
-    raise newException(ValueError, "unexpected number of samples for line:'" & line & "' with header:'" & sheader & "'")
+    raise newException(ValueError, "unexpected number of samples for line:'" & line & "' with header:'" &
+       sheader & "'\n" & "add empty columns where needed")
   # even a single column goes in as a seq for uniformity.
   var g = newSeqOfCap[seq[Sample]](len(toks))
   for i, snames in toks:
@@ -180,3 +181,25 @@ when isMainModule:
       check p.rows.len == 1
       check p.rows[0][0].len == 0
       check p.rows[0][1].len == 3
+
+    test "that truncated rows are ok":
+      let txt = """#affected	carrier	healthy
+s1	s2	s3
+s4	s5
+s6	s7
+s8
+s9
+"""
+      txt.toFile
+      var samples = @[Sample(id:"s1"),
+                    Sample(id:"s2"),
+                    Sample(id:"s3"),
+                    Sample(id:"s4"),
+                    Sample(id:"s5"),
+                    Sample(id:"s6"),
+                    Sample(id:"s7"),
+                    Sample(id:"s8"),
+                    Sample(id:"s9"),
+                    ]
+      expect ValueError:
+        var groups = parse_groups(tmpFile, samples)

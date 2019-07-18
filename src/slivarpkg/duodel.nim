@@ -8,7 +8,7 @@ import hts/vcf
 import strformat
 import strutils
 import ./gnotate
-import bpbiopkg/pedfile
+import ./pedfile
 
 type Duo = object
   kid: Sample

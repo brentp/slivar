@@ -1,7 +1,7 @@
 import hts/vcf
 import hts/private/hts_concat
 import math
-import bpbiopkg/pedfile
+import ./pedfile
 import ./duko
 import os
 import ./gnotate
@@ -105,6 +105,8 @@ type Evaluator* = ref object
 
   info_field_sets: FieldSets[uint16]
   fmt_field_sets: FieldSets[uint8]
+
+  empty: Duko
 
   # samples_ns is a name-space to store the samples.
   samples_ns: Duko
@@ -290,6 +292,9 @@ proc newEvaluator*(samples: seq[Sample], groups: seq[Group], float_expressions: 
 
   result.info_white_list = getEnvNotEmpty("SLIVAR_INFO_WHITELIST")
   result.format_white_list = getEnvNotEmpty("SLIVAR_FORMAT_WHITELIST")
+
+  # when a column is empty, we use this empty object as a place-holder.
+  result.empty = result.ctx.newObject("empty")
 
   let strict = getEnv("SLIVAR_NO_ATTRIBUTE_CHECKING") == ""
   if not strict:
@@ -605,7 +610,12 @@ iterator evaluate_groups(ev:Evaluator, nerrors: var int, variant:Variant): exRes
       for group in ev.groups:
         for row in group.rows:
           for k, col in row:
-            if not group.plural[k]:
+            if len(col) == 0:
+              # if the column is empty, we alias it to our empty object
+              # this prevents us from accessing the object of the previous
+              # group.
+              ev.empty.alias(group.header[k])
+            elif not group.plural[k]:
               # TODO: allow skipping if all are hom-ref
               col[0].duk.alias(group.header[k])
             else:
