@@ -31,17 +31,20 @@ python paper/plot_ab_roc.py roc-gq{0,5,10}.txt
 exit
 DONE
 
+
+<<DENOVO
 bcf=vcfs/$cohort.annotated.bcf
 
 slivar expr --vcf $bcf --ped $ped \
     --pass-only \
     -o vcfs/$cohort.dn.bcf \
-    --info "variant.FILTER == 'PASS'" \
-    --trio "dn_naive:mom.alts == 0 && dad.alts == 0 && kid.alts == 1" \
+    --info "variant.FILTER == 'PASS' && variant.ALT[0] != '*'" \
     --trio "dn_ab_gq:mom.alts == 0 && dad.alts == 0 && kid.alts == 1 && kid.GQ >= 5 && mom.GQ >= 5 && dad.GQ >= 5 && kid.AB >= 0.2 && kid.AB <= 0.8" \
-    --trio "dn_gnomad:mom.alts == 0 && dad.alts == 0 && kid.alts == 1 && kid.GQ >= 5 && mom.GQ >= 5 && dad.GQ >= 5 && kid.AB >= 0.2 && kid.AB <= 0.8 && INFO.gnomad_popmax_af < 0.001 && !('gnomad_popmax_af_filter' in INFO)" \
-    --trio "dn:mom.alts == 0 && dad.alts == 0 && kid.alts == 1 && kid.GQ >= 5 && mom.GQ >= 5 && dad.GQ >= 5 && kid.AB >= 0.2 && kid.AB <= 0.8 && INFO.gnomad_popmax_af < 0.001 && !('gnomad_popmax_af_filter' in INFO) && INFO.topmed_af < 0.02" 
+    --trio "dn:mom.alts == 0 && dad.alts == 0 && kid.alts == 1 && kid.GQ >= 5 && mom.GQ >= 5 && dad.GQ >= 5 && kid.AB >= 0.2 && kid.AB <= 0.8 && INFO.gnomad_popmax_af < 0.001 && !('gnomad_popmax_af_filter' in INFO) && INFO.topmed_af < 0.01" 
 
+python paper/plot-exome-dn-summary.py paper/exome.summary.tsv
+
+DENOVO
 
 #bcftools csq -s - --ncsq 40 -g $gff -l -f $fasta vcfs/$cohort.bcf -O u \
 #  | slivar compound-hets -f BCSQ -i 2 --sample-field AR_filtered --sample-field denovo -p $ped > vcfs/$cohort.ch.vcf
