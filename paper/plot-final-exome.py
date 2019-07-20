@@ -10,7 +10,6 @@ df = pd.read_csv(sys.argv[1], sep="\t", index_col=0)
 dfo = df.join(pd.read_csv(sys.argv[2], sep="\t", index_col=0))
 dfo.drop("comphet_side", inplace=True, axis="columns")
 
-print(dfo.head())
 
 df = dfo.melt(value_name="number_of_variants")
 
@@ -26,12 +25,19 @@ axes[0].set_ylabel("Candidate variants")
 #axes[0].set_xticklabels(["0.2 <= AB < 0.8\n& GQ >= 5",
 #                         "gnomAD popmax AF < 0.001\n& PASS in gnomAD\n & topMed AF < 0.01\n"])
 
-print(axes[0].get_xlim())
 
 ax = axes[0]
 #ax.set_ylim(-0.5, 14.5)
 #ax.axhline(o, 0.1, 0.4, lw=4)
 #ax.axhline(f, 1-0.4, 1 - 0.1, lw=4)
+
+labels = ax.get_xticklabels()
+lookups = {"denovo":"de novo", "compound-het":"compound-heterozygote",
+        "x_recessive":"x-linked recessive", "recessive": "autosomal recessive",
+        "auto_dom":"autosomal dominant",
+        "x_denovo": "x-linked de novo"}
+labels = [lookups[l.get_text()] for l in labels]
+ax.set_xticklabels(labels, rotation=10)
 
 plt.tight_layout()
 sns.despine()

@@ -38,3 +38,8 @@ function solo_ch_het_side(sample) {
 function comphet_side(kid, mom, dad) {
   return kid.het && (solo_ch_het_side(mom) != solo_ch_het_side(dad)) && mom.alts != 2 && dad.alts != 2 && solo_ch_het_side(kid) && hq1(mom) && hq1(dad);
 }
+
+// assume that mom and kid are affected.
+function fake_auto_dom(kid, mom, dad) {
+  return kid.het && mom.het && dad.hom_ref && kid.AB >= 0.2 && kid.AB <= 0.8 && mom.AB >= 0.2 && mom.AB <= 0.8 && hq(mom, dad, kid)
+}
