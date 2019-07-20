@@ -58,8 +58,10 @@ slivar expr --vcf $bcf --ped $ped \
     --trio "recessive:recessive(kid, mom, dad)" \
     --trio "x_denovo:x_denovo(kid, mom, dad) && (variant.CHROM == 'chrX' || variant.CHROM == 'X')" \
     --trio "x_recessive:x_recessive(kid, mom, dad) && (variant.CHROM == 'chrX' || variant.CHROM == 'X')" \
-    --trio "comphet_side:comphet_side(kid, mom, dad) && INFO.gnomad_nhomalt_controls < 10" \
+    --trio "comphet_side:comphet_side(kid, mom, dad) && INFO.gnomad_nhomalt_controls < 10 && INFO.gnomad_popmax_af < 0.005" \
     | bcftools csq -s - --ncsq 40 -g $gff -l -f $fasta - -o vcfs/$cohort.vcf
 
 export SLIVAR_SUMMARY_FILE=$cohort.ch.summary.tsv
 slivar compound-hets -f BCSQ  --sample-field comphet_side --sample-field denovo -p $ped -v vcfs/$cohort.vcf > vcfs/$cohort.ch.vcf
+
+python plot-final-exome.py exome.summary.tsv exome.ch.summary.tsv
