@@ -22,12 +22,12 @@ slivar expr --vcf $bcf \
     -g /home/brentp/src/slivar/topmed.hg38.dbsnp.151.zip \
     -o vcfs/$cohort.annotated.bcf \
     --info "variant.FILTER == 'PASS'" 
+DONE
 
 ./dn_roc --gq 1 --gq 5 --gq 10 --gq 15 $ped vcfs/$cohort.annotated.bcf > $cohort-roc.txt
-#python plot_ab_roc.py $cohort-roc.txt
+python plot_ab_roc.py $cohort-roc.txt
 
 exit
-DONE
 
 bcf=vcfs/$cohort.annotated.bcf
 
