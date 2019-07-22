@@ -22,23 +22,20 @@ RUN yum install -y git curl wget zlib-devel xz-devel bzip2-devel openssl-devel l
     echo "/usr/local/lib" >> etc/ld.so.conf && \
     ldconfig
 
-RUN cd / && \
-    git clone -b devel --depth 10 git://github.com/nim-lang/nim nim && \
+RUN cd / &&     \
+    echo hi && \
+    git clone -b devel --depth 9 git://github.com/nim-lang/nim nim && \
     cd nim && \
     chmod +x ./build_all.sh && \
     scl enable devtoolset-2 ./build_all.sh && \
     echo 'PATH=/nim/bin:/root/.nimble/bin:$PATH' >> ~/.bashrc && \
     echo 'PATH=/nim/bin:/root/.nimble/bin:$PATH' >> ~/.bash_profile
 
-RUN cd /   \
-    && export PATH=/nim/bin:/root/.nimble/bin:$PATH && \
+RUN cd / &&        \
+    export PATH=/nim/bin:/root/.nimble/bin:$PATH && \
     source scl_source enable devtoolset-2  && \
-    nimble install -y nimgen && \
-    cd / && git clone -b dev https://github.com/brentp/duktape-nim && \
-    cd duktape-nim && \
-    nimble install --verbose -y && \
     git clone --depth 1 git://github.com/brentp/slivar.git && \
     cd slivar && \
     nimble install --verbose -y && \
-    nim c -d:release -o:/usr/bin/slivar --passC:-flto src/slivar && \
+    nim c -d:danger -o:/usr/bin/slivar src/slivar && \
     rm -rf /slivar /duktape-nim && slivar expr -h

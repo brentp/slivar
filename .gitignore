@@ -22,3 +22,6 @@ src/slivarpkg/tsv
 *.bed*
 *.tsv
 
+src/slivarpkg/siset
+*.tsv
+paper/dn_roc
