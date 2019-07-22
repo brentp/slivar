@@ -1,12 +1,12 @@
 set -euo pipefail
-gff=/data/human/Homo_sapiens.GRCh38.96.chr.gff3.gz
-bcf=/home/brentp/src/varx/var.bcf
-ped=/home/brentp/src/varx/var.ped
-fasta=/data/human/GRCh38_full_analysis_set_plus_decoy_hla.fa
-LCR=/home/brentp/src/slivar/LCR-hs38.bed.gz
+gff=/data/human/Homo_sapiens.GRCh37.82.gff3.gz
+ped=/home/brentp/src/slivar/ceph/ceph-sasani.ped
+bcf=/home/brentp/src/slivar/ceph/ceph.bcf
+exclude=/home/brentp/src/slivar/LCR-hs37d5.bed.gz
+fasta=/data/human/g1k_v37_decoy.fa
 mkdir -p vcfs/
 
-cohort=exome
+cohort=genome
 export SLIVAR_SUMMARY_FILE=$cohort.summary.tsv
 PATH=.:$PATH
 
@@ -14,21 +14,21 @@ here="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 cd "$here"
 mkdir -p vcfs
 
-<<DONE
 # get all passing variants and annotate with gnomad and topmed
+<<DONE
 slivar expr --vcf $bcf \
     --pass-only \
-    -g /home/brentp/src/slivar/gnomad.hg38.v2.zip \
-    -g /home/brentp/src/slivar/topmed.hg38.dbsnp.151.zip \
+    -g /home/brentp/src/slivar/gnomad.hg37.zip \
     -o vcfs/$cohort.annotated.bcf \
     --info "variant.FILTER == 'PASS'" 
 DONE
 
-./dn_roc --gq 1 --gq 5 --gq 10 --gq 15 $ped vcfs/$cohort.annotated.bcf > $cohort-roc.txt
+./dn_roc --gq 1 --gq 5 --gq 10 --gq 15 -x $exclude $ped vcfs/$cohort.annotated.bcf > $cohort-roc.txt
 python plot_ab_roc.py $cohort-roc.txt
 
+
 exit
-DONE
+#DONE
 
 bcf=vcfs/$cohort.annotated.bcf
 
