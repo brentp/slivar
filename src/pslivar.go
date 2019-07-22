@@ -39,18 +39,20 @@ func makeCommands(fasta *faidx.Faidx, args []string, directory string) chan stri
 		sort.Slice(recs, func(i, j int) bool {
 			return recs[i].Start < recs[j].Start
 		})
-
 		for k, rec := range recs {
 			for i := 0; i < rec.Length; i += L {
-				var region = strconv.Quote(fmt.Sprintf("%s:%d-%d", rec.Name, i+1, min(i+L, rec.Length)))
-				var q string
-				if k > 0 || i > 0 {
-					q = "yes"
-				}
-				var scmd = fmt.Sprintf("SLIVAR_QUIET=%s SLIVAR_SUMMARY_FILE=%s/%d-%d slivar expr %s --region %s", q, directory, k, i, strings.Join(args, " "), region)
-				ch <- scmd
+				// on the first, split in half to get smaller size so we can get to any possible errors sooner.
 				if k == 0 && i == 0 {
+					Lh := L / 2
+					var region = strconv.Quote(fmt.Sprintf("%s:%d-%d", rec.Name, i+1, min(i+Lh, rec.Length)))
+					ch <- fmt.Sprintf("SLIVAR_QUIET= SLIVAR_SUMMARY_FILE=%s/%d-%d slivar expr %s --region %s", directory, k, i, strings.Join(args, " "), region)
 					time.Sleep(400 * time.Millisecond)
+					region = strconv.Quote(fmt.Sprintf("%s:%d-%d", rec.Name, i+1+Lh, min(i+L, rec.Length)))
+					ch <- fmt.Sprintf("SLIVAR_QUIET=yes SLIVAR_SUMMARY_FILE=%s/%d-%d slivar expr %s --region %s", directory, k, i, strings.Join(args, " "), region)
+				} else {
+					var region = strconv.Quote(fmt.Sprintf("%s:%d-%d", rec.Name, i+1, min(i+L, rec.Length)))
+					var scmd = fmt.Sprintf("SLIVAR_QUIET=yes SLIVAR_SUMMARY_FILE=%s/%d-%d slivar expr %s --region %s", directory, k, i, strings.Join(args, " "), region)
+					ch <- scmd
 				}
 			}
 		}
@@ -179,7 +181,7 @@ func writeSummaryCommands(tempDir string) {
 
 func main() {
 	args := make([]string, 0, 20)
-	processes := runtime.GOMAXPROCS(0) - 1
+	processes := runtime.GOMAXPROCS(0)
 	var fasta *faidx.Faidx
 
 	skipNext := false

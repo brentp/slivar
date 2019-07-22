@@ -6,6 +6,19 @@ import strformat
 import ./pedfile
 import tables
 
+const order_x = staticRead("./default-order.txt")
+
+proc adjustOrder(order: string): TableRef[string, int] =
+  result = newTable[string, int](16)
+  for o in order.strip().split("\n"):
+    var n = o.toLowerAscii.strip()
+    if o.len == 0: continue
+    if n.endsWith("_variant"):
+      n = n[0..n.high - 8]
+    result[n] = result.len
+
+var default_order = adjustOrder(order_x)
+
 proc toIndexLookup(samples:seq[Sample]): TableRef[string,Sample] =
   result = newTable[string,Sample]()
   for s in samples:
@@ -129,6 +142,28 @@ proc get_gene_info(v:Variant, csq_field_name:string, gene_fields:GeneIndexes, ju
     if key.strip().len == 0 or key in result: continue
     result.add(key)
 
+proc get_highest_impact(v:Variant, csq_field_name:string, gene_fields:GeneIndexes, impact_order: TableRef[string, int]): string =
+  result = "99_unknown"
+  var s = ""
+  if v.info.get(csq_field_name, s) != Status.OK:
+    return
+  var lowest = 99
+  for tr in s.split(','):
+    var toks = tr.split('|')
+    for impact in toks[gene_fields.consequence].split('&'):
+      var impact = impact.toLowerAscii
+      if impact.endsWith("_variant"):
+        impact = impact[0..impact.high - 8]
+      var val:int
+      try:
+        val = impact_order[impact]
+      except:
+        quit &"\nerror: unknown impact \"{impact}\" from variant {v.CHROM}:{v.start+1}"
+
+      if val < lowest:
+        lowest = val
+        result = &"{val:02d}_{impact}"
+
 
 proc gene2description(fname:string): TableRef[string,string] =
   result = newTable[string, string](1024)
@@ -158,6 +193,7 @@ or gene->pLI with:
     option("--csq-column", multiple=true, help="CSQ sub-field(s) to extract (in addition to gene, impact, transcript). may be specified multiple times.")
     option("-s", "--sample-field", multiple=true, help="INFO field(s) that contains list of samples that have passed previous filters.\ncan be specified multiple times.")
     option("-g", "--gene-description", multiple=true, help="tab-separated lookup of gene (column 1) to description (column 2) to add to output. the gene is case-sensitive. can be specified multiple times")
+    option("--impact-order", help="ordering of impacts to override the default (https://raw.githubusercontent.com/brentp/slivar/master/src/slivarpkg/default-order.txt)")
     option("-i", "--info-field", multiple=true, help="INFO field(s) that should be added to output (e.g. gnomad_popmax_af)")
     option("-o", "--out", default="/dev/stdout", help="path to output tab-separated file")
     arg("vcf", help="input VCF", default="/dev/stdin")
@@ -206,10 +242,14 @@ or gene->pLI with:
   else:
     if not open(outfh, opts.out, fmWrite):
       quit "couldn't open output file:" & opts.out
+  var impact_order = default_order
+  if opts.impact_order != "":
+    impact_order = adjustOrder(opts.impact_order.readFile)
 
   if opts.csq_field != "":
     set_csq_fields(ivcf, opts.csq_field, gene_fields, opts.csq_column)
-    tsv_header.add("gene")
+    tsv_header.add(["gene", "highest_impact"])
+
 
   for f in opts.sample_field:
     doAssert ivcf.header.get(f, BCF_HEADER_TYPE.BCF_HL_INFO)["Type"] == "String"
@@ -262,8 +302,12 @@ or gene->pLI with:
 
         var genes: seq[string]
         if gene_fields.gene != -1:
+          # get just the gene names
           genes = v.get_gene_info(opts.csq_field, gene_fields, just_gene=true)
           line.add(join(genes, ";"))
+
+        if gene_fields.consequence != -1:
+          line.add(v.get_highest_impact(opts.csq_field, gene_fields, impact_order))
 
         if has_comphet and f == "slivar_comphet":
           # add the compound het id to the "mode" so we can tell which variants
@@ -274,6 +318,7 @@ or gene->pLI with:
         line.add(join(getAB(ad, sample), ",").replace(",,", ""))
 
         if gene_fields.gene != -1:
+          # get all the csq fields.
           line.add(join(v.get_gene_info(opts.csq_field, gene_fields), ";"))
           for g2d in g2ds:
             var ds = ""
