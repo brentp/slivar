@@ -21,26 +21,25 @@ slivar expr --vcf $bcf \
     -g /home/brentp/src/slivar/gnomad.hg37.zip \
     -o vcfs/$cohort.annotated.bcf \
     --info "variant.FILTER == 'PASS'" 
-DONE
 
 ./dn_roc --gq 1 --gq 5 --gq 10 --gq 15 -x $exclude $ped vcfs/$cohort.annotated.bcf > $cohort-roc.txt
-python plot_ab_roc.py $cohort-roc.txt
-
-
 exit
-#DONE
+DONE
+
+
 
 bcf=vcfs/$cohort.annotated.bcf
 
-<<DENOVO
+#<<DENOVO
 export SLIVAR_SUMMARY_FILE=$cohort.dn.summary.tsv
+echo $(which slivar)
 
 slivar expr --vcf $bcf --ped $ped \
     --pass-only \
     -o vcfs/$cohort.dn.bcf \
     --info "variant.FILTER == 'PASS' && variant.ALT[0] != '*'" \
-    --trio "dn_ab_gq:mom.hom_ref && dad.hom_ref && kid.het && kid.GQ >= 5 && mom.GQ >= 5 && dad.GQ >= 5 && kid.AB >= 0.2 && kid.AB <= 0.8" \
-    --trio "dn:mom.hom_ref && dad.hom_ref && kid.het && kid.GQ >= 5 && mom.GQ >= 5 && dad.GQ >= 5 && kid.AB >= 0.2 && kid.AB <= 0.8 && INFO.gnomad_popmax_af < 0.001 && !('gnomad_popmax_af_filter' in INFO) && INFO.topmed_af < 0.01"  \
+    --trio "dn_ab_gq:mom.hom_ref && dad.hom_ref && kid.het && kid.GQ >= 10 && mom.GQ >= 10 && dad.GQ >= 10 && kid.AB >= 0.25 && kid.AB <= 0.75" \
+    --trio "dn:mom.hom_ref && dad.hom_ref && kid.het && kid.GQ >= 10 && mom.GQ >= 10 && dad.GQ >= 10 && kid.AB >= 0.25 && kid.AB <= 0.75 && INFO.gnomad_popmax_af < 0.001 && !('gnomad_popmax_af_filter' in INFO)"
 
 python plot-exome-dn-summary.py $cohort.dn.summary.tsv
 
