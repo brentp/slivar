@@ -53,8 +53,8 @@ for ci, df in enumerate((df_exome, df_genome)):
                         marker='o', zorder=-1)
 
         if ci == 0:
-            ax.set_xlim(0.0, 0.0024)
-            ax.set_ylim(0.8, 1)
+            ax.set_xlim(0.0, 0.0015)
+            ax.set_ylim(0.85, 1)
         else:
             ax.set_xlim(0.0, 0.006)
             ax.set_ylim(0.6, 1)
@@ -71,8 +71,6 @@ for ci, df in enumerate((df_exome, df_genome)):
 axes[len(axes)-1, 0].set_xlabel("Mendelian-violation rate")
 axes[len(axes)-1, 1].set_xlabel("Mendelian-violation rate")
 
-axes[0, 0].set_title("Exome\nGenotype-quality cutoff: %d" % gqs[0])
-axes[0, 1].set_title("Genome\nGenotype-quality cutoff: %d" % gqs[0])
 
 axes[0, 0].set_title("Exome", fontsize=15)
 axes[0, 1].set_title("Genome", fontsize=15)
