@@ -54,11 +54,11 @@ for ci, df in enumerate((df_exome, df_genome)):
 
 
         if ci == 0:
-            ax.set_xlim(0.0, 0.0024)
-            ax.set_ylim(0.8, 1)
+            ax.set_xlim(0.0, 0.0015)
+            ax.set_ylim(0.85, 1)
         else:
             ax.set_xlim(0.0, 0.006)
-            ax.set_ylim(0.5, 1)
+            ax.set_ylim(0.6, 1)
 
         sns.despine()
         if i == 0 and ci == 0:
@@ -66,11 +66,14 @@ for ci, df in enumerate((df_exome, df_genome)):
         ax.set_title("Genotype-quality cutoff: %d" % gqs[i])
         ax.set_ylabel("Transmission rate")
 
+        if i != len(gqs) - 1:
+            ax.set_xticklabels([])
+
 axes[len(axes)-1, 0].set_xlabel("Mendelian-violation rate")
 axes[len(axes)-1, 1].set_xlabel("Mendelian-violation rate")
 
-axes[0, 0].set_title("Exome", fontsize=15)
-axes[0, 1].set_title("Genome", fontsize=15)
+axes[0, 0].set_title("Exome\nGenotype-quality cutoff: %d" % gqs[0])
+axes[0, 1].set_title("Genome\nGenotype-quality cutoff: %d" % gqs[0])
 
 #plt.ylim(0.8, 1)
 #sns.despine()
