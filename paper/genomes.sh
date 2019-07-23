@@ -22,7 +22,8 @@ slivar expr --vcf $bcf \
     -o vcfs/$cohort.annotated.bcf \
     --info "variant.FILTER == 'PASS'" 
 
-./dn_roc --gq 1 --gq 5 --gq 10 --gq 15 -x $exclude $ped vcfs/$cohort.annotated.bcf > $cohort-roc.txt
+exit
+./dn_roc --gq 1 --gq 5 --gq 10 --gq 15 --gq 25 -x $exclude $ped vcfs/$cohort.annotated.bcf > $cohort-roc.txt
 exit
 DONE
 
@@ -36,10 +37,12 @@ echo $(which slivar)
 
 slivar expr --vcf $bcf --ped $ped \
     --pass-only \
+    --skip-non-variable \
+    --region 22 \
     -o vcfs/$cohort.dn.bcf \
-    --info "variant.FILTER == 'PASS' && variant.ALT[0] != '*'" \
+    --info "variant.FILTER == 'PASS' && variant.ALT[0] != '*' && INFO.ExcessHet < 5 && variant.aaf < 0.05" \
     --trio "dn_ab_gq:mom.hom_ref && dad.hom_ref && kid.het && kid.GQ >= 10 && mom.GQ >= 10 && dad.GQ >= 10 && kid.AB >= 0.25 && kid.AB <= 0.75" \
-    --trio "dn:mom.hom_ref && dad.hom_ref && kid.het && kid.GQ >= 10 && mom.GQ >= 10 && dad.GQ >= 10 && kid.AB >= 0.25 && kid.AB <= 0.75 && INFO.gnomad_popmax_af < 0.001 && !('gnomad_popmax_af_filter' in INFO)"
+    --trio "dn:mom.hom_ref && dad.hom_ref && kid.het && kid.GQ >= 20 && mom.GQ >= 20 && dad.GQ >= 20 && kid.DP > 10 && mom.DP > 10 && dad.DP > 10 && kid.AB >= 0.25 && kid.AB <= 0.75 && INFO.gnomad_popmax_af < 0.001 && !('gnomad_popmax_af_filter' in INFO)"
 
 python plot-exome-dn-summary.py $cohort.dn.summary.tsv
 
