@@ -27,6 +27,7 @@ slivar has sub-commands:
 * [Commands](#commands)
  * [expr](#expr)
     * [trio](#trio)
+    * [Family Expressions](#family-expressions)
     * [Groups](#groups)
  * [compound-het](#compound-het)
  * [tsv](#tsv)
@@ -115,6 +116,16 @@ homozygous alternate and -1 when the genotype is unknown. It is recommended to *
 
 Here it is assumed that `trio_autosomal_recessive` is defined in `slivar-functions.js`; an example implementation of that
 and other useful functions is provided [here](https://github.com/brentp/slivar/blob/master/js/slivar-functions.js)
+
+
+#### Family Expressions
+
+Trios are a nice abstraction for cohorts consisting of only trios, but for more general uses, there is `--family-expr`
+for example, given either a duo, or a quartet, we can find variants present only in affected samples with:
+
+```		
+ --family-expr "aff_only:fam.every(function(s) { s.het == s.affected && s.hom_ref == !s.affected && s.GQ > 5 })"
+```
 
 #### Groups
 
