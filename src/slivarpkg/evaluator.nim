@@ -81,6 +81,8 @@ type
 
 type Trio = array[3, ISample] ## kid, dad, mom
 
+type Family = seq[ISample]
+
 type IGroup* = object
   ## this is a copy of groups.Group, except we use ISample in place of Sample.
   header*: seq[string]
@@ -115,12 +117,14 @@ type Evaluator* = ref object
   gnos*:seq[Gnotater]
 
   trios: seq[Trio]
+  families: seq[Family]
   trio_expressions*: seq[CompiledExpression]
 
   groups: seq[IGroup]
   group_expressions*: seq[CompiledExpression]
 
   sample_expressions: seq[CompiledExpression]
+  family_expressions*: seq[CompiledExpression]
 
   float_expressions: seq[CompiledExpression]
   info_expression*: Dukexpr
@@ -186,17 +190,6 @@ proc set_hom_het_alts(ctx:Evaluator, alts: var seq[int8]) =
     sctx.set_with_obj(idx, "alts", alt)
     sctx.pop()
     sample.last_alts = alt
-
-template fill[T: int8 | int32 | float32 | string](trio:Trio, name:string, values:var seq[T], nper:int) =
-  for s in trio:
-    s.fill(name, values, nper)
-
-## iterate over all nested samples and set the sample values.
-template fill[T: int8 | int32 | float32 | string](group:var IGroup, name:string, values:var seq[T], nper:int) =
-  for row in group.rows:
-    for col in row:
-      for s in col:
-          s.fill(name, values, nper)
 
 var debug: DTCFunction = (proc (ctx: DTContext): cint {.stdcall.} =
   var nargs = ctx.duk_get_top()
@@ -277,7 +270,9 @@ proc getEnvNotEmpty(key: string): seq[string] =
     result.add(f)
 
 proc newEvaluator*(samples: seq[Sample], groups: seq[Group], float_expressions: seq[NamedExpression],
-                   trio_expressions: seq[NamedExpression], group_expressions: seq[NamedExpression],
+                   trio_expressions: seq[NamedExpression],
+                   group_expressions: seq[NamedExpression],
+                   family_expressions: seq[NamedExpression],
                    sample_expressions: seq[NamedExpression],
                    info_expr: string, gnos:seq[Gnotater], field_names:seq[idpair], skip_non_variable_sites: bool): Evaluator =
   ## make a new evaluation context for the given string
@@ -335,12 +330,26 @@ proc newEvaluator*(samples: seq[Sample], groups: seq[Group], float_expressions: 
   for ex in group_expressions:
     result.group_expressions.add(CompiledExpression(expr: result.ctx.compile(ex.expr), name: ex.name))
 
+  for ex in family_expressions:
+    result.family_expressions.add(CompiledExpression(expr: result.ctx.compile(ex.expr), name: ex.name))
   # sample expressions get added to group_expressions
   for ex in sample_expressions:
     result.group_expressions.add(CompiledExpression(expr: result.ctx.compile(ex.expr), name: ex.name))
 
   for ex in float_expressions:
     result.float_expressions.add(CompiledExpression(expr: result.ctx.compile(ex.expr), name: ex.name))
+
+  # get family groups.
+  if result.family_expressions.len > 0:
+    var by_fam = newTable[string, seq[Sample]]()
+    for s in samples:
+      by_fam.mgetOrPut(s.family_id, @[]).add(s)
+    for family_id, samples in by_fam:
+      var fam = newSeq[Isample]()
+      for s in samples:
+        fam.add(by_name[s.id])
+      result.families.add(fam)
+
 
   if info_expr != "" and info_expr != "nil":
     result.info_expression = result.ctx.compile(info_expr)
@@ -599,7 +608,37 @@ proc alias_objects*(ctx:DTContext, os: seq[ISample], copyname:string) {.inline.}
   for i, o in os:
     doAssert ctx.duk_push_heapptr(o.duk.vptr) >= 0
     discard ctx.duk_put_prop_index(idx, i.duk_uarridx_t)
+
   doAssert ctx.duk_put_global_lstring(copyname, copyname.len.duk_size_t)
+
+
+proc write_warning(variant:Variant, nerrors: var int) {.inline.} =
+  nerrors.inc
+  if nerrors < 10:
+    stderr.write_line "[slivar] javascript error. this can some times happen when a field is missing."
+    stderr.write_line  getCurrentExceptionMsg()
+    stderr.write "[slivar] occured with variant:", variant.tostring()
+    stderr.write_line "[slivar] continuing execution."
+  if nerrors == 10:
+    stderr.write_line "[slivar] not reporting further errors."
+
+iterator evaluate_families(ev:Evaluator, nerrors: var int, variant:Variant): exResult =
+  for i, namedexpr in ev.family_expressions:
+    var matching = newSeq[string]()
+    for fam in ev.families:
+      # TODO: write alias family.
+      ev.ctx.alias_objects(fam, "fam")
+      try:
+        if namedexpr.expr.check:
+          for s in fam:
+            if s.ped_sample.affected:
+              matching.add(s.ped_sample.id)
+      except:
+        variant.write_warning(nerrors)
+
+    if len(matching) > 0:
+      ev.INFO[namedexpr.name] = join(matching, ",")
+      yield ($namedexpr.name, matching, -1'f32)
 
 iterator evaluate_groups(ev:Evaluator, nerrors: var int, variant:Variant): exResult =
     ## note that every group expression is currently applied to every group.
@@ -624,14 +663,7 @@ iterator evaluate_groups(ev:Evaluator, nerrors: var int, variant:Variant): exRes
             if namedexpr.expr.check():
               matching_groups.add(row[0][0].ped_sample.id)
           except:
-            nerrors += 1
-            if nerrors <= 10:
-              stderr.write_line "[slivar] javascript error. this can some times happen when a field is missing."
-              stderr.write_line  getCurrentExceptionMsg()
-              stderr.write "[slivar] occured with variant:", variant.tostring()
-              stderr.write_line "[slivar] continuing execution."
-            if nerrors == 10:
-              stderr.write_line "[slivar] not reporting further errors."
+            variant.write_warning(nerrors)
       if len(matching_groups) > 0:
         # set INFO of this result so subsequent expressions can use it.
         ev.INFO[namedexpr.name] = join(matching_groups, ",")
@@ -675,8 +707,7 @@ proc set_format_fields*(ev:var Evaluator, v:Variant, alts: var seq[int8], ints: 
   ev.clear_unused_formats()
 
 proc has_sample_expressions*(ev: Evaluator): bool {.inline.} =
-  return ev.trio_expressions.len > 0 or ev.group_expressions.len > 0
-
+  return ev.trio_expressions.len > 0 or ev.group_expressions.len > 0 or ev.family_expressions.len > 0
 
 iterator evaluate*(ev:var Evaluator, variant:Variant, nerrors:var int): exResult =
   for gno in ev.gnos.mitems:
@@ -711,4 +742,5 @@ iterator evaluate*(ev:var Evaluator, variant:Variant, nerrors:var int): exResult
         ev.set_format_fields(variant, alts, ints, floats)
         for r in ev.evaluate_trios(nerrors, variant): yield r
         for r in ev.evaluate_groups(nerrors, variant): yield r
+        for r in ev.evaluate_families(nerrors, variant): yield r
 

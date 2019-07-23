@@ -36,6 +36,7 @@ proc expr_main*(dropfirst:bool=false) =
     flag("--pass-only", help="only output variants that pass at least one of the filters")
     flag("--skip-non-variable", help="don't evaluate expression unless at least 1 sample is variable at the variant this can improve speed")
     option("--trio", help="expression(s) applied to each trio where 'mom', 'dad', 'kid' labels are available; trios inferred from ped file.", multiple=true)
+    option("--family-expr", help="expression(s) applied to each family where 'fam' is available with a list of samples in each family from ped file.", multiple=true)
     option("--group-expr", help="expression(s) applied to the groups defined in the alias option [see: https://github.com/brentp/slivar/wiki/groups-in-slivar].", multiple=true)
     option("--sample-expr", help="expression(s) applied to each sample in the VCF.", multiple=true)
     option("--info", help="expression using only attributes from  the INFO field or variant. If this does not pass trio/group/sample expressions are not applied.")
@@ -100,22 +101,28 @@ proc expr_main*(dropfirst:bool=false) =
 
   ovcf.copy_header(ivcf.header)
   var
-    trioTbl: seq[NamedExpression]
-    grpTbl: seq[NamedExpression]
     iTbl: seq[NamedExpression]
-    sampleTbl: seq[NamedExpression]
+    trioExprs: seq[NamedExpression]
+    groupExprs: seq[NamedExpression]
+    sampleExprs: seq[NamedExpression]
+    familyExprs: seq[NamedExpression]
     out_samples: seq[string] # only output kids if only trio expressions were specified
 
   if opts.trio.len != 0:
-    trioTbl = ovcf.getNamedExpressions(opts.trio, opts.vcf)
+    trioExprs = ovcf.getNamedExpressions(opts.trio, opts.vcf)
   if opts.group_expr.len != 0:
-    grpTbl = ovcf.getNamedExpressions(opts.group_expr, opts.vcf, trioTbl)
+    groupExprs = ovcf.getNamedExpressions(opts.group_expr, opts.vcf, trioExprs)
   if opts.sample_expr.len != 0:
-    sampleTbl = ovcf.getNamedExpressions(opts.sample_expr, opts.vcf, trioTbl, grpTbl)
+    sampleExprs = ovcf.getNamedExpressions(opts.sample_expr, opts.vcf, trioExprs, groupExprs)
+
+  if opts.family_expr.len != 0:
+    if opts.ped == "":
+      quit "error must specify --ped to use with --family-expr"
+    familyExprs = ovcf.getNamedExpressions(opts.family_expr, opts.vcf, trioExprs, groupExprs, sampleExprs)
 
   doAssert ovcf.write_header
-  var ev = newEvaluator(samples, groups, iTbl, trioTbl, grpTbl, sampleTbl, opts.info, gnos, field_names=id2names(ivcf.header), opts.skip_non_variable)
-  if trioTbl.len != 0 and grpTbl.len == 0 and sampleTbl.len == 0:
+  var ev = newEvaluator(samples, groups, iTbl, trioExprs, groupExprs, familyExprs, sampleExprs, opts.info, gnos, field_names=id2names(ivcf.header), opts.skip_non_variable)
+  if trioExprs.len != 0 and groupExprs.len == 0 and sampleExprs.len == 0:
     out_samples = samples.kids
 
   var counter = ev.initCounter()

@@ -161,7 +161,6 @@ proc clear*(o: var Duko) {.inline.} =
     o.vptr = o.ctx.duk_get_heapptr(-1)
     doAssert o.ctx.duk_put_global_lstring(o.name, o.name.len.duk_size_t)
 
-
 proc newObject*(ctx:DTContext, name: string): Duko =
   ## create a new object.
   result = Duko(ctx: ctx, name: name)

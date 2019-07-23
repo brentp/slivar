@@ -124,4 +124,10 @@ assert_exit_code 0
 assert_equal $(grep -c $'DP\t' xx.tsv) 1
 assert_equal 4 $(grep -c ^denovo xx.tsv)
 
+
+run check_family_expr $exe expr -p tests/ashk-trio.ped -v tests/ashk-trio.vcf.gz --trio "dn:mom.hom_ref && kid.het && dad.hom_ref" --family-expr 'dnf:fam.every(function(s) {return s.het == s.affected && s.hom_ref == !s.affected})' -o /dev/null
+assert_exit_code 0
+assert_in_stderr "sample	dn	dnf
+HG002	26	26"
+
 rm xx.tsv

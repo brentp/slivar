@@ -1,0 +1,56 @@
+<!DOCTYPE HTML> 
+<html lang="en-US"> 
+<head> 
+    <meta charset="UTF-8"> 
+    <title>Slivar javascript tests</title> 
+    <style> 
+html *
+{
+   font-size: 1.2em !important;
+   color: #555 !important;
+   font-family: Arial !important;
+}
+
+.pass:before { 
+    content: 'PASS: '; 
+    color:  green; 
+    font-weight: bold; 
+} 
+
+.fail:before { 
+    content: 'FAIL: '; 
+    color: red; 
+    font-weight: bold; 
+
+} 
+    </style> 
+</head> 
+<body> 
+  
+<ul id="output"></ul> 
+  
+<script> 
+var output = document.getElementById('output'); 
+  
+function assert( outcome, description ) { 
+    var li = document.createElement('li'); 
+    li.className = outcome ? 'pass' : 'fail'; 
+    li.appendChild( document.createTextNode( description ) ); 
+  
+    output.appendChild(li); 
+}; 
+</script>
+
+<script src="my.js"></script>
+<script>
+
+var mom = {sex: 'female', hom_ref: true, GQ: 12, AB: 0.0, DP: 8, AD: [8, 0]}
+var dad = {sex: 'male', hom_ref: true, GQ: 12, AB: 0.0, DP: 8, AD: [8, 0]}
+var kid = {sex: 'female', het: true, GQ: 12, AB: 0.5, DP: 8, AD: [4, 4]}
+assert(denovo(kid, dad, mom), "standard de novo")
+
+
+</script>
+
+</body>
+</html>

@@ -24,6 +24,10 @@ proc initCounter*(ev:Evaluator): Counter =
   for i, e in ev.group_expressions:
     result.exprIndexes[e.name] = result.exprIndexes.len
     result.exprs.add(e.name)
+  for i, e in ev.family_expressions:
+    result.exprIndexes[e.name] = result.exprIndexes.len
+    result.exprs.add(e.name)
+
   result.counts = newSeq[seq[int]](ev.samples.len)
   for i in 0..result.counts.high:
     result.counts[i] = newSeq[int](result.exprIndexes.len)
