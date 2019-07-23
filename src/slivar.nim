@@ -12,9 +12,10 @@ import ./slivarpkg/counter
 import strutils
 import hts/vcf
 import os
+import tables
 import times
 import strformat
-import docopt
+import argparse
 
 
 #import nimprof; stderr.write_line "[slivar] !!! importing nimprof"
@@ -24,62 +25,43 @@ proc kids(samples:seq[Sample]): seq[string] =
     if s.dad != nil and s.mom != nil: result.add(s.id)
 
 proc expr_main*(dropfirst:bool=false) =
-  let doc = """
-slivar -- variant expression for great good
 
-Usage: slivar expr [options --pass-only --vcf <path> --ped <path> --trio=<expression>... --group-expr=<expression>... --sample-expr=<expression>... --info=<expression> --gnotate=<path>...]
+  var p = newParser("slivar expr"):
+    option("-v", "--vcf", help="path to VCF/BCF")
+    option("--region", help="optional region to limit evaluation. e.g. chr1 or 1:222-333 (or a BED file of regions)")
+    option("-j", "--js", help="path to javascript functions to expose to user")
+    option("-p", "--ped", help="pedigree file with family relations, sex, and affected status")
+    option("-a", "--alias", help="path to file of group aliases")
+    option("-o", "--out-vcf", help="path to output VCF/BCF", default="/dev/stdout")
+    flag("--pass-only", help="only output variants that pass at least one of the filters")
+    flag("--skip-non-variable", help="don't evaluate expression unless at least 1 sample is variable at the variant this can improve speed")
+    option("--trio", help="expression(s) applied to each trio where 'mom', 'dad', 'kid' labels are available; trios inferred from ped file.", multiple=true)
+    option("--group-expr", help="expression(s) applied to the groups defined in the alias option [see: https://github.com/brentp/slivar/wiki/groups-in-slivar].", multiple=true)
+    option("--sample-expr", help="expression(s) applied to each sample in the VCF.", multiple=true)
+    option("--info", help="expression using only attributes from  the INFO field or variant. If this does not pass trio/group/sample expressions are not applied.")
+    option("-g", "--gnotate", help="path(s) to compressed gnotate file(s)", multiple=true)
 
-About:
+  var argv = commandLineParams()
+  if dropfirst and len(argv) > 0:
+      argv = argv[1..argv.high]
+  if len(argv) > 0 and argv[0] == "expr":
+    argv = argv[1..argv.high]
+  if len(argv) == 0:
+    argv = @["--help"]
 
-    <expressions>...  as many name:expression pairs as required. an example would be:
-    "denovo:kid.alts == 1 && mom.alts == 0 && dad.alts == 0 && (mom.AD[1] + dad.AD[1]) < 2 && kid.GQ > 10 \
-                          && mom.GQ > 10 && dad.GQ > 10 && kid.DP > 10 && mom.DP > 10 && dad.DP > 10"
-    this will be evaluated for every trio with kid, mom, dad set appropriately.
-    other examples:
+  var opts = p.parse(argv)
+  if opts.help:
+    quit 0
 
-    "high_impact:/HIGH/.test(INFO.CSQ)"
-
-    "rare_transmitted:(kid.alts > 0) && (dad.alts > 0 || mom.alts > 0) && kid.DP > 10 && mom.DP > 0 && INFO.AF < 0.01"
-
-    if a --info expression is specified, it is excuted first with access only to the variant and INFO objects. the boolean
-    returned from this expression indicates whether the other expressions (in --trio) should be excecuted. This is an optimization
-    to allow slivar to avoid loading all the sample data unless necessary.
-
-Options:
-
-  -v --vcf <path>            VCF/BCF
-  --region <string>          optional region to limit evaluation. e.g. chr1 or 1:222-333 (or a BED file of regions)
-  -j --js <path>             path to javascript functions to expose to user
-  -p --ped <path>            pedigree file with family relations, sex, and affected status
-  -a --alias <path>          path to file of group aliases
-  -o --out-vcf <path>        VCF/BCF [default: /dev/stdout]
-  --pass-only                only output variants that pass at least one of the filters [default: false]
-  --skip-non-variable        don't evaluate expression unless at least 1 sample is variable at the variant this can improve speed [default: false]
-  --trio <string>...         an expression applied to each trio where "mom", "dad", "kid" labels are available from trios inferred from
-                             a ped file.
-  --group-expr <string>...   expressions applied to the groups defined in the alias option [see: https://github.com/brentp/slivar/wiki/groups-in-slivar].
-  --sample-expr <string>...  boolean expression(s) applied to each sample in the VCF.
-  --info <string>            a filter expression using only variables from  the info field and variant attributes. If this filter
-                             does not pass, the trio and alias expressions will not be applied.
-  -g --gnotate <path>...     optional paths compressed gnote file (made with slivar make-gnotate)
-  """
-
-  var args: Table[string, docopt.Value]
-  if dropfirst:
-    var argv = commandLineParams()
-    args = docopt(doc, argv=argv[1..argv.high])
-  else:
-    args = docopt(doc)
-
-  if $args["--vcf"] == "nil":
+  if opts.vcf == "":
     stderr.write_line "must specify the --vcf"
-    quit doc
-  if $args["--ped"] == "nil" and $args["--alias"] == "nil" and $args["--info"] == "nil" and len(@(args["--gnotate"])) == 0:
+    quit p.help
+  if opts.ped == "" and opts.alias == "" and opts.info == "" and len(opts.gnotate) == 0:
       stderr.write_line "must specify either --ped or --alias"
-      quit doc
-  if $args["--out-vcf"] == "nil":
+      quit p.help
+  if opts.out_vcf == "":
     stderr.write_line "must specify the --out-vcf"
-    quit doc
+    quit p.help
   var
     ivcf:VCF
     ovcf:VCF
@@ -87,15 +69,14 @@ Options:
     gnos:seq[Gnotater]
     samples:seq[Sample]
 
-  if not open(ivcf, $args["--vcf"], threads=1):
-    quit "couldn't open:" & $args["--vcf"]
+  if not open(ivcf, opts.vcf, threads=1):
+    quit "couldn't open:" & opts.vcf
 
-  var pass_only = bool(args["--pass-only"])
   let verbose=getEnv("SLIVAR_QUIET") == ""
 
 
-  if $args["--ped"] != "nil":
-    samples = parse_ped($args["--ped"], verbose=verbose)
+  if opts.ped != "":
+    samples = parse_ped(opts.ped, verbose=verbose)
     samples = samples.match(ivcf, verbose=verbose)
   else:
     for i, s in ivcf.samples:
@@ -103,14 +84,14 @@ Options:
   if getEnv("SLIVAR_QUIET") == "":
     stderr.write_line &"[slivar] {samples.len} samples matched in VCF and PED to be evaluated"
 
-  if not open(ovcf, $args["--out-vcf"], mode="w"):
-    quit "couldn't open:" & $args["--out-vcf"]
+  if not open(ovcf, opts.out_vcf, mode="w"):
+    quit "couldn't open:" & opts.out_vcf
 
-  if $args["--alias"] != "nil":
-    groups = parse_groups($args["--alias"], samples)
+  if opts.alias != "":
+    groups = parse_groups(opts.alias, samples)
 
-  if $args["--gnotate"] != "nil":
-    for p in @(args["--gnotate"]):
+  if opts.gnotate.len != 0:
+    for p in opts.gnotate:
       var gno:Gnotater
       if not gno.open(p):
         quit "[slivar] failed to open gnotate file. please check path"
@@ -125,26 +106,26 @@ Options:
     sampleTbl: seq[NamedExpression]
     out_samples: seq[string] # only output kids if only trio expressions were specified
 
-  if $args["--trio"] != "nil":
-    trioTbl = ovcf.getNamedExpressions(@(args["--trio"]), $args["--vcf"])
-  if $args["--group-expr"] != "nil":
-    grpTbl = ovcf.getNamedExpressions(@(args["--group-expr"]), $args["--vcf"], trioTbl)
-  if $args["--sample-expr"] != "nil":
-    sampleTbl = ovcf.getNamedExpressions(@(args["--sample-expr"]), $args["--vcf"], trioTbl, grpTbl)
+  if opts.trio.len != 0:
+    trioTbl = ovcf.getNamedExpressions(opts.trio, opts.vcf)
+  if opts.group_expr.len != 0:
+    grpTbl = ovcf.getNamedExpressions(opts.group_expr, opts.vcf, trioTbl)
+  if opts.sample_expr.len != 0:
+    sampleTbl = ovcf.getNamedExpressions(opts.sample_expr, opts.vcf, trioTbl, grpTbl)
 
   doAssert ovcf.write_header
-  var ev = newEvaluator(samples, groups, iTbl, trioTbl, grpTbl, sampleTbl, $args["--info"], gnos, field_names=id2names(ivcf.header), args["--skip-non-variable"])
+  var ev = newEvaluator(samples, groups, iTbl, trioTbl, grpTbl, sampleTbl, opts.info, gnos, field_names=id2names(ivcf.header), opts.skip_non_variable)
   if trioTbl.len != 0 and grpTbl.len == 0 and sampleTbl.len == 0:
     out_samples = samples.kids
 
   var counter = ev.initCounter()
 
   # set pass only if they have only info expr, otherwise, there's no point.
-  if not pass_only and ev.info_expression.ctx != nil and not ev.has_sample_expressions:
-    pass_only = true
+  if not opts.pass_only and ev.info_expression.ctx != nil and not ev.has_sample_expressions:
+    opts.pass_only = true
 
-  if $args["--js"] != "nil":
-    var js = $readFile($args["--js"])
+  if opts.js != "":
+    var js = $readFile(opts.js)
     ev.load_js(js)
   var t = cpuTime()
   var n = 10000
@@ -153,7 +134,7 @@ Options:
     i = 0
     nerrors = 0
     written = 0
-  for variant in ivcf.variants($args["--region"]):
+  for variant in ivcf.variants(opts.region):
     variant.vcf = ovcf
     i += 1
     if i mod n == 0:
@@ -167,7 +148,7 @@ Options:
         n = 500000
     var any_pass = false
     for ns in ev.evaluate(variant, nerrors):
-      if pass_only and ns.sampleList.len == 0 and ns.name != "": continue
+      if opts.pass_only and ns.sampleList.len == 0 and ns.name != "": continue
       any_pass = true
       if ns.name != "": # if name is "", then they didn't have any sample expressions.
         var ssamples = join(ns.sampleList, ",")
@@ -179,7 +160,7 @@ Options:
     if nerrors / i > 0.2 and i >= 1000:
       quit &"too many errors {nerrors} out of {i}. please check your expression"
 
-    if any_pass or (not pass_only):
+    if any_pass or (not opts.pass_only):
       doAssert ovcf.write_variant(variant)
       written.inc
   if getEnv("SLIVAR_QUIET") == "":
