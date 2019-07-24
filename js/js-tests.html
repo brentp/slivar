@@ -6,9 +6,9 @@
     <style> 
 html *
 {
-   font-size: 1.2em !important;
-   color: #555 !important;
-   font-family: Arial !important;
+   font-size: 1.2em;
+   color: #555;
+   font-family: Arial;
 }
 
 .pass:before { 
@@ -29,6 +29,23 @@ html *
    font-size: 0.7em !important;
 }
 
+.hom_ref {
+  color: #ccc !important; 
+}
+.het {
+  color: #999 !important; 
+}
+.hom_alt {
+  color: #555 !important; 
+}
+.unknown {
+  color: yellow !important; 
+}
+
+.red {
+  color: red !important;
+}
+
     </style> 
 </head> 
 <body> 
@@ -37,6 +54,19 @@ html *
   
 <script> 
 var output = document.getElementById('output'); 
+
+var hom_ref = "<span class='hom_ref'>0/0</span>"
+var het = "<span class='het'>0/1</span>"
+var hom_alt = "<span class='hom_alt'>1/1</span>"
+var unknown = "<span class='unknown'>./.</span>"
+
+function stringify(s) {
+  // json.STRINGIFY, but get affected status and HET/HOM_REF/HOM_ALT
+  var result = (s.hom_ref ? hom_ref : s.het ? het : s.hom_alt ? hom_alt : uknown)
+  if(s.affected){ result += "<b class='red'>*</b>"; } else { result += "&nbsp;" }
+  return result + JSON.stringify(s)
+}
+
 
 function assert_(fn, samples, description, expect) { 
     var outcome
@@ -56,8 +86,8 @@ function assert_(fn, samples, description, expect) {
     var div = document.createElement("div");
     div.className = "json";
     div.innerHTML += "<b>" + fn.name + "()</b></br>"
-    samples.forEach(sample => div.innerHTML += JSON.stringify(sample) + "<br>")
-    det.appendChild( div)
+    samples.forEach(sample => div.innerHTML += stringify(sample) + "<br>")
+    det.appendChild(div)
     output.appendChild(det); 
 }; 
 
