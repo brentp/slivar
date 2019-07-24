@@ -65,3 +65,59 @@ function solo_ch_het_side(sample) {
 function comphet_side(kid, mom, dad) {
   return kid.het && (solo_ch_het_side(mom) != solo_ch_het_side(dad)) && mom.alts != 2 && dad.alts != 2 && solo_ch_het_side(kid) && hq1(mom) && hq1(dad);
 }
+
+// functions to be use with --family-expr
+
+function segregating_dominant_x(s) {
+  // this is an internal function only called after checking sample quality and on X
+  if(!s.affected) { return s.hom_ref }
+  if(s.sex == "male") {
+    for(var i=0; i < s.kids.length; s++) {
+      var kid = s.kids[i];
+      // kids of affected dad must be affected.
+      if(!kid.affected) { return false; }
+    }
+    // mom of affected male must be affected.
+    if(s.mom && !(s.mom.affected && s.mom.het)){ return false; }
+
+    return s.hom_alt || (s.het && s.AB < 0.2 && s.AB > 0.8)
+  }
+  if(s.sex != "female"){return false; }
+  // this block enforces inherited dominant, but not find de novos
+  if(s.mom || s.dad) {
+    if(!((s.mom && s.mom.affected && s.mom.het) || (s.dad && s.dad.affected))) { return false;}
+  }
+  return s.het && s.AB > 0.2 && s.AB < 0.8;
+}
+
+
+function segregating_dominant(s) {
+  if(s.GQ < 10 || s.unknown) { return false; }
+  if(variant.CHROM == "chrX" || variant.CHROM == "X") { return segregating_dominant_x(s); }
+  if (s.affected) {
+     return s.het && s.AB > 0.2 && s.AB < 0.8
+  }
+  return s.hom_ref && s.AB < 0.01
+}
+
+
+function segregating_recessive_x(s) {
+  // this is an internal function only called after checking sample quality and on X
+  if(s.sex == "female") {
+    return s.affected == s.hom_alt;
+  } else if (s.sex == "male") {
+    return s.affected == (s.het || s.hom_alt);
+  } else {
+    return false;
+  }
+
+}
+
+function segregating_recessive(s) {
+  if(s.GQ < 10 || s.unknown) { return false; }
+  if(variant.CHROM == "chrX" || variant.CHROM == "X") { return segregating_recessive_x(s); }
+  if(s.affected){
+    return s.hom_alt
+  }
+  return s.het || s.hom_ref
+}
