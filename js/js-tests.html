@@ -23,31 +23,66 @@ html *
     font-weight: bold; 
 
 } 
+
+.json {
+   font-family: monospace !important;
+   font-size: 0.7em !important;
+}
+
     </style> 
 </head> 
 <body> 
   
-<ul id="output"></ul> 
+<div id="output"></div> 
   
 <script> 
 var output = document.getElementById('output'); 
-  
-function assert( outcome, description ) { 
-    var li = document.createElement('li'); 
-    li.className = outcome ? 'pass' : 'fail'; 
-    li.appendChild( document.createTextNode( description ) ); 
-  
-    output.appendChild(li); 
+
+function assert_(fn, samples, description, expect) { 
+    var outcome
+    if(Array.isArray(samples[0])) {
+	samples = samples[0]
+        outcome = samples.every(fn)
+    } else {
+        outcome = fn.apply(null, samples)
+    }
+    outcome = outcome == expect
+   
+    var det = document.createElement('details'); 
+    var sum = document.createElement("summary")
+    sum.className = outcome ? 'pass' : 'fail'; 
+    det.appendChild(sum)
+    sum.appendChild( document.createTextNode( description ) ); 
+    var div = document.createElement("div");
+    div.className = "json";
+    div.innerHTML += "<b>" + fn.name + "()</b></br>"
+    samples.forEach(sample => div.innerHTML += JSON.stringify(sample) + "<br>")
+    det.appendChild( div)
+    output.appendChild(det); 
 }; 
+
+function assert(fn, samples, description) {
+  return assert_(fn, samples, description, true)
+}
+function assert_not(fn, samples, description) {
+  return assert_(fn, samples, description, false)
+}
+
 </script>
 
 <script src="my.js"></script>
 <script>
 
-var mom = {sex: 'female', hom_ref: true, GQ: 12, AB: 0.0, DP: 8, AD: [8, 0]}
-var dad = {sex: 'male', hom_ref: true, GQ: 12, AB: 0.0, DP: 8, AD: [8, 0]}
-var kid = {sex: 'female', het: true, GQ: 12, AB: 0.5, DP: 8, AD: [4, 4]}
-assert(denovo(kid, dad, mom), "standard de novo")
+var mom = {id: "mom", sex: 'female', hom_ref: true, het: false, hom_alt: false, unknown: false, GQ: 12, AB: 0.0, DP: 8, AD: [8, 0], affected: false}
+var dad = {id: "dad", sex: 'male', hom_ref: true, het: false, hom_alt: false, unknown: false, GQ: 12, AB: 0.0, DP: 8, AD: [8, 0], affected: false}
+var kid = {id: "kid", sex: 'female', hom_ref: false, het: true, hom_alt: false, unknown: false, GQ: 12, AB: 0.5, DP: 8, AD: [4, 4], affected: true}
+assert(denovo, [kid, dad, mom], "standard de novo")
+assert_not(denovo, [dad, dad, mom], "not de novo")
+
+var variant = {"CHROM": "chr1"}
+
+assert(segregating_dominant, [[kid, dad, mom]], "trio with segregating dominant")
+assert_not(segregating_recessive, [[kid, dad, mom]], "trio with-out segregating recessive")
 
 
 </script>
