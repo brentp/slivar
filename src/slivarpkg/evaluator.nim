@@ -4,6 +4,7 @@ import math
 import ./pedfile
 import ./duko
 import os
+import ./fastsets
 import ./gnotate
 import ./groups
 import tables
@@ -112,6 +113,7 @@ type Evaluator* = ref object
 
   # samples_ns is a name-space to store the samples.
   samples_ns: Duko
+
   INFO: Duko
   variant: Duko
   gnos*:seq[Gnotater]
@@ -393,32 +395,17 @@ proc c_memset*(p: pointer, value: cint, size: csize): pointer {.
 
 
 proc set_ab(ctx: Evaluator, fmt:FORMAT, ints: var seq[int32]) =
-  if fmt.get("AD", ints) != Status.OK:
-    return
-
   var
     r: float32
     a: float32
 
-  for trio in ctx.trios:
-    for s in trio:
-      r = ints[2 * s.ped_sample.i].float32
-      a = ints[2 * s.ped_sample.i + 1].float32
-      if r < 0 or a < 0:
-        s.duk["AB"] = -1.0
-      else:
-        s.duk["AB"] = a / max(a + r, 1)
-
-  for g in ctx.groups:
-    for row in g.rows:
-      for col in row:
-        for s in col:
-          r = ints[2 * s.ped_sample.i].float32
-          a = ints[2 * s.ped_sample.i + 1].float32
-          if r < 0 or a < 0:
-            s.duk["AB"] = -1.0
-          else:
-            s.duk["AB"] = a / max(a + r, 1)
+  for s in ctx.samples:
+    r = ints[2 * s.ped_sample.i].float32
+    a = ints[2 * s.ped_sample.i + 1].float32
+    if r < 0 or a < 0:
+      s.duk["AB"] = -1.0
+    else:
+      s.duk["AB"] = a / max(a + r, 1)
 
 proc load_js*(ev:Evaluator, code:string) =
     discard ev.ctx.duk_push_string(code)
@@ -504,8 +491,8 @@ proc set_calculated_variant_fields*(ctx:Evaluator, alts: var seq[int8]) =
   ctx.variant["num_unknown"] = counts[3]
 
 proc clear_unused_infos(ev: Evaluator, f:FieldSets) {.inline.} =
-  # bug: f.last - f.curr must be buggy in stdlib.
-  for idx in f.last - f.curr:
+
+  for idx in f.last.sub(f.curr):
     #if idx in f.curr: continue
     ev.INFO.del(ev.field_names[idx].name)
 
@@ -626,6 +613,7 @@ proc write_warning(variant:Variant, nerrors: var int) {.inline.} =
 iterator evaluate_families(ev:Evaluator, nerrors: var int, variant:Variant): exResult =
   for i, namedexpr in ev.family_expressions:
     var matching = newSeq[string]()
+    var val = -1'f32
     for fam in ev.families:
       # TODO: write alias family.
       ev.ctx.alias_objects(fam, "fam")
@@ -634,12 +622,21 @@ iterator evaluate_families(ev:Evaluator, nerrors: var int, variant:Variant): exR
           for s in fam:
             if s.ped_sample.affected:
               matching.add(s.ped_sample.id)
+          if matching.len == 0:
+            matching.add(fam[0].ped_sample.family_id)
+            val = float32.low
+            if nerrors < 10:
+              stderr.write_line &"[slivar] WARNING !!! using --family-expr without any affected samples. Adding family_id: '{fam[0].ped_sample.family_id}' to the INFO list for '{namedexpr.name}'"
+              nerrors.inc
+              if nerrors == 10:
+                stderr.write_line &"[slivar] not reporting futher warnings"
+
       except ValueError:
         variant.write_warning(nerrors)
 
     if len(matching) > 0:
       ev.INFO[namedexpr.name] = join(matching, ",")
-      yield ($namedexpr.name, matching, -1'f32)
+      yield ($namedexpr.name, matching, val)
 
 iterator evaluate_groups(ev:Evaluator, nerrors: var int, variant:Variant): exResult =
     ## note that every group expression is currently applied to every group.
@@ -671,7 +668,7 @@ iterator evaluate_groups(ev:Evaluator, nerrors: var int, variant:Variant): exRes
         yield ($namedexpr.name, matching_groups, -1'f32)
 
 template clear_unused_formats(ev:Evaluator) =
-  for idx in ev.fmt_field_sets.last - ev.fmt_field_sets.curr:
+  for idx in ev.fmt_field_sets.last.sub(ev.fmt_field_sets.curr):
     #if idx in ev.fmt_field_sets.curr: continue
     for sample in ev.samples:
       sample.duk.del(ev.field_names[idx].name)
@@ -691,6 +688,7 @@ proc set_format_fields*(ev:var Evaluator, v:Variant, alts: var seq[int8], ints: 
       continue
     ev.fmt_field_sets.curr.incl(f.i.uint8)
     if f.name == "GT": continue
+    if has_ab and f.name == "AB": continue
     ev.set_format_field(f, fmt, ints, floats)
     if f.name == "AD":
       has_ad = true
@@ -698,12 +696,12 @@ proc set_format_fields*(ev:var Evaluator, v:Variant, alts: var seq[int8], ints: 
         stderr.write_line &"""[slivar] error !!! please decompose and normalize after setting Number=A for the AD field in your VCF header"""
         stderr.write_line &"""         expected 2 values per sample for 'AD' field, but got {ints.len / ev.samples.len:.1f} for variant: {v.CHROM}:{v.start + 1}:{v.REF}:{join(v.ALT, ",")}"""
         quit """         see: https://github.com/brentp/slivar/wiki/decomposing-and-subsetting-vcfs"""
+      if not has_ab:
+        ev.set_ab(fmt, ints)
+        has_ab = true
 
     elif f.name == "AB":
       has_ab = true
-
-  if has_ad and not has_ab:
-    ev.set_ab(fmt, ints)
 
   ev.clear_unused_formats()
 

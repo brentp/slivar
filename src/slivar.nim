@@ -17,9 +17,6 @@ import times
 import strformat
 import argparse
 
-
-#import nimprof; stderr.write_line "[slivar] !!! importing nimprof"
-
 proc kids(samples:seq[Sample]): seq[string] =
   for s in samples:
     if s.dad != nil and s.mom != nil: result.add(s.id)
@@ -162,7 +159,8 @@ proc expr_main*(dropfirst:bool=false) =
         if variant.info.set(ns.name, ssamples) != Status.OK:
           quit "error setting field:" & ns.name
 
-        counter.inc(ns.sampleList, ns.name)
+        if ns.val != float32.low:
+          counter.inc(ns.sampleList, ns.name)
 
     if nerrors / i > 0.2 and i >= 1000:
       quit &"too many errors {nerrors} out of {i}. please check your expression"
