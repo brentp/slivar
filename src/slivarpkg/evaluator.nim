@@ -431,20 +431,21 @@ proc load_js*(ev:Evaluator, code:string) =
 
 proc set_format_field(ctx: Evaluator, f:FormatField, fmt:FORMAT, ints: var seq[int32], floats: var seq[float32]) =
 
-  if f.vtype == BCF_TYPE.FLOAT:
-    if fmt.get(f.name, floats) != Status.OK:
-      quit "couldn't get format field:" & f.name
-    for sample in ctx.samples.mitems:
-      sample.fill(f.name, floats, f.n_per_sample)
-  elif f.vtype == BCF_TYPE.CHAR:
-    discard
-  elif f.vtype in {BCF_TYPE.INT32, BCF_TYPE.INT16, BCF_TYPE.INT8}:
-    if fmt.get(f.name, ints) != Status.OK:
-      quit "couldn't get format field:" & f.name
-    for sample in ctx.samples.mitems:
-      sample.fill(f.name, ints, f.n_per_sample)
-  else:
-    quit "Unknown field type:" & $f.vtype & " in field:" & f.name
+  case f.vtype:
+    of BCF_TYPE.INT32, BCF_TYPE.INT16, BCF_TYPE.INT8:
+      if fmt.get(f.name, ints) != Status.OK:
+        quit "couldn't get format field:" & f.name
+      for sample in ctx.samples.mitems:
+        sample.fill(f.name, ints, f.n_per_sample)
+    of BCF_TYPE.FLOAT:
+      if fmt.get(f.name, floats) != Status.OK:
+        quit "couldn't get format field:" & f.name
+      for sample in ctx.samples.mitems:
+        sample.fill(f.name, floats, f.n_per_sample)
+    of BCF_TYPE.CHAR:
+      discard
+    else:
+      quit "Unknown field type:" & $f.vtype & " in field:" & f.name
 
 proc set_variant_fields*(ctx:Evaluator, variant:Variant) =
   ctx.variant["FILTER"] = variant.FILTER
@@ -633,7 +634,7 @@ iterator evaluate_families(ev:Evaluator, nerrors: var int, variant:Variant): exR
           for s in fam:
             if s.ped_sample.affected:
               matching.add(s.ped_sample.id)
-      except:
+      except ValueError:
         variant.write_warning(nerrors)
 
     if len(matching) > 0:
@@ -738,7 +739,7 @@ iterator evaluate*(ev:var Evaluator, variant:Variant, nerrors:var int): exResult
         # if there are no sample expressions, they may just be using gnotate with an info filter.
         yield ("", @[], 0.0'f32)
 
-      elif ev.trios.len > 0 or ev.groups.len > 0:
+      elif ev.trios.len > 0 or ev.groups.len > 0 or ev.families.len > 0:
         ev.set_format_fields(variant, alts, ints, floats)
         for r in ev.evaluate_trios(nerrors, variant): yield r
         for r in ev.evaluate_groups(nerrors, variant): yield r

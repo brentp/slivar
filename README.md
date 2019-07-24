@@ -84,6 +84,9 @@ This requires passing variants that are rare in gnomad that have the expected ge
 not have any alternate evidence in the parents. If there are 200 trios in the `ped::vcf` given, then this expression
 will be tested on each of those 200 trios.
 
+When trios are not sufficient, use [Family Expressions](#family-expressions) which allow more heterogeneous
+family structures.
+
 The expressions are javascript so the user can make these as complex as needed.
 
 
@@ -126,6 +129,10 @@ for example, given either a duo, or a quartet, we can find variants present only
 ```		
  --family-expr "aff_only:fam.every(function(s) { s.het == s.affected && s.hom_ref == !s.affected && s.GQ > 5 })"
 ```
+
+Note that this does not explicitly check for transmission or non-transmission between parents and off-spring
+so it is less transparent than the `trio` mode, but more flexible.
+
 
 #### Groups
 
