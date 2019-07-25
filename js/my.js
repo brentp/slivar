@@ -95,7 +95,7 @@ function segregating_dominant(s) {
   if(s.GQ < 10 || s.unknown) { return false; }
   if(variant.CHROM == "chrX" || variant.CHROM == "X") { return segregating_dominant_x(s); }
   if (s.affected) {
-     return s.het && s.AB > 0.2 && s.AB < 0.8
+     return s.het && s.AB >= 0.2 && s.AB <= 0.8
   }
   return s.hom_ref && s.AB < 0.01
 }
@@ -120,4 +120,12 @@ function segregating_recessive(s) {
     return s.hom_alt
   }
   return s.het || s.hom_ref
+}
+
+function segregating_denovo(s) {
+  if(s.GQ < 10 || s.unknown) { return false; }
+  if(variant.CHROM == "chrX" || variant.CHROM == "X") { return segregating_denovo_x(s); }
+  if(!s.affected) { return s.hom_ref }
+  if(s.hom_alt) { return false }
+  return s.het && s.AB >= 0.2 && s.AB <= 0.8
 }

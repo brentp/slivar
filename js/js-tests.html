@@ -24,6 +24,10 @@ html *
 
 } 
 
+pre {
+	font-size: 0.6em;
+}
+
 .json {
    font-family: monospace !important;
    font-size: 0.7em !important;
@@ -60,8 +64,18 @@ var het = "<span class='het'>0/1</span>"
 var hom_alt = "<span class='hom_alt'>1/1</span>"
 var unknown = "<span class='unknown'>./.</span>"
 
-function stringify(s) {
+function stringify(o) {
   // json.STRINGIFY, but get affected status and HET/HOM_REF/HOM_ALT
+  var s = Object.assign({}, o)
+  if(s.kids != undefined) {
+	  var kids = [];
+	  for(var i=0; i<s.kids.length;i++) {
+	    kids.push(s.kids[i].id)
+	  }
+	  s.kids = kids;
+  }
+  if(s.mom != undefined) { s.mom = s.mom.id }
+  if(s.dad != undefined) { s.dad = s.dad.id }
   var result = (s.hom_ref ? hom_ref : s.het ? het : s.hom_alt ? hom_alt : uknown)
   if(s.affected){ result += "<b class='red'>*</b>"; } else { result += "&nbsp;" }
   return result + JSON.stringify(s)
@@ -82,10 +96,10 @@ function assert_(fn, samples, description, expect) {
     var sum = document.createElement("summary")
     sum.className = outcome ? 'pass' : 'fail'; 
     det.appendChild(sum)
-    sum.appendChild( document.createTextNode( description ) ); 
+    sum.appendChild( document.createTextNode((expect ? '(+) ' : '(-) ') + description ) ); 
     var div = document.createElement("div");
-    div.className = "json";
-    div.innerHTML += "<b>" + fn.name + "()</b></br>"
+    div.className = "json"; 
+    div.innerHTML += "<summary><b>" + fn.name + "()<details><pre>" + fn.toString() + "</pre></details></summary><br>"
     samples.forEach(sample => div.innerHTML += stringify(sample) + "<br>")
     det.appendChild(div)
     output.appendChild(det); 
@@ -97,6 +111,51 @@ function assert(fn, samples, description) {
 function assert_not(fn, samples, description) {
   return assert_(fn, samples, description, false)
 }
+
+function add_defaults(s) {
+	if(s.GQ === undefined) { s.GQ = 50 }
+	if(s.AD === undefined) { 
+		if(s.hom_ref) {s.AD = [20, 0]}
+		if(s.het) {s.AD = [10, 10]}
+		if(s.hom_alt) {s.AD = [0, 20]}
+	}
+	if(s.DP === undefined) { 
+		s.DP = s.AD[0] + s.AD[1]
+	}
+	if(s.AB === undefined) {
+	        s.AB = s.AD[1] / Math.max(1, s.AD[1] + s.AD[0])
+	}
+	if(s.affected === undefined) { s.affected = false }
+}
+
+function as_hom_ref(s){
+	s.hom_ref = true;s.het = false;s.hom_alt = false;s.unknown = false
+	s.AB = 0.0
+	add_defaults(s)
+	return s
+}
+function as_het(s){
+	s.hom_ref = false;s.het = true;s.hom_alt = false;s.unknown = false
+	s.AB = 0.5
+	add_defaults(s)
+	return s
+}
+function as_hom_alt(s){
+	s.hom_ref = false;s.het = false;s.hom_alt = true;s.unknown = false
+	s.AB = 1.0
+	add_defaults(s)
+	return s
+}
+
+function make_trio(kid, dad, mom) {
+	kid.dad = dad
+	kid.mom = mom
+	if(mom.kids === undefined) { mom.kids = [] }
+	if(dad.kids === undefined) { dad.kids = [] }
+	mom.kids.push(kid)
+	dad.kids.push(kid)
+}
+
 
 </script>
 
@@ -113,6 +172,43 @@ var variant = {"CHROM": "chr1"}
 
 assert(segregating_dominant, [[kid, dad, mom]], "trio with segregating dominant")
 assert_not(segregating_recessive, [[kid, dad, mom]], "trio with-out segregating recessive")
+
+var k1 = as_het({id:"kid", sex:"female", affected: true})
+var m1 = as_hom_ref({id:"mom", sex:"female", affected: false})
+var d1 = as_hom_ref({id:"dad", sex:"female", affected: false})
+make_trio(kid, dad, mom)
+
+assert(segregating_denovo, [[k1, d1, m1]], "segregating de novo")
+
+k1.AB = 0.1
+assert_not(segregating_denovo, [[k1, d1, m1]], "segregating de novo with bad allele balance")
+k1.AB = 0.5
+k1.affected = false;
+assert_not(segregating_denovo, [[k1, d1, m1]], "segregating de novo with het unaffected")
+k1.affected = true;
+m1.affected = true
+assert_not(segregating_denovo, [[k1, d1, m1]], "segregating de novo with affected mom")
+
+// inherited de novo
+
+var gma = as_hom_ref({id:"gma", sex:"female"})
+var gpa = as_hom_ref({id:"gpa", sex:"male"})
+var mom = as_het({id:"mom", sex:"female", affected: true})
+var dad = as_hom_ref({id:"dad", sex:"male"})
+var kid = as_hom_ref({id:"kid", sex:"male"})
+make_trio(kid, dad, mom)
+make_trio(mom, gma, gpa)
+
+var fam = [gma, gpa, mom, dad, kid]
+assert(segregating_denovo, [fam], "inheritied de novo")
+kid.affected = true
+kid = as_het(kid)
+assert(segregating_denovo, [fam], "inheritied de novo adding affected, het kid")
+
+mom.affected = true
+mom = as_hom_ref(mom)
+assert_not(segregating_denovo, [fam], "de novo in 3rd gen with affected hom-ref mom")
+
 
 
 </script>
