@@ -42,7 +42,7 @@ downstream_gene
 TFBS_ablation
 TFBS_amplification
 TF_binding_site
-egulatory_region_ablation
+regulatory_region_ablation
 regulatory_region_amplification
 feature_elongation
 regulatory_region
