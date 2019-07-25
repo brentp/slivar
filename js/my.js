@@ -91,6 +91,10 @@ function segregating_dominant_x(s) {
 }
 
 
+function hom_ref_parent(s) {
+	return s.dad && s.dad.hom_ref && s.mom && s.mom.hom_ref
+}
+
 function segregating_dominant(s) {
   if(s.GQ < 10 || s.unknown) { return false; }
   if(variant.CHROM == "chrX" || variant.CHROM == "X") { return segregating_dominant_x(s); }
@@ -106,11 +110,11 @@ function segregating_recessive_x(s) {
   if(s.sex == "female") {
     return s.affected == s.hom_alt;
   } else if (s.sex == "male") {
+    if (s.affected && s.het && hom_ref_parent(s)) { return false; }
     return s.affected == (s.het || s.hom_alt);
   } else {
     return false;
   }
-
 }
 
 function segregating_recessive(s) {
@@ -122,10 +126,24 @@ function segregating_recessive(s) {
   return s.het || s.hom_ref
 }
 
+// this function is used internally. called from segregating de novo.
+// we already know it's on chrX
+function segregating_denovo_x(s) {
+  if(s.sex == "female") {
+    if(s.affected) { return s.het && 0.2 <= s.AB && s.AB <= 0.8 && hom_ref_parent(s) }
+    return s.hom_ref
+  }
+  if(s.sex == "male") {
+    if(s.affected)  { return (s.het || s.hom_alt) && hom_ref_parent(s) }	
+    return s.hom_ref
+  }
+  return false
+}
+
 function segregating_denovo(s) {
-  if(s.GQ < 10 || s.unknown) { return false; }
-  if(variant.CHROM == "chrX" || variant.CHROM == "X") { return segregating_denovo_x(s); }
-  if(!s.affected) { return s.hom_ref }
-  if(s.hom_alt) { return false }
+  if (s.GQ < 10 || s.unknown) { return false; }
+  if (variant.CHROM == "chrX" || variant.CHROM == "X") { return segregating_denovo_x(s); }
+  if (!s.affected) { return s.hom_ref }
+  if (s.hom_alt) { return false }
   return s.het && s.AB >= 0.2 && s.AB <= 0.8
 }

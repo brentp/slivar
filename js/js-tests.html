@@ -50,6 +50,11 @@ pre {
   color: red !important;
 }
 
+h1 {
+	font-size: 1.5em;
+}
+
+
     </style> 
 </head> 
 <body> 
@@ -63,6 +68,12 @@ var hom_ref = "<span class='hom_ref'>0/0</span>"
 var het = "<span class='het'>0/1</span>"
 var hom_alt = "<span class='hom_alt'>1/1</span>"
 var unknown = "<span class='unknown'>./.</span>"
+
+function SECTION(name) {
+  var p = document.createElement("h1")
+  p.appendChild(document.createTextNode(name))
+  output.appendChild(p)
+}
 
 function stringify(o) {
   // json.STRINGIFY, but get affected status and HET/HOM_REF/HOM_ALT
@@ -128,23 +139,15 @@ function add_defaults(s) {
 	if(s.affected === undefined) { s.affected = false }
 }
 
-function as_hom_ref(s){
-	s.hom_ref = true;s.het = false;s.hom_alt = false;s.unknown = false
-	s.AB = 0.0
-	add_defaults(s)
-	return s
-}
-function as_het(s){
-	s.hom_ref = false;s.het = true;s.hom_alt = false;s.unknown = false
-	s.AB = 0.5
-	add_defaults(s)
-	return s
-}
-function as_hom_alt(s){
-	s.hom_ref = false;s.het = false;s.hom_alt = true;s.unknown = false
-	s.AB = 1.0
-	add_defaults(s)
-	return s
+var HET = 1, HOM_REF = 0, HOM_ALT = 2, UNKNOWN = -1
+
+function make(gt, s) {
+  if(gt == 0) { s.hom_ref = true;s.het = false;s.hom_alt = false;s.unknown = false , s.AB = 0.0}
+  else if(gt == 1) {s.hom_ref = false;s.het = true;s.hom_alt = false;s.unknown = false, s.AB = 0.5}
+  else if(gt == 2) {s.hom_ref = false;s.het = false;s.hom_alt = true;s.unknown = false, s.AB = 1.0}
+  else  {s.hom_ref = false;s.het = false;s.hom_alt = false;s.unknown = true}
+  add_defaults(s)
+  return s
 }
 
 function make_trio(kid, dad, mom) {
@@ -162,6 +165,8 @@ function make_trio(kid, dad, mom) {
 <script src="my.js"></script>
 <script>
 
+SECTION("trio-based tests")
+
 var mom = {id: "mom", sex: 'female', hom_ref: true, het: false, hom_alt: false, unknown: false, GQ: 12, AB: 0.0, DP: 8, AD: [8, 0], affected: false}
 var dad = {id: "dad", sex: 'male', hom_ref: true, het: false, hom_alt: false, unknown: false, GQ: 12, AB: 0.0, DP: 8, AD: [8, 0], affected: false}
 var kid = {id: "kid", sex: 'female', hom_ref: false, het: true, hom_alt: false, unknown: false, GQ: 12, AB: 0.5, DP: 8, AD: [4, 4], affected: true}
@@ -170,12 +175,15 @@ assert_not(denovo, [dad, dad, mom], "not de novo")
 
 var variant = {"CHROM": "chr1"}
 
+
+SECTION("family-based tests")
 assert(segregating_dominant, [[kid, dad, mom]], "trio with segregating dominant")
 assert_not(segregating_recessive, [[kid, dad, mom]], "trio with-out segregating recessive")
 
-var k1 = as_het({id:"kid", sex:"female", affected: true})
-var m1 = as_hom_ref({id:"mom", sex:"female", affected: false})
-var d1 = as_hom_ref({id:"dad", sex:"female", affected: false})
+
+var k1 = make(HET, {id:"kid", sex:"female", affected: true})
+var m1 = make(HOM_REF, {id:"mom", sex:"female", affected: false})
+var d1 = make(HOM_REF, {id:"dad", sex:"female", affected: false})
 make_trio(kid, dad, mom)
 
 assert(segregating_denovo, [[k1, d1, m1]], "segregating de novo")
@@ -191,25 +199,23 @@ assert_not(segregating_denovo, [[k1, d1, m1]], "segregating de novo with affecte
 
 // inherited de novo
 
-var gma = as_hom_ref({id:"gma", sex:"female"})
-var gpa = as_hom_ref({id:"gpa", sex:"male"})
-var mom = as_het({id:"mom", sex:"female", affected: true})
-var dad = as_hom_ref({id:"dad", sex:"male"})
-var kid = as_hom_ref({id:"kid", sex:"male"})
+var gma = make(HOM_REF, {id:"gma", sex:"female"})
+var gpa = make(HOM_REF,{id:"gpa", sex:"male"})
+var mom = make(HET, {id:"mom", sex:"female", affected: true})
+var dad = make(HOM_REF, {id:"dad", sex:"male"})
+var kid = make(HOM_REF, {id:"kid", sex:"male"})
 make_trio(kid, dad, mom)
 make_trio(mom, gma, gpa)
 
 var fam = [gma, gpa, mom, dad, kid]
 assert(segregating_denovo, [fam], "inheritied de novo")
 kid.affected = true
-kid = as_het(kid)
+kid = make(HET, kid)
 assert(segregating_denovo, [fam], "inheritied de novo adding affected, het kid")
 
 mom.affected = true
-mom = as_hom_ref(mom)
+mom = make(HOM_REF, mom)
 assert_not(segregating_denovo, [fam], "de novo in 3rd gen with affected hom-ref mom")
-
-
 
 </script>
 
