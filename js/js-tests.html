@@ -208,13 +208,16 @@ make_trio(kid, dad, mom)
 make_trio(mom, gma, gpa)
 
 var fam = [gma, gpa, mom, dad, kid]
+// only mom is het and afffected
 assert(segregating_denovo, [fam], "inheritied de novo")
 kid.affected = true
 kid = make(HET, kid)
+// mom and kid are het and affected
 assert(segregating_denovo, [fam], "inheritied de novo adding affected, het kid")
 
 mom.affected = true
 mom = make(HOM_REF, mom)
+// NOT: mom is affected, but hom-ref, kid is affected and het
 assert_not(segregating_denovo, [fam], "de novo in 3rd gen with affected hom-ref mom")
 
 </script>
