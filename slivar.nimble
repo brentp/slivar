@@ -29,11 +29,13 @@ skipDirs = @["tests"]
 import ospaths,strutils
 
 task test, "run the tests":
+  exec "bash tests/functional-tests.sh"
   exec "nim c --lineDir:on --debuginfo -r --threads:on src/slivarpkg/duko"
   exec "nim c --lineDir:on --debuginfo -r --threads:on src/slivarpkg/pracode"
   exec "nim c --lineDir:on --debuginfo -r --threads:on src/slivarpkg/groups"
   exec "nim c --lineDir:on --debuginfo -r --threads:on src/slivarpkg/comphet"
-  exec "bash tests/functional-tests.sh"
+  exec "nim c --lineDir:on --debuginfo -r --threads:on src/slivarpkg/fastsets"
+  exec "nim c --lineDir:on --debuginfo -r --threads:on src/slivarpkg/pedfile"
 
 task docs, "Builds documentation":
   mkDir("docs"/"slivar")

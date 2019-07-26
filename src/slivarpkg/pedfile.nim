@@ -10,6 +10,10 @@ import sets
 import tables
 import hts/vcf
 
+type Pair* = object
+   key*: string
+   val*: string
+
 type
   Sample* = ref object
     family_id*: string
@@ -22,9 +26,18 @@ type
     affected*: bool
     kids*: seq[Sample]
     i*:int
+    # fields beyond the 6th column
+    extra*: seq[Pair]
+
 
 proc `$`*(s:Sample): string =
   return format(&"Sample(id:{s.id}, i:{s.i}, affected:{$s.affected})")
+
+proc `[]`*(s:Sample, key:string): string =
+  var key = key.toLowerAscii
+  for e in s.extra:
+    if key == e.key: return e.val
+  raise newException(KeyError, &"{key} not found in sample {s}")
 
 iterator siblings*(s:Sample): Sample =
   ## report the samples with same mom or dad.
@@ -145,11 +158,15 @@ proc parse_ped*(path: string, verbose:bool=true): seq[Sample] =
   result = new_seq_of_cap[Sample](10)
 
   var look = newTable[string,Sample]()
+  var fields: seq[string]
 
   var i = -1
   for line in lines(path):
     i += 1
-    if line.len > 0 and line[0] == '#': continue
+    if line.len > 0 and line[0] == '#' and fields.len == 0:
+      var toks = line.toLowerAscii.strip().split('\t')
+      if len(toks) > 6: fields = toks[6..toks.high]
+      continue
     if line.strip().len == 0: continue
     var toks = line.strip().split('\t')
     var likely_header = i == 0 and toks[0].toLowerAscii in ["family_id", "familyid", "famid", "kindred_id", "kindredid", "family id", "kindred id"]
@@ -168,9 +185,17 @@ proc parse_ped*(path: string, verbose:bool=true): seq[Sample] =
       except:
         if likely_header:
           stderr.write_line "skipping line as apparent header:" & line
+          if len(toks) > 6:
+            fields = toks[6..toks.high]
           continue
         else:
           raise getCurrentException()
+
+    for i, f in fields:
+      if 6 + i >= toks.len:
+        s.extra.add(Pair(key: f))
+      else:
+        s.extra.add(Pair(key: f, val: toks[6+i]))
     result.add(s)
     look[s.id] = s
 
@@ -339,10 +364,20 @@ when isMainModule:
     var fh:File
     check open(fh, "__k.ped", fmWrite)
  
-    fh.write_line("Kindred_Id\tSample_ID\tPaternal_ID\tMaternal_ID\tSex\tPhenotype")
-    fh.write_line("Kindred_Id\ta\tdad\tmom\t1\t1")
+    fh.write_line("Kindred_Id\tSample_ID\tPaternal_ID\tMaternal_ID\tSex\tPhenotype\textra_a\textra_b\textra_c")
+    fh.write_line("Kindred_Id\ta\tdad\tmom\t1\t1\ta\tb")
 
     fh.close()
 
     var samples = parse_ped("__k.ped")
     check samples.len == 1
+    var s = samples[0]
+    check s.extra[0].key == "extra_a"
+    check s.extra[0].val == "a"
+
+    check s.extra[1].key == "extra_b"
+    check s.extra[1].val == "b"
+    check s.extra.len == 3
+
+    check s["extra_b"] == "b"
+    check s["extra_c"] == ""
