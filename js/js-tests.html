@@ -60,6 +60,30 @@ h1 {
 <body> 
   
 <div id="output"></div> 
+
+<hr>
+<pre>
+Enter javascript to evaluate (open your javascript console to see errors).
+Report good test-cases (especially ones that fail) <a href="https://github.com/brentp/slivar/issues">here</a>.
+Available functions are <b>segregating_denovo</b>, <b>segregating_dominant</b> and <b>segregating_recessive</b>
+in addition to the X-linked version of those that end with '_x', e.g.: <b>segregating_denovo_x</b>.
+As an example, adjust the setup below to change kid to HET and affected to ensure that a transmitted de novo is allowed.
+Then try setting the kid to HOM_ALT to ensure this does not pass.
+</pre>
+<div id="testing_output"></div> 
+<p><button id="evaluate">Evaluate Expression</button></p>
+<textarea id="testing", rows=10 cols=90>
+var gma = Sample(HOM_REF, {sex:"female"})
+var gpa = Sample(HOM_REF,{sex:"male"})
+var mom = Sample(HET, {sex:"female", affected: true})
+var dad = Sample(HOM_REF, {sex:"male"})
+var kid = Sample(HOM_REF, {sex:"male"})
+as_trio(mom, gpa, gma) //this sets mom.mom=gma, mom.dad=gpa, gpa.kids=[mom]...
+as_trio(kid, dad, mom)
+fam = [gma, gpa, mom, dad, kid]
+// note that fam is an array and we pass it in another array.
+assert(segregating_denovo, [fam], "denovo in mom")
+</textarea>
   
 <script> 
 var output = document.getElementById('output'); 
@@ -73,6 +97,13 @@ function SECTION(name) {
   var p = document.createElement("h1")
   p.appendChild(document.createTextNode(name))
   output.appendChild(p)
+}
+
+document.getElementById("evaluate").onclick = function() {
+    output.innerHTML = ""
+    SECTION("testing output")
+    var code = document.getElementById("testing").value
+    var result = eval(code)
 }
 
 function stringify(o) {
@@ -141,7 +172,7 @@ function add_defaults(s) {
 
 var HET = 1, HOM_REF = 0, HOM_ALT = 2, UNKNOWN = -1
 
-function make(gt, s) {
+function Sample(gt, s) {
   if(gt == 0) { s.hom_ref = true;s.het = false;s.hom_alt = false;s.unknown = false , s.AB = 0.0}
   else if(gt == 1) {s.hom_ref = false;s.het = true;s.hom_alt = false;s.unknown = false, s.AB = 0.5}
   else if(gt == 2) {s.hom_ref = false;s.het = false;s.hom_alt = true;s.unknown = false, s.AB = 1.0}
@@ -150,7 +181,7 @@ function make(gt, s) {
   return s
 }
 
-function make_trio(kid, dad, mom) {
+function as_trio(kid, dad, mom) {
 	kid.dad = dad
 	kid.mom = mom
 	if(mom.kids === undefined) { mom.kids = [] }
@@ -181,10 +212,10 @@ assert(segregating_dominant, [[kid, dad, mom]], "trio with segregating dominant"
 assert_not(segregating_recessive, [[kid, dad, mom]], "trio with-out segregating recessive")
 
 
-var k1 = make(HET, {id:"kid", sex:"female", affected: true})
-var m1 = make(HOM_REF, {id:"mom", sex:"female", affected: false})
-var d1 = make(HOM_REF, {id:"dad", sex:"female", affected: false})
-make_trio(kid, dad, mom)
+var k1 = Sample(HET, {id:"kid", sex:"female", affected: true})
+var m1 = Sample(HOM_REF, {id:"mom", sex:"female", affected: false})
+var d1 = Sample(HOM_REF, {id:"dad", sex:"female", affected: false})
+as_trio(kid, dad, mom)
 
 assert(segregating_denovo, [[k1, d1, m1]], "segregating de novo")
 
@@ -199,27 +230,64 @@ assert_not(segregating_denovo, [[k1, d1, m1]], "segregating de novo with affecte
 
 // inherited de novo
 
-var gma = make(HOM_REF, {id:"gma", sex:"female"})
-var gpa = make(HOM_REF,{id:"gpa", sex:"male"})
-var mom = make(HET, {id:"mom", sex:"female", affected: true})
-var dad = make(HOM_REF, {id:"dad", sex:"male"})
-var kid = make(HOM_REF, {id:"kid", sex:"male"})
-make_trio(kid, dad, mom)
-make_trio(mom, gma, gpa)
+var gma = Sample(HOM_REF, {id:"gma", sex:"female"})
+var gpa = Sample(HOM_REF,{id:"gpa", sex:"male"})
+var mom = Sample(HET, {id:"mom", sex:"female", affected: true})
+var dad = Sample(HOM_REF, {id:"dad", sex:"male"})
+var kid = Sample(HOM_REF, {id:"kid", sex:"male"})
+as_trio(kid, dad, mom)
+as_trio(mom, gma, gpa)
 
 var fam = [gma, gpa, mom, dad, kid]
 // only mom is het and afffected
 assert(segregating_denovo, [fam], "inheritied de novo")
 kid.affected = true
-kid = make(HET, kid)
+kid = Sample(HET, kid)
 // mom and kid are het and affected
 assert(segregating_denovo, [fam], "inheritied de novo adding affected, het kid")
 
 mom.affected = true
-mom = make(HOM_REF, mom)
+mom = Sample(HOM_REF, mom)
 // NOT: mom is affected, but hom-ref, kid is affected and het
 assert_not(segregating_denovo, [fam], "de novo in 3rd gen with affected hom-ref mom")
 
+
+SECTION("segregating X denovo")
+
+var gma = Sample(HOM_REF, {id:"gma", sex:"female"})
+var gpa = Sample(HOM_REF,{id:"gpa", sex:"male"})
+var mom = Sample(HET, {id:"mom", sex:"female", affected: true})
+var dad = Sample(HOM_REF, {id:"dad", sex:"male"})
+var kid = Sample(HOM_REF, {id:"kid", sex:"male"})
+var distant = Sample(HOM_REF, {id:"kid", sex:"male"})
+
+as_trio(kid, dad, mom)
+as_trio(mom, gma, gpa)
+var fam = [gma, gpa, mom, dad, kid]
+assert(segregating_denovo_x, [fam], "x-linked denovo not transmitted")
+
+
+kid = Sample(HOM_ALT, kid); kid.affected = true
+assert(segregating_denovo_x, [fam], "x-linked denovo transmitted")
+
+// NOTE that as implemented, having a uncle who also has the de novo will still pass.
+var uncle = Sample(HET, {id:"uncle", sex:"male", affected: true})
+as_trio(uncle, gma, gpa)
+fam.push(uncle)
+assert(segregating_denovo_x, [fam], "x-linked denovo in mom+uncle, transmitted to kid")
+
+
+SECTION("segregating denovo")
+assert_not(segregating_denovo, [fam], "autosomal denovo but kid is hom_alt")
+
+kid = Sample(HET, kid)
+assert(segregating_denovo, [fam], "denovo kid is het not transmitted")
+
+
+
+
+
+output = document.getElementById("testing_output")
 </script>
 
 </body>

@@ -253,8 +253,8 @@ func main() {
 			if i == 0 {
 				os.Stderr.Close()
 			}
-			cancel <- true
 			log.Fatalf("[pslivar] error running command: %s", cmd.CmdStr)
+			cancel <- true
 		}
 		chrom, start := getChromStart(cmd.CmdStr)
 		if i == 0 {

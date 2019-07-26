@@ -492,6 +492,7 @@ proc set_calculated_variant_fields*(ctx:Evaluator, alts: var seq[int8]) =
 
 proc clear_unused_infos(ev: Evaluator, f:FieldSets) {.inline.} =
 
+  #for idx in f.last - f.curr:
   for idx in f.last.sub(f.curr):
     #if idx in f.curr: continue
     ev.INFO.del(ev.field_names[idx].name)
@@ -668,6 +669,7 @@ iterator evaluate_groups(ev:Evaluator, nerrors: var int, variant:Variant): exRes
         yield ($namedexpr.name, matching_groups, -1'f32)
 
 template clear_unused_formats(ev:Evaluator) =
+  #for idx in ev.fmt_field_sets.last - ev.fmt_field_sets.curr:
   for idx in ev.fmt_field_sets.last.sub(ev.fmt_field_sets.curr):
     #if idx in ev.fmt_field_sets.curr: continue
     for sample in ev.samples:

@@ -1,6 +1,6 @@
 import ./slivarpkg/pedfile
 import ./slivarpkg/duko
-from ./slivarpkg/version import slivarVersion
+from ./slivarpkg/version import slivarVersion, slivarGitCommit
 import ./slivarpkg/evaluator
 import ./slivarpkg/groups
 import ./slivarpkg/comphet
@@ -201,7 +201,7 @@ proc main*() =
     }.toOrderedTable
 
   if getEnv("SLIVAR_QUIET") == "":
-    stderr.write_line "slivar version: " & slivarVersion
+    stderr.write_line "slivar version: " & slivarVersion & " " & slivarGitCommit
   var args = commandLineParams()
   if len(args) > 0 and args[0] == "gnotate":
     quit "[slivar] the `gnotate` sub-command has been removed. Use `slivar expr` (with --info) to get the same functionality."

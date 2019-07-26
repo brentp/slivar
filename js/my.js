@@ -90,6 +90,9 @@ function segregating_dominant_x(s) {
   return s.het && s.AB > 0.2 && s.AB < 0.8;
 }
 
+function hom_ref(s) {
+	return s && s.hom_ref
+}
 
 function hom_ref_parent(s) {
 	return s.dad && s.dad.hom_ref && s.mom && s.mom.hom_ref
@@ -126,15 +129,23 @@ function segregating_recessive(s) {
   return s.het || s.hom_ref
 }
 
+function parents_x_dn_or_homref(s) {
+	return (hom_ref(s.mom) || (s.mom && segregating_denovo_x(s.mom)))
+	    &&
+	    (hom_ref(s.dad) || (s.dad && segregating_denovo_x(s.dad)))
+}
+
 // this function is used internally. called from segregating de novo.
 // we already know it's on chrX
 function segregating_denovo_x(s) {
   if(s.sex == "female") {
-    if(s.affected) { return s.het && 0.2 <= s.AB && s.AB <= 0.8 && hom_ref_parent(s) }
+    // in this sample, the variant may not appear denovo, but we dont want to rule out a transmitted
+    // de novo, so we check the parents of this sample.
+    if(s.affected) { return s.het && 0.2 <= s.AB && s.AB <= 0.8 && parents_x_dn_or_homref(s) }
     return s.hom_ref
   }
   if(s.sex == "male") {
-    if(s.affected)  { return (s.het || s.hom_alt) && hom_ref_parent(s) }	
+    if(s.affected)  { return (s.het || s.hom_alt) && parents_x_dn_or_homref(s) }
     return s.hom_ref
   }
   return false
