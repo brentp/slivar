@@ -6,6 +6,7 @@ v0.1.6
 + slivar tsv now outputs a sortable column for highest-impact. it makes use of a default
   list of impact orderings from: https://uswest.ensembl.org/info/genome/variation/prediction/predicted_data.html and
   supplemented with any type seen in bcftools or snpEff.
++ bug fix with gnotate (-g) when annotating a file with a empty chromsome followed by a non-empty (e.g. if `chr16_random` is mixed in with canonical chromosomes)
 
 v0.1.5
 ======

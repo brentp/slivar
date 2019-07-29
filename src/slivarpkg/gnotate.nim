@@ -150,8 +150,11 @@ proc readValues(g: var Gnotater, chrom: string, field_i: int) =
   var field_name = g.names[field_i]
   # gnotate-gnomad_num_homalt.bin
   var st = g.zip.getStream(&"sli.var/{chrom}/gnotate-{field_name}.bin")
-  var chunk = 216 #60531
+  var chunk = 21660531
   shallow(g.values)
+  if field_i > g.values.high:
+    # if we encounter a new chromosome after an empty one.
+    g.values.setLen(field_i + 1)
   shallow(g.values[field_i])
   if g.values[field_i].len >= chunk:
     g.values[field_i].setLen(chunk)
