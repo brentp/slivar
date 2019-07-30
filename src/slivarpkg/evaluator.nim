@@ -108,7 +108,7 @@ type Evaluator* = ref object
 
   field_names: seq[idpair]
 
-  gene_fields: GeneIndexes
+  gene_fields: seq[GeneIndexes]
 
   info_field_sets: FieldSets[uint16]
   fmt_field_sets: FieldSets[uint8]
@@ -294,10 +294,11 @@ proc newEvaluator*(ivcf:VCF, samples: seq[Sample], groups: seq[Group], float_exp
   result.info_white_list = getEnvNotEmpty("SLIVAR_INFO_WHITELIST")
   result.format_white_list = getEnvNotEmpty("SLIVAR_FORMAT_WHITELIST")
 
-  result.gene_fields.gene = -1
-  for f in ["CSQ", "BCSQ"]:
+  for f in ["ANN", "CSQ", "BCSQ"]:
     try:
-      ivcf.set_csq_fields(f, result.gene_fields)
+      var gf:GeneIndexes
+      ivcf.set_csq_fields(f, gf)
+      result.gene_fields.add(gf)
       # add this to the field names so we can clear it as needed
     except KeyError:
       continue
@@ -519,7 +520,11 @@ proc set_infos*(ev:var Evaluator, variant:Variant, ints: var seq[int32], floats:
   #zeroMem(ev.info_field_sets.curr.addr, sizeof(ev.info_field_sets.curr))
   ev.info_field_sets.curr = {}
 
+  # we found a csq field.
   var impact_found = false
+  # we found an impactful variant, e.g. in CSQ, and dont' want to overwrite it
+  # with non-impactful in ANN
+  var impactful_found = false
 
   for field in info.fields:
     if ev.info_white_list.len > 0 and field.name notin ev.info_white_list:
@@ -538,10 +543,16 @@ proc set_infos*(ev:var Evaluator, variant:Variant, ints: var seq[int32], floats:
         # NOTE: all set as a single string for now.
       ev.INFO[field.name] = istr
 
-      if field.name in ["CSQ", "BCSQ"] and ev.gene_fields.gene != -1:
-        var imp = istr.get_highest_impact(ev.gene_fields, default_order) #: tuple[impact: string, order: int, impactful: bool]
-        ev.INFO["impactful"] = imp.impactful
-        impact_found = true
+      if field.name in ["CSQ", "BCSQ", "ANN"] and ev.gene_fields.len > 0:
+        for g in ev.gene_fields:
+          if g.csq_field != field.name: continue
+          var imp = istr.get_highest_impact(g, default_order) #: tuple[impact: string, order: int, impactful: bool]
+          impact_found = true
+          if imp.impactful:
+            impactful_found = true
+          elif impactful_found:
+            continue
+          ev.INFO["impactful"] = imp.impactful
 
     elif field.vtype in {BCF_TYPE.INT32, BCF_TYPE.INT16, BCF_TYPE.INT8}:
       if info.get(field.name, ints) != Status.OK:
@@ -565,7 +576,7 @@ proc set_infos*(ev:var Evaluator, variant:Variant, ints: var seq[int32], floats:
   ev.clear_unused_infos(ev.info_field_sets)
   ev.variant.alias(ev.INFO, "INFO")
   # we didn't find a CSQ, but there are CSQs in the VCF
-  if not impact_found and ev.gene_fields.gene != -1:
+  if not impact_found and ev.gene_fields.len > 0:
     ev.INFO["impactful"] = false
 
 

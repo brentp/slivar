@@ -14,11 +14,14 @@ inframe_deletion
 disruptive_inframe_insertion
 disruptive_inframe_deletion
 missense
+protein_protein_contact
 conservative_inframe_insertion
 conservative_inframe_deletion
 protein_altering
 inframe_altering
 splice_region
+structural_interaction_variant
+bidirectional_gene_fusion
 incomplete_terminal_codon
 start_retained
 stop_retained
@@ -30,8 +33,10 @@ synonymous
 gene
 coding_sequence
 mature_miRNA
+5_prime_UTR_premature_start_codon_gain_variant
 5_prime_UTR
 3_prime_UTR
+initiator_codon
 miRNA
 non_coding_transcript_exon
 exon_region
@@ -41,7 +46,9 @@ NMD_transcript
 non_coding_transcript
 non_coding
 upstream_gene
+sequence_feature
 downstream_gene
+intragenic
 TFBS_ablation
 TFBS_amplification
 TF_binding_site

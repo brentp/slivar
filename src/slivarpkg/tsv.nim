@@ -76,33 +76,39 @@ type GeneIndexes* = object
   gene*: int
   consequence*: int
   transcript*: int
+  csq_field*: string
 
   columns: OrderedTableRef[string, int]
 
 proc set_csq_fields*(ivcf:VCF, field:string, gene_fields: var GeneIndexes, csq_columns: seq[string]= @[]) =
   gene_fields.gene = -1
+  gene_fields.csq_field = field
   gene_fields.consequence = -1
   gene_fields.transcript = -1
   gene_fields.columns = newOrderedTable[string, int]()
 
   var desc = ivcf.header.get(field, BCF_HEADER_TYPE.BCF_HL_INFO)["Description"]
+  # snpEff ##INFO=<ID=ANN,Number=.,Type=String,Description="Functional annotations: 'Allele | Annotation | Annotation_Impact | Gene_Name | Gene_ID | Feature_Type | Feature_ID | Transcript_BioType | Rank | HGVS.c | HGVS.p | cDNA.pos / cDNA.length | CDS.pos / CDS.length | AA.pos / AA.length | Distance | ERRORS / WARNINGS / INFO' ">
+
   var spl = (if "Format: '" in desc: "Format: '" else: "Format: ")
+  if spl notin desc:
+    spl = ": '"
   var adesc = desc.split(spl)[1].split("'")[0].strip().strip(chars={'"', '\''}).multiReplace(("[", ""), ("]", ""), ("'", ""), ("*", "")).split("|")
 
-  for v in adesc.mitems: v = v.toUpperAscii
+  for v in adesc.mitems: v = v.toUpperAscii.strip()
 
   for cq in csq_columns:
     gene_fields.columns[cq] = adesc.find(cq.toUpperAscii)
     if gene_fields.columns[cq] == -1:
       raise newException(KeyError, &"[slivar] requested csq column '{cq}' not found in {adesc}")
 
-  for check in ["SYMBOL", "GENE"]:
+  for check in ["SYMBOL", "GENE", "GENE_NAME"]:
     gene_fields.gene = adesc.find(check)
     if gene_fields.gene != -1: break
-  for check in ["CONSEQUENCE"]:
+  for check in ["CONSEQUENCE", "ANNOTATION"]:
     gene_fields.consequence = adesc.find(check)
     if gene_fields.consequence != -1: break
-  for check in ["FEATURE", "TRANSCRIPT"]:
+  for check in ["FEATURE", "TRANSCRIPT", "FEATURE_ID"]:
     gene_fields.transcript = adesc.find(check)
     if gene_fields.transcript != -1: break
 
@@ -112,7 +118,6 @@ proc set_csq_fields*(ivcf:VCF, field:string, gene_fields: var GeneIndexes, csq_c
     quit &"[slivar] unable to find consequence field in {field}"
   if gene_fields.transcript == -1:
     quit &"[slivar] unable to find transcript field in {field}"
-
 
 proc get_gene_info(v:Variant, csq_field_name:string, gene_fields:GeneIndexes, just_gene:bool=false): seq[string] =
   ## get the gene_names and consequences for each transcript.
