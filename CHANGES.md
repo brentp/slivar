@@ -1,7 +1,7 @@
 v0.1.6
 ======
++ add INFO.impactful (boolean) if CSQ/BCSQ is present
 + better checks for length of AD field
-+ add pslivar to parallelize calls to slivar expr
 + fix for empty groups (#38)
 + slivar tsv now outputs a sortable column for highest-impact. it makes use of a default
   list of impact orderings from: https://uswest.ensembl.org/info/genome/variation/prediction/predicted_data.html and

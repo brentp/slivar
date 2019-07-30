@@ -23,6 +23,9 @@ incomplete_terminal_codon
 start_retained
 stop_retained
 rare_amino_acid
+# `IMPACT_CUTOFF` is a special value that slivar uses to set INFO.impactful for any variant with
+# any CSQ that has an impact that falls above this sentinel
+IMPACT_CUTOFF
 synonymous
 gene
 coding_sequence

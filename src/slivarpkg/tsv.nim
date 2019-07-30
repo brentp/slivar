@@ -4,20 +4,8 @@ import os
 import hts/vcf
 import strformat
 import ./pedfile
+import ./impact_order
 import tables
-
-const order_x = staticRead("./default-order.txt")
-
-proc adjustOrder(order: string): TableRef[string, int] =
-  result = newTable[string, int](16)
-  for o in order.strip().split("\n"):
-    var n = o.toLowerAscii.strip()
-    if o.len == 0: continue
-    if n.endsWith("_variant"):
-      n = n[0..n.high - 8]
-    result[n] = result.len
-
-var default_order = adjustOrder(order_x)
 
 proc toIndexLookup(samples:seq[Sample]): TableRef[string,Sample] =
   result = newTable[string,Sample]()
@@ -84,14 +72,14 @@ proc getField(v:Variant, field:string, ivcf:VCF): string =
     stderr.write_line "[slivar] type unknown for field:" & field
     return "."
 
-type GeneIndexes = object
-  gene: int
-  consequence: int
-  transcript: int
+type GeneIndexes* = object
+  gene*: int
+  consequence*: int
+  transcript*: int
 
   columns: OrderedTableRef[string, int]
 
-proc set_csq_fields(ivcf:VCF, field:string, gene_fields: var GeneIndexes, csq_columns: seq[string]) =
+proc set_csq_fields*(ivcf:VCF, field:string, gene_fields: var GeneIndexes, csq_columns: seq[string]= @[]) =
   gene_fields.gene = -1
   gene_fields.consequence = -1
   gene_fields.transcript = -1
@@ -142,13 +130,9 @@ proc get_gene_info(v:Variant, csq_field_name:string, gene_fields:GeneIndexes, ju
     if key.strip().len == 0 or key in result: continue
     result.add(key)
 
-proc get_highest_impact(v:Variant, csq_field_name:string, gene_fields:GeneIndexes, impact_order: TableRef[string, int]): string =
-  result = "99_unknown"
-  var s = ""
-  if v.info.get(csq_field_name, s) != Status.OK:
-    return
-  var lowest = 99
-  for tr in s.split(','):
+proc get_highest_impact*(csqs: string, gene_fields:GeneIndexes, impact_order: TableRef[string, int]): tuple[impact: string, order: int, impactful: bool] =
+  result = ("unknown", 99, false)
+  for tr in csqs.split(','):
     var toks = tr.split('|')
     for impact in toks[gene_fields.consequence].split('&'):
       var impact = impact.toLowerAscii
@@ -158,11 +142,22 @@ proc get_highest_impact(v:Variant, csq_field_name:string, gene_fields:GeneIndexe
       try:
         val = impact_order[impact]
       except:
-        quit &"\nerror: unknown impact \"{impact}\" from variant {v.CHROM}:{v.start+1}"
+        stderr.write_line &"\nerror: unknown impact \"{impact}\" from csq \"{tr}\" please report the variant at https://github.com/brentp/slivar/issues"
+        val = impact_order.getOrDefault("IMPACT_CUTOFF", 1)
+      if val < result.order:
+        result.order = val
+        result.impact = impact
 
-      if val < lowest:
-        lowest = val
-        result = &"{val:02d}_{impact}"
+  result.impactful = (result.order < impact_order.getOrDefault("IMPACT_CUTOFF", 0))
+
+
+proc get_highest_impact(v:Variant, csq_field_name:string, gene_fields:GeneIndexes, impact_order: TableRef[string, int]): string =
+
+  var s = ""
+  if v.info.get(csq_field_name, s) != Status.OK:
+    return
+  var imp = s.get_highest_impact(gene_fields, impact_order)
+  result = &"{imp.order:02d}_{imp.impact}"
 
 
 proc gene2description(fname:string): TableRef[string,string] =

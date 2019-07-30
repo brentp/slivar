@@ -273,7 +273,7 @@ proc main*(dropfirst:bool=false) =
     iTbl = vcfs[0].getNamedExpressions(@(args["--expr"]), vcf_paths[0])
   var nerrors: int
 
-  var ev = newEvaluator(@[], @[], iTbl, @[], @[], @[], @[], "nil", @[], id2names(vcfs[0].header), false)
+  var ev = newEvaluator(vcfs[0], @[], @[], iTbl, @[], @[], @[], @[], "nil", @[], id2names(vcfs[0].header), false)
   for v in vcfs[0]:
     if len(v.ALT) > 1:
       quit "input should be decomposed and normalized"
@@ -285,7 +285,7 @@ proc main*(dropfirst:bool=false) =
           if i == 0: continue
 
           if iTbl.len > 0:
-            ev = newEvaluator(@[], @[], iTbl, @[], @[], @[], @[], "nil", @[], id2names(ovcf.header), false)
+            ev = newEvaluator(ovcf, @[], @[], iTbl, @[], @[], @[], @[], "nil", @[], id2names(ovcf.header), false)
 
           for ov in ovcf.query(last_chrom):
             if iTbl.len > 0:
@@ -298,7 +298,7 @@ proc main*(dropfirst:bool=false) =
 
         longs = newSeqOfCap[PosValue](65536)
         kvs = newSeqOfCap[evalue](65536)
-        ev = newEvaluator(@[], @[], iTbl, @[], @[], @[], @[], "nil", @[], id2names(vcfs[0].header), false)
+        ev = newEvaluator(vcfs[0], @[], @[], iTbl, @[], @[], @[], @[], "nil", @[], id2names(vcfs[0].header), false)
 
       last_chrom = $v.CHROM
       last_rid = v.rid
@@ -320,7 +320,7 @@ proc main*(dropfirst:bool=false) =
       if i == 0: continue
 
       if iTbl.len > 0:
-        ev = newEvaluator(@[], @[], iTbl, @[], @[], @[], @[], "nil", @[], id2names(ovcf.header), false)
+        ev = newEvaluator(ovcf, @[], @[], iTbl, @[], @[], @[], @[], "nil", @[], id2names(ovcf.header), false)
 
       for ov in ovcf.query(last_chrom):
         if iTbl.len > 0:

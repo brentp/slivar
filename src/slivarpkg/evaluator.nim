@@ -5,6 +5,8 @@ import ./pedfile
 import ./duko
 import os
 import ./fastsets
+import ./impact_order
+import ./tsv
 import ./gnotate
 import ./groups
 import tables
@@ -105,6 +107,8 @@ type Evaluator* = ref object
   samples*: seq[Isample]
 
   field_names: seq[idpair]
+
+  gene_fields: GeneIndexes
 
   info_field_sets: FieldSets[uint16]
   fmt_field_sets: FieldSets[uint8]
@@ -271,7 +275,7 @@ proc getEnvNotEmpty(key: string): seq[string] =
   for f in s.split(","):
     result.add(f)
 
-proc newEvaluator*(samples: seq[Sample], groups: seq[Group], float_expressions: seq[NamedExpression],
+proc newEvaluator*(ivcf:VCF, samples: seq[Sample], groups: seq[Group], float_expressions: seq[NamedExpression],
                    trio_expressions: seq[NamedExpression],
                    group_expressions: seq[NamedExpression],
                    family_expressions: seq[NamedExpression],
@@ -289,6 +293,14 @@ proc newEvaluator*(samples: seq[Sample], groups: seq[Group], float_expressions: 
 
   result.info_white_list = getEnvNotEmpty("SLIVAR_INFO_WHITELIST")
   result.format_white_list = getEnvNotEmpty("SLIVAR_FORMAT_WHITELIST")
+
+  result.gene_fields.gene = -1
+  for f in ["CSQ", "BCSQ"]:
+    try:
+      ivcf.set_csq_fields(f, result.gene_fields)
+      # add this to the field names so we can clear it as needed
+    except KeyError:
+      continue
 
   # when a column is empty, we use this empty object as a place-holder.
   result.empty = result.ctx.newObject("empty")
@@ -507,6 +519,8 @@ proc set_infos*(ev:var Evaluator, variant:Variant, ints: var seq[int32], floats:
   #zeroMem(ev.info_field_sets.curr.addr, sizeof(ev.info_field_sets.curr))
   ev.info_field_sets.curr = {}
 
+  var impact_found = false
+
   for field in info.fields:
     if ev.info_white_list.len > 0 and field.name notin ev.info_white_list:
       continue
@@ -523,6 +537,12 @@ proc set_infos*(ev:var Evaluator, variant:Variant, ints: var seq[int32], floats:
         quit "couldn't get field:" & field.name & " status:" & $ret
         # NOTE: all set as a single string for now.
       ev.INFO[field.name] = istr
+
+      if field.name in ["CSQ", "BCSQ"] and ev.gene_fields.gene != -1:
+        var imp = istr.get_highest_impact(ev.gene_fields, default_order) #: tuple[impact: string, order: int, impactful: bool]
+        ev.INFO["impactful"] = imp.impactful
+        impact_found = true
+
     elif field.vtype in {BCF_TYPE.INT32, BCF_TYPE.INT16, BCF_TYPE.INT8}:
       if info.get(field.name, ints) != Status.OK:
         quit "couldn't get field:" & field.name
@@ -544,6 +564,9 @@ proc set_infos*(ev:var Evaluator, variant:Variant, ints: var seq[int32], floats:
   # clear any field in last variant but not in this one.
   ev.clear_unused_infos(ev.info_field_sets)
   ev.variant.alias(ev.INFO, "INFO")
+  # we didn't find a CSQ, but there are CSQs in the VCF
+  if not impact_found and ev.gene_fields.gene != -1:
+    ev.INFO["impactful"] = false
 
 
 type exResult* = tuple[name:string, sampleList:seq[string], val:float32]

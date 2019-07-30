@@ -15,7 +15,9 @@ src/slivarpkg/filter
 src/slivarpkg/comphet
 *.json
 src/slivarpkg/make_gnotate
-src/slivarpkg/siset
+src/slivarpkg/fastsets
+src/slivarpkg/pedfile
+src/slivarpkg/tsv
 *.vcf*
 *.bed*
 *.tsv
