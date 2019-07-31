@@ -302,6 +302,18 @@ proc newEvaluator*(ivcf:VCF, samples: seq[Sample], groups: seq[Group], float_exp
       # add this to the field names so we can clear it as needed
     except KeyError:
       continue
+  if result.gene_fields.len > 0:
+    if ivcf.header.add_info("impactful", "0", "Flag", "variant is impactful according to slivar and impacts added by VEP/snpEff/bcftools (https://github.com/brentp/slivar/wiki/impactful)") != Status.OK:
+      var ok = false
+      try:
+        var hi = ivcf.header.get("impactful", BCF_HL_INFO)
+        if hi["Type"] == "Flag": ok = true
+      except KeyError:
+        discard
+
+      if not ok:
+        stderr.write_line "[slivar] couldn't add 'impactful' to header as it already existed"
+
 
   # when a column is empty, we use this empty object as a place-holder.
   result.empty = result.ctx.newObject("empty")
@@ -527,6 +539,7 @@ proc set_infos*(ev:var Evaluator, variant:Variant, ints: var seq[int32], floats:
   var impactful_found = false
 
   for field in info.fields:
+    if field.name == "impactful": continue
     if ev.info_white_list.len > 0 and field.name notin ev.info_white_list:
       continue
     if field.vtype == BCF_TYPE.FLOAT:
@@ -578,6 +591,9 @@ proc set_infos*(ev:var Evaluator, variant:Variant, ints: var seq[int32], floats:
   # we didn't find a CSQ, but there are CSQs in the VCF
   if not impact_found and ev.gene_fields.len > 0:
     ev.INFO["impactful"] = false
+    discard variant.info.set("impactful", false)
+  elif impactful_found:
+    discard variant.info.set("impactful", true)
 
 
 type exResult* = tuple[name:string, sampleList:seq[string], val:float32]

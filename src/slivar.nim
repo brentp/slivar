@@ -117,8 +117,8 @@ proc expr_main*(dropfirst:bool=false) =
       quit "error must specify --ped to use with --family-expr"
     familyExprs = ovcf.getNamedExpressions(opts.family_expr, opts.vcf, trioExprs, groupExprs, sampleExprs)
 
+  var ev = newEvaluator(ovcf, samples, groups, iTbl, trioExprs, groupExprs, familyExprs, sampleExprs, opts.info, gnos, field_names=id2names(ivcf.header), opts.skip_non_variable)
   doAssert ovcf.write_header
-  var ev = newEvaluator(ivcf, samples, groups, iTbl, trioExprs, groupExprs, familyExprs, sampleExprs, opts.info, gnos, field_names=id2names(ivcf.header), opts.skip_non_variable)
   if trioExprs.len != 0 and groupExprs.len == 0 and sampleExprs.len == 0:
     out_samples = samples.kids
 

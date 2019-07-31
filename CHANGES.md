@@ -1,6 +1,7 @@
 v0.1.6
 ======
 + add INFO.impactful (boolean) if CSQ/BCSQ/ANN is present. this value will be true of any of those annotation are high enough
++ the `impactful` flag is automaticaly added to the output VCF for any variant passing through slivar and meeting the criteria (https://github.com/brentp/slivar/wiki/impactful)
 + better checks for length of AD field
 + fix for empty groups (#38)
 + slivar tsv now outputs a sortable column for highest-impact. it makes use of a default
