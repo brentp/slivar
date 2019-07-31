@@ -250,7 +250,6 @@ or gene->pLI with:
     set_csq_fields(ivcf, opts.csq_field, gene_fields, opts.csq_column)
     tsv_header.add(["gene", "highest_impact"])
 
-
   for f in opts.sample_field:
     doAssert ivcf.header.get(f, BCF_HEADER_TYPE.BCF_HL_INFO)["Type"] == "String"
     if f == "slivar_comphet":
