@@ -47,6 +47,8 @@ proc getNamedExpressions*(ovcf:VCF, expressions:seq[string], invcf:string, previ
       quit "error adding field to header"
 
 proc looks_like_region_file(f:string): bool =
+  if not f.fileExists: return false
+  if '-' in f and ':' in f: return false
   var fh:HTSFile
   if not open(fh, f):
     stderr.write_line &"[slivar] tried '{f}' as a region file but couldn't open. Trying as an actual region"
