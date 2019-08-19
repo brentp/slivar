@@ -1,5 +1,6 @@
 import hts/vcf
 import hts/private/hts_concat
+import hts/files
 import math
 import ./pedfile
 import ./duko
@@ -46,7 +47,7 @@ proc getNamedExpressions*(ovcf:VCF, expressions:seq[string], invcf:string, previ
       quit "error adding field to header"
 
 proc looks_like_region_file(f:string): bool =
-  var fh:File
+  var fh:HTSFile
   if not open(fh, f):
     stderr.write_line &"[slivar] tried '{f}' as a region file but couldn't open. Trying as an actual region"
     return false
@@ -65,7 +66,7 @@ iterator variants*(vcf:VCF, region:string): Variant =
     for v in vcf: yield v
   elif fileExists(region) and looks_like_region_file(region):
     ## must be in bed format.
-    for l in region.lines:
+    for l in region.hts_lines:
       if l[0] == '#' or l.strip().len == 0: continue
       var toks = l.strip().split(seps={'\t'})
       for v in vcf.query(&"{toks[0]}:{parseInt(toks[1]) + 1}-{toks[2]}"):
