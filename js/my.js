@@ -71,6 +71,9 @@ function comphet_side(kid, mom, dad) {
 function segregating_dominant_x(s) {
   // this is an internal function only called after checking sample quality and on X
   if(!s.affected) { return s.hom_ref }
+  if(!("mom" in s)) { s.mom = null }
+  if(!("dad" in s)) { s.dad = null }
+
   if(s.sex == "male") {
     for(var i=0; i < s.kids.length; s++) {
       var kid = s.kids[i];
