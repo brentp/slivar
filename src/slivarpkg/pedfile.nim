@@ -31,7 +31,7 @@ type
 
 
 proc `$`*(s:Sample): string =
-  return format(&"Sample(id:{s.id}, i:{s.i}, affected:{$s.affected})")
+  return format(&"Sample(id:{s.id}, i:{s.i}, affected:{$s.affected}, dad: \"{s.paternal_id}\", mom: \"{s.maternal_id}\")")
 
 proc `[]`*(s:Sample, key:string): string =
   var key = key.toLowerAscii
@@ -158,6 +158,9 @@ proc parse_ped*(path: string, verbose:bool=true): seq[Sample] =
   result = new_seq_of_cap[Sample](10)
 
   var look = newTable[string,Sample]()
+  # for samples with parent ids that are not in the ped, we create the parents
+  # and insert here so that relatedness still works.
+  var missing = newTable[string,Sample]()
   var fields: seq[string]
 
   var i = -1
@@ -184,7 +187,8 @@ proc parse_ped*(path: string, verbose:bool=true): seq[Sample] =
         s.sex = if toks[4] == ".": -9 else: parseInt(toks[4])
       except:
         if likely_header:
-          stderr.write_line "skipping line as apparent header:" & line
+          if verbose:
+            stderr.write_line "skipping line as apparent header:" & line
           if len(toks) > 6:
             fields = toks[6..toks.high]
           continue
@@ -203,13 +207,20 @@ proc parse_ped*(path: string, verbose:bool=true): seq[Sample] =
     if s.paternal_id in look:
       s.dad = look[s.paternal_id]
       s.dad.kids.add(s)
-    elif verbose and not (s.paternal_id in @[".", "-9", "", "0"]):
-      stderr.write_line &"[pedfile] paternal_id: \"{s.paternal_id}\" referenced for sample \"{s.id}\" not found"
+    elif not (s.paternal_id in @[".", "-9", "", "0"]):
+      if verbose:
+        stderr.write_line &"[pedfile] paternal_id: \"{s.paternal_id}\" referenced for sample \"{s.id}\" not found"
+      s.dad = missing.mgetOrPut(s.paternal_id, Sample(family_id:s.family_id, id: s.paternal_id, i: -1, sex: 1))
+      s.dad.kids.add(s)
+
     if s.maternal_id in look:
       s.mom = look[s.maternal_id]
       s.mom.kids.add(s)
-    elif verbose and not (s.maternal_id in @[".", "-9", "", "0"]):
-      stderr.write_line &"[pedfile] maternal_id: \"{s.maternal_id}\" referenced for sample \"{s.id}\" not found"
+    elif not (s.maternal_id in @[".", "-9", "", "0"]):
+      if verbose:
+        stderr.write_line &"[pedfile] maternal_id: \"{s.maternal_id}\" referenced for sample \"{s.id}\" not found"
+      s.mom = missing.mgetOrPut(s.maternal_id, Sample(family_id:s.family_id, id: s.maternal_id, i: -1, sex: 2))
+      s.mom.kids.add(s)
 
 proc match*(samples: seq[Sample], vcf:var VCF, verbose:bool=true): seq[Sample] =
   ## adjust the VCF samples and the samples to match
@@ -381,3 +392,19 @@ when isMainModule:
 
     check s["extra_b"] == "b"
     check s["extra_c"] == ""
+
+  test "sibs with missing parent":
+    var fh:File
+    check open(fh, "__k.ped", fmWrite)
+    fh.write_line("Kindred_Id\tSample_ID\tPaternal_ID\tMaternal_ID\tSex\tPhenotype")
+    fh.write_line("A\tsib1\tdad\tmom\t1\t1")
+    fh.write_line("A\tsib2\tdad\tmom\t1\t1")
+    fh.close()
+    var samples = parse_ped("__k.ped", verbose=false)
+    check samples.len == 2
+    check relatedness(samples[0], samples[1]) == 0.49
+    for i in 0..1:
+      check samples[i].dad != nil
+      check samples[i].mom != nil
+    check samples[0].dad == samples[1].dad
+    check samples[0].mom == samples[1].mom
