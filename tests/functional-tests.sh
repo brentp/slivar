@@ -136,3 +136,7 @@ assert_in_stderr "sample	dn	dnf
 HG002	3	3"
 
 rm xx.tsv
+
+run check_bad_field_type_fails_in_make_gnotate $exe make-gnotate -f culprit --prefix xx tests/ashk-trio.vcf.gz
+assert_exit_code 1
+assert_in_stderr "only Integer and Float are supported"

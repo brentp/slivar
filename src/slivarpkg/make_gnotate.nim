@@ -156,27 +156,30 @@ proc write_chrom(zip: var Zip, chrom: string, prefix: string, kvs:var seq[evalue
     var dest = &"sli.var/{chrom}/{f}"
     zip.addFile(prefix & f, dest)
 
+proc initialize(v:Variant, f:var field, calculated_values: TableRef[string, float32]) =
+  f.initialized = true
+  # TODO: check field.name
+  if f.name in calculated_values: return
+  var floats: seq[float32]
+  var st = v.info.get(f.field, floats)
+  if st == Status.UnexpectedType:
+    var ints: seq[int32]
+    if v.info.get(f.field, ints) == Status.UnexpectedType:
+      quit &"[slivar] error. unexpected type for \"{f.field}\"; only Integer and Float are supported"
+    stderr.write_line &"[slivar] using type int for \"{f.field}\""
+    f.use_ints = true
+  elif st == UndefinedTag:
+    quit &"tag:{$f} not found in vcf"
+  else:
+    stderr.write_line &"[slivar] using type float for \"{f.field}\""
+
 proc get_values(v:Variant, fields: var seq[field], calculated_values: TableRef[string, float32]): seq[float32] {.inline.} =
   # calculated values are from info expressions.
-  if not fields[0].initialized:
-    stderr.write_line "[slivar] initializing fields"
-    var floats: seq[float32]
-    for i, field in fields.mpairs:
-      field.initialized = true
-      # TODO: check field.name
-      if field.name in calculated_values: continue
-      var st = v.info.get(field.field, floats)
-      if st == Status.UnexpectedType:
-        stderr.write_line &"[slivar] using type int for {field.field}"
-        field.use_ints = true
-      elif st == UndefinedTag:
-        quit &"tag:{$field} not found in vcf"
-      else:
-        stderr.write_line &"[slivar] using type float for {field.field}"
   result = newSeqUninitialized[float32](fields.len)
   ## get the int or float value as appropriate and set val.
   var floats = newSeq[float32](1)
-  for i, field in fields:
+  for i, field in fields.mpairs:
+    if not field.initialized: v.initialize(field, calculated_values)
     if field.field in calculated_values:
       result[i] = calculated_values[field.field]
       continue

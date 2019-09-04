@@ -1,3 +1,7 @@
+v0.1.7 (dev)
+============
++ slivar make-gnotate will error with warning if field is not a float or int
+
 v0.1.6
 ======
 + add INFO.impactful (boolean) if CSQ/BCSQ/ANN is present. this value will be true of any of those annotation are high enough
