@@ -5,17 +5,17 @@ import strutils
 import lapper
 
 type
-  region = object
-    chrom: string
-    start: int
-    stop: int
+  region* = object
+    chrom*: string
+    start*: int
+    stop*: int
     #name: string
 
-template stripChr[T:string|cstring](s:T): string =
+template stripChr*[T:string|cstring](s:T): string =
   if s.len > 3 and ($s).startswith("chr"): ($s)[3..<s.len] else: $s
 
-proc start(r: region): int {.inline.} = r.start
-proc stop(r: region): int {.inline.} = r.stop
+proc start*(r: region): int {.inline.} = r.start
+proc stop*(r: region): int {.inline.} = r.stop
 
 proc bed_line_to_region(line: string): region =
   var
@@ -29,7 +29,7 @@ proc bed_line_to_region(line: string): region =
    #if len(cse) > 3:
    #  reg.name = cse[3]
 
-proc read_bed(bed: string): TableRef[string, Lapper[region]] =
+proc read_bed*(bed: string): TableRef[string, Lapper[region]] =
   var bed_regions = newTable[string, seq[region]]()
   var kstr = kstring_t(l:0, m: 0, s: nil)
   var hf = hts_open(cstring(bed), "r")
