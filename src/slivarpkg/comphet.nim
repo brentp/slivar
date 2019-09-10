@@ -1,6 +1,7 @@
 import hts/vcf
 import ./pedfile
 import ./counter
+import ./tsv
 import strformat
 import strutils
 import algorithm
@@ -175,7 +176,7 @@ proc main*(dropfirst:bool=false) =
     option("-v", "--vcf", default="/dev/stdin", help="input VCF")
     option("-s", "--sample-field", multiple=true, help="optional INFO field(s) that contains list of samples (kids) that have passed previous filters.\ncan be specified multiple times. this is needed for multi-family VCFs")
     option("-p", "--ped", default="", help="required ped file describing the trios in the VCF")
-    option("-f", "--field", default="BCSQ", help="INFO field containing the gene name (usually CSQ or BCSQ)")
+    option("--skip", default="intron_variant,non_coding_transcript_variant,non_coding,upstream_gene_variant,downstream_gene_variant,non_coding_transcript_exon_variant", help="skip variants with these impacts (comma-separated)")
     option("-o", "--out-vcf", default="/dev/stdout", help="path to output VCF/BCF")
     flag("-a", "--allow-non-trios", help="allow samples with one or both parent unspecified. if this mode is used, any pair of heterozygotes co-occuring in the same gene, sample will be reported for samples without both parents that don't have kids. if a single parent is present some additional filtering is done.")
 
@@ -192,6 +193,8 @@ proc main*(dropfirst:bool=false) =
     samples = parse_ped(opts.ped)
     ovcf:VCF
     ivcf:VCF
+    skip_impacts = opts.skip.strip.split(',')
+
 
   if not open(ivcf, opts.vcf, threads=2):
     quit "couldn't open vcf:" & opts.vcf
@@ -202,6 +205,19 @@ proc main*(dropfirst:bool=false) =
   if kids.len == 0:
     quit &"[slivar] no trios found for {opts.ped} with {opts.vcf}"
   var counter = initCounter(kids)
+
+  var gene_fields: seq[GeneIndexes]
+  for f in ["ANN", "CSQ", "BCSQ", getEnv("CSQ_FIELD")]:
+    if f == "": continue
+    try:
+      var gf:GeneIndexes
+      ivcf.set_csq_fields(f, gf)
+      gene_fields.add(gf)
+      # add this to the field names so we can clear it as needed
+    except KeyError:
+      continue
+
+  doAssert gene_fields.len > 0, &"[slivar] error! no gene-like field found in {opts.vcf}"
 
   if not open(ovcf, opts.out_vcf, mode="w"):
     quit "couldn't open output vcf"
@@ -216,16 +232,10 @@ proc main*(dropfirst:bool=false) =
     last_rid = -1
     tbl: TableRef[string,seq[Variant]]
     csqs: string = ""
-    index: int = -1
     ncsqs = 0
     nwritten = 0
     comphet_id:int = 0
 
-  var adesc = ivcf.get_csq_fields(opts.field)
-  for check in ["SYMBOL", "GENE"]:
-    index = adesc.find(check)
-    if index != -1: break
-  doAssert index != -1, &"[slivar] error! no gene-like field found in {opts.field}"
 
   var nvariants = -1
   for v in ivcf:
@@ -239,34 +249,41 @@ proc main*(dropfirst:bool=false) =
       tbl = newTable[string, seq[Variant]]()
       last_rid = v.rid
 
-    if v.info.get(opts.field, csqs) != Status.OK or csqs.len == 0:
-      continue
+    for g in gene_fields:
+      if v.info.get(g.csq_field, csqs) != Status.OK or csqs.len == 0:
+        continue
 
-    # if there are variants without any of the sample fields, we can skip them.
-    if opts.sample_field.len > 0:
-      var has_any = false
-      var samples = ""
-      for f in opts.sample_field:
-        if v.info.get(f, samples) == Status.OK and samples.len > 0:
-          has_any = true
-          break
-      if not has_any: continue
-    else:
-      stderr.write_line "[slivar compound-het] WARNING: no sample fields specified, using only genotypes to call compound hets"
-
-    ncsqs.inc
-
-    var seen = initHashSet[string]()
-    for csq in csqs.split(","):
-      var fields = csq.split("|")
-      var gene = fields[index]
-      if gene == "": continue
-      if gene in seen: continue
-      if gene notin tbl:
-        tbl[gene] = @[v.copy()]
+      # if there are variants without any of the sample fields, we can skip them.
+      if opts.sample_field.len > 0:
+        var has_any = false
+        var samples = ""
+        for f in opts.sample_field:
+          if v.info.get(f, samples) == Status.OK and samples.len > 0:
+            has_any = true
+            break
+        if not has_any: continue
       else:
-        tbl[gene].add(v.copy())
-      seen.incl(gene)
+        stderr.write_line "[slivar compound-het] WARNING: no sample fields specified, using only genotypes to call compound hets"
+
+
+      var seen = initHashSet[string]()
+      for csq in csqs.split(','):
+        var fields = csq.split('|')
+        var gene = fields[g.gene]
+        if gene == "": continue
+        if gene in seen: continue
+        var impact_ok = false
+        for imp in fields[g.consequence].split('&'):
+          if imp notin skip_impacts:
+            impact_ok = true
+            break
+        if not impact_ok: continue
+        if gene notin tbl:
+          tbl[gene] = @[v.copy()]
+        else:
+          tbl[gene].add(v.copy())
+        ncsqs.inc
+        seen.incl(gene)
 
   if last_rid != -1:
     nwritten += ovcf.write_compound_hets(kids, tbl, opts.sample_field, comphet_id, opts.allow_non_trios, counter)
@@ -275,7 +292,7 @@ proc main*(dropfirst:bool=false) =
   ivcf.close()
   stderr.write_line &"[slivar compound-hets] wrote {nwritten} variants that were part of a compound het."
   if ncsqs == 0:
-    quit &"[slvar compound-hets] no variants had the expected {opts.field} field unable to call compound hets"
+    quit &"[slvar compound-hets] no variants had any of the requested fields; unable to call compound hets"
 
   var summaryPath = getEnv("SLIVAR_SUMMARY_FILE")
   if summaryPath == "":

@@ -1,6 +1,8 @@
 v0.1.7 (dev)
 ============
 + slivar make-gnotate will error with warning if field is not a float or int
++ compound-het provides a way to ignore some impacts (intron, non_coding, etc) and sets sane defaults. this removes
+  most candidates from WGS which were predominantly pairs of intronic or non-coding variants.
 
 v0.1.6
 ======
