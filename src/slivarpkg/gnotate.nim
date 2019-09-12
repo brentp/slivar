@@ -194,13 +194,16 @@ proc load(g:var Gnotater, chrom: cstring): bool =
 
   var t = cpuTime()
   g.readEncs(chrom)
-  var etime = cpuTime() - t
+  when defined(gnotate_times):
+    var etime = cpuTime() - t
   var t2 = cpuTime()
   g.readValues(chrom)
-  var atime = cpuTime() - t2
+  when defined(gnotate_times):
+    var atime = cpuTime() - t2
   t2 = cpuTime()
   g.readLongs(chrom)
-  var ltime = cpuTime() - t2
+  when defined(gnotate_times):
+    var ltime = cpuTime() - t2
   when defined(gnotate_times):
     stderr.write_line &"len: {g.encs.len}. time to extract encs: {etime:.3f} afs: {atime:.3f} longs: {ltime:.3f} total:{cpuTime() - t:.3f}"
   for v in g.values:
