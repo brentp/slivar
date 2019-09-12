@@ -17,10 +17,6 @@ import times
 import strformat
 import argparse
 
-proc kids(samples:seq[Sample]): seq[string] =
-  for s in samples:
-    if s.dad != nil and s.mom != nil: result.add(s.id)
-
 proc expr_main*(dropfirst:bool=false) =
 
   var p = newParser("slivar expr"):
@@ -67,7 +63,7 @@ proc expr_main*(dropfirst:bool=false) =
     gnos:seq[Gnotater]
     samples:seq[Sample]
 
-  if not open(ivcf, opts.vcf, threads=1):
+  if not open(ivcf, opts.vcf, threads=if opts.region == "": 2 else: 0):
     quit "couldn't open:" & opts.vcf
 
   let verbose=getEnv("SLIVAR_QUIET") == ""
@@ -120,7 +116,8 @@ proc expr_main*(dropfirst:bool=false) =
   var ev = newEvaluator(ovcf, samples, groups, iTbl, trioExprs, groupExprs, familyExprs, sampleExprs, opts.info, gnos, field_names=id2names(ivcf.header), opts.skip_non_variable)
   doAssert ovcf.write_header
   if trioExprs.len != 0 and groupExprs.len == 0 and sampleExprs.len == 0:
-    out_samples = samples.kids
+    for kid in samples.trio_kids(nil):
+      out_samples.add(kid.id)
 
   var counter = ev.initCounter()
 
@@ -201,7 +198,7 @@ proc main*() =
     }.toOrderedTable
 
   if getEnv("SLIVAR_QUIET") == "":
-    stderr.write_line "slivar version: " & slivarVersion & " " & slivarGitCommit
+    stderr.write_line "> slivar version: " & slivarVersion & " " & slivarGitCommit
   var args = commandLineParams()
   if len(args) > 0 and args[0] == "gnotate":
     quit "[slivar] the `gnotate` sub-command has been removed. Use `slivar expr` (with --info) to get the same functionality."
