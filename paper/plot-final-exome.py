@@ -6,6 +6,8 @@ import sys
 
 colors = sns.color_palette("Set1", 12)
 
+colors = [(0.6, 0.6, 0.6)] * 12
+
 df = pd.read_csv(sys.argv[1], sep="\t", index_col=0)
 dfo = df.join(pd.read_csv(sys.argv[2], sep="\t", index_col=0))
 dfo.drop("comphet_side", inplace=True, axis="columns")

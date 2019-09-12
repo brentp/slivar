@@ -17,13 +17,13 @@ for df in [df_exome, df_genome]:
     cols[0] = cols[0].lstrip('#')
     df.columns = cols
 
+gqs = [x for x in df_exome.GQ.unique() if x != 1]
 
-fig, axes = plt.subplots(len(df.GQ.unique()), 2, figsize=(8, 12))
+fig, axes = plt.subplots(len(gqs), 2, figsize=(8, 12))
 assert len(df_exome.GQ.unique()) == len(df_genome.GQ.unique())
 
 for ci, df in enumerate((df_exome, df_genome)):
     tmax = float(df.total.max())
-    gqs = sorted(df.GQ.unique())
 
     for i, gq in enumerate(gqs):
         df_gq = df[df.GQ == gq]
@@ -43,21 +43,20 @@ for ci, df in enumerate((df_exome, df_genome)):
             ax.plot([cut.fp], [cut.tp], color=colors[j+1], ls='none',
                     marker='o', label="%.2g-%.2g" % (cutoff, 1 - cutoff))
 
-            if ci == 0 and cutoff == 0.2 and gq == 10:
+            if ci == 0 and cutoff == 0.25 and gq == 20:
                 ax.plot([cut.fp], [cut.tp], color='gray', ls='none',
                         markersize=12,
                         marker='o', zorder=-1)
-            elif ci == 1 and cutoff == 0.25 and gq == 10:
+            elif ci == 1 and cutoff == 0.25 and gq == 20:
                 ax.plot([cut.fp], [cut.tp], color='gray', ls='none',
                         markersize=12,
                         marker='o', zorder=-1)
 
         if ci == 0:
-            ax.set_xlim(0.0, 0.0015)
-            ax.set_ylim(0.85, 1)
+            ax.set_xlim(0.0, 0.0011)
         else:
-            ax.set_xlim(0.0, 0.006)
-            ax.set_ylim(0.6, 1)
+            ax.set_xlim(0.0, 0.008)
+        ax.set_ylim(0.88, 1)
 
         sns.despine()
         if i == 0 and ci == 0:
