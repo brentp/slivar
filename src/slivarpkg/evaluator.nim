@@ -68,7 +68,7 @@ iterator variants*(vcf:VCF, region:string): Variant =
     for v in vcf: yield v
   elif fileExists(region) and looks_like_region_file(region):
     ## must be in bed format.
-    for l in region.hts_lines:
+    for l in region.hts_lines(threads=0):
       if l[0] == '#' or l.strip().len == 0: continue
       var toks = l.strip().split(seps={'\t'})
       for v in vcf.query(&"{toks[0]}:{parseInt(toks[1]) + 1}-{toks[2]}"):
@@ -236,14 +236,16 @@ proc set_sample_attributes(ev:Evaluator, by_name: TableRef[string, ISample]) =
       else:
         ev.ctx.pop()
 
-proc trio_kids(samples: seq[Sample], by_name: TableRef[string, ISample]): seq[Sample] =
-  ## return all samples that have a mom and dad.
+proc trio_kids*(samples: seq[Sample], by_name: TableRef[string, ISample]): seq[Sample] =
+  ## return all samples that have a mom and dad that are present in the vcf
   result = newSeqOfCap[Sample](16)
   for sample in samples:
-    if sample.mom == nil or sample.dad == nil: continue
-    if sample.id notin by_name: continue
-    if sample.mom.id notin by_name: continue
-    if sample.dad.id notin by_name: continue
+    if sample.mom == nil or sample.mom.i == -1: continue
+    if sample.dad == nil or sample.dad.i == -1: continue
+    if by_name != nil:
+      if sample.id notin by_name: continue
+      if sample.mom.id notin by_name: continue
+      if sample.dad.id notin by_name: continue
     result.add(sample)
 
 proc make_one_row(ev:Evaluator, grps: seq[seq[Sample]], by_name: TableRef[string, ISample]): seq[seq[ISample]] =

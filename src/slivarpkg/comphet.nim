@@ -160,23 +160,13 @@ proc write_compound_hets(ovcf:VCF, kids:seq[Sample], tbl:TableRef[string, seq[Va
     doAssert ovcf.write_variant(v)
     result.inc
 
-proc get_csq_fields(ivcf:VCF, field: string): seq[string] =
-  var desc = ivcf.header.get(field, BCF_HEADER_TYPE.BCF_HL_INFO)["Description"]
-  echo desc
-  var spl = (if "Format: '" in desc: "Format: '" else: "Format: ")
-  var adesc = desc.split(spl)[1].split("'")[0].strip().strip(chars={'"', '\''}).multiReplace(("[", ""), ("]", ""), ("'", ""), ("*", "")).split("|")
-
-  for v in adesc.mitems: v = v.toUpperAscii
-  return adesc
-
-
 proc main*(dropfirst:bool=false) =
   var p = newParser("slivar compound-hets"):
     help("find compound-hets in trios from pre-filtered variants")
     option("-v", "--vcf", default="/dev/stdin", help="input VCF")
     option("-s", "--sample-field", multiple=true, help="optional INFO field(s) that contains list of samples (kids) that have passed previous filters.\ncan be specified multiple times. this is needed for multi-family VCFs")
     option("-p", "--ped", default="", help="required ped file describing the trios in the VCF")
-    option("--skip", default="intron_variant,non_coding_transcript_variant,non_coding,upstream_gene_variant,downstream_gene_variant,non_coding_transcript_exon_variant", help="skip variants with these impacts (comma-separated)")
+    option("--skip", default="splice_region,splice_region,synonymous,non_coding_transcript,intron,non_coding_transcript,non_coding,upstream_gene,downstream_gene,non_coding_transcript_exon,NMD_transcript,5_prime_UTR,3_prime_UTR", help="skip variants with these impacts (comma-separated)")
     option("-o", "--out-vcf", default="/dev/stdout", help="path to output VCF/BCF")
     flag("-a", "--allow-non-trios", help="allow samples with one or both parent unspecified. if this mode is used, any pair of heterozygotes co-occuring in the same gene, sample will be reported for samples without both parents that don't have kids. if a single parent is present some additional filtering is done.")
 
@@ -193,7 +183,17 @@ proc main*(dropfirst:bool=false) =
     samples = parse_ped(opts.ped)
     ovcf:VCF
     ivcf:VCF
-    skip_impacts = opts.skip.strip.split(',')
+    skip_impacts = opts.skip.toLowerAscii.strip.split(',')
+
+  block:
+    var toAdd:seq[string]
+    for sk in skip_impacts:
+      if sk.endsWith("_variant"): toAdd.add(sk[0..sk.high-8])
+      else: toAdd.add(sk & "_variant")
+      if toAdd.len > 0 and toAdd[toAdd.high] in skip_impacts:
+        discard toAdd.pop
+    skip_impacts.add(toAdd)
+
 
 
   if not open(ivcf, opts.vcf, threads=2):
@@ -237,6 +237,7 @@ proc main*(dropfirst:bool=false) =
     comphet_id:int = 0
 
 
+  var imp_counts = initCountTable[string]()
   var nvariants = -1
   for v in ivcf:
     nvariants += 1
@@ -274,9 +275,10 @@ proc main*(dropfirst:bool=false) =
         if gene in seen: continue
         var impact_ok = false
         for imp in fields[g.consequence].split('&'):
-          if imp notin skip_impacts:
+          if imp.toLowerAscii notin skip_impacts:
             impact_ok = true
             break
+          imp_counts.inc(imp)
         if not impact_ok: continue
         if gene notin tbl:
           tbl[gene] = @[v.copy()]
@@ -304,7 +306,6 @@ proc main*(dropfirst:bool=false) =
     fh.write(counter.tostring(kids))
     fh.close()
     stderr.write_line "[slivar] wrote summary table to:" & summaryPath
-
 
 when isMainModule:
   import unittest
