@@ -216,6 +216,7 @@ const samples_name = "$S"
 proc set_sample_attributes(ev:Evaluator, by_name: TableRef[string, ISample]) =
   for sample in ev.samples:
     sample.duk["affected"] = sample.ped_sample.affected
+    sample.duk["phenotype"] = sample.ped_sample.phenotype
     var sex = sample.ped_sample.sex
     sample.duk["sex"] = if sex == 2: "female" elif sex == 1: "male" else: "unknown"
     sample.duk["id"] = sample.ped_sample.id

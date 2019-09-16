@@ -24,6 +24,7 @@ type
     dad*: Sample
     sex*: int
     affected*: bool
+    phenotype*: string ## as-is representation of the phenotype column
     kids*: seq[Sample]
     i*:int
     # fields beyond the 6th column
@@ -180,6 +181,8 @@ proc parse_ped*(path: string, verbose:bool=true): seq[Sample] =
 
     var s = Sample(family_id: toks[0], id: toks[1], kids:new_seq[Sample](), paternal_id: toks[2], maternal_id:toks[3], i: -1)
     s.affected = toks[5].toLowerAscii in  ["2", "affected", "yes"]
+    s.phenotype = toks[5]
+
     if toks[4].toLowerAscii in ["XXXXXX", "unknown", "male", "female"]:
       s.sex = @["XXXXXX", "unknown", "male", "female"].find(toks[4].toLowerAscii) - 1
     else:
@@ -274,7 +277,6 @@ when isMainModule:
 
   suite "pedfile test suite":
 
-    #[
     test "that samples match those in vcf":
       var osamples = samples.match(ovcf)
       for i, s in osamples:
@@ -294,7 +296,6 @@ when isMainModule:
         check sib.dad == samples[0].dad
         check sib.mom == samples[0].mom
 
-    ]#
 
     test "dijkstra and relatedness":
       var k1 = Sample(family_id:"1", id:"kid1")
@@ -341,7 +342,6 @@ when isMainModule:
       var dad = Sample(family_id:"1", id:"kid1")
       k1.dad = dad
       dad.kids.add(k1)
-      var fam = @[k1, dad]
 
       check 0.5 == relatedness(k1, dad)
 

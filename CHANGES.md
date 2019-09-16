@@ -5,6 +5,7 @@ v0.1.7 (dev)
   most candidates from WGS which were predominantly pairs of intronic or non-coding variants.
 + compound-het: remove -f flag, this is now discovered by default
 + only samples with parents in the vcf (not just ped) are counted as trios
++ expose sample.phenotype attribute which is a string taken directly from the pedigree file
 
 v0.1.6
 ======

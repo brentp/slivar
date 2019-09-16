@@ -259,7 +259,8 @@ see: https://github.com/brentp/slivar/wiki/finding-deletions-in-parent-child-duo
 
  + sample attributes (via `kid`, `mom`, `dad`) included in the FORMAT. available as e.g. `kid.AD[1]`, `mom.DP`, etc.
  + sample attributes for `hom_ref`, `het`, `hom_alt`, `unknown` which are synonums for `sample.alts` of 0, 1, 2, -1 respectively.
- + sample attributes from the ped for `affected`, `sex`, `id` are available as, e.g. kid.sex.
+ + sample attributes from the ped for `affected`, `phenotype`, `sex`, `id` are available as, e.g. kid.sex.
+   phenotype is a string taken directly from the pedigree file while affected is a boolean.
  + sample relations are available as `mom`, `dad`, `kids`. `mom` and `dad` will be undefined if not available and kids will be an empty array.
 
 ## How it works

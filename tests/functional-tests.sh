@@ -135,6 +135,13 @@ assert_exit_code 0
 assert_in_stderr "sample	dn	dnf
 HG002	3	3"
 
+
+run check_phenotype $exe expr --pass-only -p tests/ashk-trio.ped -v tests/ashk-trio.vcf.gz --trio "dn:INFO.impactful && mom.hom_ref && kid.het && dad.hom_ref" --family-expr 'dnf:INFO.impactful && fam.every(function(s) {var aff=s.phenotype == "2"; return s.het == aff && s.hom_ref == !aff})'
+assert_exit_code 0
+assert_in_stderr "sample	dn	dnf
+HG002	3	3"
+
+
 rm xx.tsv
 
 run check_bad_field_type_fails_in_make_gnotate $exe make-gnotate -f culprit --prefix xx tests/ashk-trio.vcf.gz
