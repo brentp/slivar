@@ -1,0 +1,21 @@
+./src/slivarpkg/ddc data/rgp.15.X.bcf data/rgp.ped \
+    --exclude /data/human/LCR-hs38.bed.gz \
+    --fmt-fixed-het 'AB>=0.2' \
+    --fmt-fixed-het 'GQ>=20' \
+    --fmt-fixed-hom-ref 'GQ>=20' \
+    --fmt-fixed-hom-ref 'AB < 0.015' \
+    --fmt-fixed-hom-ref 'DP > 12' \
+    --fmt-fixed-het 'DP > 12' \
+    --info-fixed 'QD >= 8.0' \
+    --info-fixed 'FS < 20'\
+    --info QD \
+    --info '^+ClippingRankSum' \
+    --info '^+ReadPosRankSum' \
+    --info '^+MQRankSum' \
+    --info '^+BaseQRankSum' \
+    --info '^FS' \
+    --info '^ExcessHet' \
+    --info DP \
+    --info '^SOR' \
+    --info VQSLOD \
+    --info QUAL \

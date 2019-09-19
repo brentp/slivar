@@ -82,8 +82,7 @@ type ISample = ref object
   duk: Duko
   last_alts: int
 
-type
- idpair* = tuple[name:string, info:bool]
+type idpair* = tuple[name:string, info:bool, format:bool]
 
 type Trio = array[3, ISample] ## kid, dad, mom
 
@@ -418,7 +417,7 @@ proc id2names*(h:Header): seq[idpair] =
     if idp.val.hrec[1] == nil and idp.val.hrec[2] == nil: continue
     if idp.val.id >= result.len:
       result.setLen(idp.val.id + 2)
-    result[idp.val.id] = ($name, idp.val.hrec[1] != nil)
+    result[idp.val.id] = ($name, idp.val.hrec[1] != nil, idp.val.hrec[2] != nil)
 
 
 proc c_memset*(p: pointer, value: cint, size: csize): pointer {.
