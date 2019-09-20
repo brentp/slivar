@@ -765,6 +765,16 @@ proc set_format_fields*(ev:var Evaluator, v:Variant, alts: var seq[int8], ints: 
 proc has_sample_expressions*(ev: Evaluator): bool {.inline.} =
   return ev.trio_expressions.len > 0 or ev.group_expressions.len > 0 or ev.family_expressions.len > 0
 
+proc try_info_check(ev: var Evaluator): bool {.inline.} =
+  try:
+    return ev.info_expression.check
+  except:
+    stderr.write_line "[slivar] error evaluating info expression (this can happen if a field is missing):"
+    stderr.write_line getCurrentExceptionMsg()
+
+    # NOTE if e.g. a field is missing, we still call it pass
+    return true
+
 iterator evaluate*(ev:var Evaluator, variant:Variant, nerrors:var int): exResult =
   for gno in ev.gnos.mitems:
     discard gno.annotate(variant)
@@ -787,7 +797,7 @@ iterator evaluate*(ev:var Evaluator, variant:Variant, nerrors:var int): exResult
     ev.set_calculated_variant_fields(alts)
     ev.set_infos(variant, ints, floats)
 
-    if ev.info_expression.ctx == nil or ev.info_expression.check:
+    if ev.info_expression.ctx == nil or ev.try_info_check:
       for r in ev.evaluate_floats(nerrors, variant): yield r
 
       if not ev.has_sample_expressions:

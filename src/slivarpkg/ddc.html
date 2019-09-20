@@ -25,13 +25,33 @@
 <body>
 
 <nav class="navbar navbar-expand-lg navbar-dark p-0" style="background-color:#4b636e !important">
-<a class="navbar-brand ml-2" href="https://github.com/brentp/slivar">slivar</a>
+<a class="navbar-brand ml-2" href="https://github.com/brentp/slivar">slivar data-driven cut-offs</a>
 </nav>
-<div id="plots"></div>
+
+<div class="container-fluid h-100">
+    <div class="row">
+        <div class="col">
+            <label for="select">choose a field to plot</label>
+            <select name="select" id="select"></select>
+        </div>
+    </div>
+    <div class="row h-50">
+        <div class="col">
+            <div class="h-100" id="plots"></div>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col">
+            <div id="message"></div>
+        </div>
+    </div>
+</div>
 
 <script>
 var nan = NaN; // hack to support json dumped with NaN values.
-var traces = <INPUT_JSON>;
+var traces = <INPUT_JSON>
+</script>
+<script>
 
 var colors = ['rgba(55,126,184,0.7)', 'rgba(228,26,28,0.7)', 'rgba(77,175,74,0.7)', 'rgba(152,78,163,0.7)', 'rgba(255,127,0,0.7)', 'rgba(166,86,40,0.7)', 'rgba(247,129,191,0.7)']
 
@@ -40,9 +60,15 @@ var layout = {
     margin: {t: 30, pad: 0},
     xaxis: {
         title: "Mendelian violations",
+        showspikes: true,
+        spikethickness: 1,
+	hoverformat: '.4f',
     },
     yaxis: {
-        title: "Transmitted variants"
+        title: "Transmitted variants",
+        showspikes: true,
+        spikethickness: 1,
+	hoverformat: '.4f',
     },
     hovermode: 'closest',
     showlegend: true,
@@ -57,17 +83,53 @@ var layout = {
     },
 }
 
+var div = document.getElementById("plots")
+var sel = document.getElementById("select")
+var msg = document.getElementById("message")
+
+
 for(i=0;i<traces.length;i++){
 	traces[i].mode = 'lines+markers';
 	traces[i].type = 'scatter';
 	traces[i].marker = {size: 4};
+	var opt = document.createElement("option")
+	opt.value = i
+	opt.innerHTML = traces[i].name
+	opt.selected = i == 0
+	sel.appendChild(opt)
 
-	var div = document.getElementById("plots")
-	var pdiv = document.createElement("div")
-	div.appendChild(pdiv)
-	Plotly.newPlot(pdiv, [traces[i]], layout)
 }
 
+jQuery(sel).on("change", function() {
+  var i = jQuery(this).val()
+  var p = Plotly.newPlot(div, [traces[i]], layout)
+  var field = jQuery("#select option:selected").text()
+  div.on("plotly_hover", function(data) {
+	  var p = data.points[0];
+	  var falsepos = 100 * p.x
+	  var truepos = 100 * p.y
+	  var text = "remove <b>" + falsepos.toFixed(2) + "%</b> of mendelian violations (false-positives)<br/>retain <b>" + truepos.toFixed(2) + "%</b> of transmitted variants (true-positives)"
+	  text += "<br/> by requiring <b>"
+	  if(traces[i].abs ) {
+		  text += "abs(" + field + ")"
+	  } else {
+		  text += field
+	  }
+	  text += (traces[i].lt ? "<" : ">")
+	  // NOTE: this depends on the text not changing (e.g. <1.23 is the last thing in the text
+	  var cutoff = p.text.split(traces[i].lt ? "<": ">");
+	  text += cutoff[cutoff.length - 1]
+	  msg.innerHTML = text + "</b>"
+  })
+
+}).trigger("change")
+
+
+
 </script>
+
+<p>
+
+
 </body>
 </html>

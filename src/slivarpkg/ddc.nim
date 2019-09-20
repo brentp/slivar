@@ -22,6 +22,9 @@ type Trace = object
   x: seq[float32]
   text: seq[string]
   name: string
+  lt: bool
+  abs: bool
+
 
 
 type BoolExpr = object
@@ -139,6 +142,7 @@ proc ddc_main*() =
   var p = newParser("slivar ddc"):
     #option("-x", help="haploid (x) chromosome", default="chrX")
     option("--exclude", help="file of exclude regions")
+    option("--chrom", help="limit to this chromosome only", default="chr15")
     option("--fmt-fixed-het", help="cutoff for sample field for hets. e.g. AB >= 0.2. only variants passing these filters are evaluated", multiple=true)
     option("--fmt-fixed-hom-ref", help="cutoff for sample field for hom-ref. e.g. AB <= 0.01. only variants passing these filters are evaluated", multiple=true)
     option("--info-fixed", help="cutoff for INFO field for hets. e.g. QD >= 8.0. only variants passing these filters are evaluated", multiple=true)
@@ -194,7 +198,7 @@ proc ddc_main*() =
   var last_rid = -1
   var last_lapper: Lapper[region]
 
-  for v in ivcf:
+  for v in ivcf.query(opts.chrom):
     if v.FILTER != "PASS": continue
     if v.ALT[0] == "*": continue
 
@@ -252,9 +256,10 @@ proc ddc_main*() =
     # todo: what about hom-ref calls?
 
   var traces: seq[Trace]
+
   for info_name, seqs in info_values.mpairs:
 
-      var tr = Trace(name: info_name)
+      var tr = Trace(name: info_name, lt: seqs.flip, abs: seqs.abs)
       var inh = seqs.inherited
       var vio = seqs.violation
       sort(inh)

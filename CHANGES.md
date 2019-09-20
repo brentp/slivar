@@ -6,6 +6,7 @@ v0.1.7 (dev)
 + compound-het: remove -f flag, this is now discovered by default
 + only samples with parents in the vcf (not just ped) are counted as trios
 + expose sample.phenotype attribute which is a string taken directly from the pedigree file
++ given an error on an INFO expression, don't bail, just report and continue
 
 v0.1.6
 ======
