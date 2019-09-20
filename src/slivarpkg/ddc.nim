@@ -197,8 +197,13 @@ proc ddc_main*() =
   var kids = samples.trio_kids
   var last_rid = -1
   var last_lapper: Lapper[region]
+  var vi = 0
 
   for v in ivcf.query(opts.chrom):
+    if vi mod 500_000 == 0:
+      stderr.write_line &"[slivar] at variant {v.CHROM}:{v.POS} ({vi})"
+    vi.inc
+
     if v.FILTER != "PASS": continue
     if v.ALT[0] == "*": continue
 
@@ -306,9 +311,12 @@ proc ddc_main*() =
       #  echo &"{info_name}:{c} tpr:{tprs[i]:.3f} fpr:{fprs[i]:.3f}"
       traces.add(tr)
 
+  sort(traces, proc(a, b: Trace): int =
+    result = cmp(a.name, b.name)
+  )
   var s = %* traces
   var fh:File
-  if not fh.open("roc.html", mode=fmWrite):
+  if not fh.open("slivar_ddc_roc.html", mode=fmWrite):
     quit "couldn't open output file."
 
   fh.write(tmpl_html.replace("<INPUT_JSON>", $s))

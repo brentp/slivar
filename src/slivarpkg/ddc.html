@@ -108,7 +108,7 @@ jQuery(sel).on("change", function() {
 	  var p = data.points[0];
 	  var falsepos = 100 * p.x
 	  var truepos = 100 * p.y
-	  var text = "remove <b>" + falsepos.toFixed(2) + "%</b> of mendelian violations (false-positives)<br/>retain <b>" + truepos.toFixed(2) + "%</b> of transmitted variants (true-positives)"
+	  var text = "remove <b>" + (100 - falsepos).toFixed(2) + "%</b> of mendelian violations (false-positives)<br/>retain <b>" + truepos.toFixed(2) + "%</b> of transmitted variants (true-positives)"
 	  text += "<br/> by requiring <b>"
 	  if(traces[i].abs ) {
 		  text += "abs(" + field + ")"
