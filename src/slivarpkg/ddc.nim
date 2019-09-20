@@ -294,7 +294,7 @@ proc ddc_main*() =
         tr.y.add(tpr)
         let sign = if seqs.flip: '<' else: '>'
         let value = if seqs.abs: &"abs({info_name})": else: info_name
-        tr.text.add(&"trues:{ti} falses:{vi} total:{vio.len + inh.len}, include:{value}{sign}{cutoff:.2f}")
+        tr.text.add(&"trues:{ti} falses:{vi} total:{vio.len + inh.len}<br>include:{value}{sign}{cutoff:.2f}")
         #tr.text.add(&"trues:{ti} falses:{vi} total:{total}, cutoff:{cutoff}")
 
       #for i, c in cutoffs:
