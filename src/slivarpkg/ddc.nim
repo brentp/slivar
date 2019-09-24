@@ -138,6 +138,45 @@ proc should_skip(v:Variant, info_exprs: seq[BoolExpr]): bool =
     if f.len == 0: continue # NOTE: allowing variants without the field
     if not expr.fn(f[0]): return true
 
+proc `$$`(k:float32): string {.inline.} =
+  result = &"{k:.2f}"
+
+proc write_fields(fh:File, infos: seq[float32], info_fields: seq[string], kid:Sample, fmt_hr_fields: seq[seq[float32]], hr_exprs: seq[BoolExpr], fmt_het_fields: seq[seq[float32]], het_exprs: seq[BoolExpr], violation:bool, header_written: var bool) =
+  if not header_written:
+    var strings: seq[string]
+    var used: seq[string]
+    for h in hr_exprs:
+      if h.field in used: continue
+      used.add(h.field)
+      for s in ["kid", "dad", "mom"]:
+        strings.add(s & "_" & h.field)
+    for h in het_exprs:
+      if h.field in used: continue
+      used.add(h.field)
+      for s in ["kid", "dad", "mom"]:
+        strings.add(s & "_" & h.field)
+    fh.write_line(&"""TP	{join(info_fields, "\t")}	{join(strings, "\t")}""")
+    header_written = true
+  var strings:seq[string]
+  var used: seq[string]
+  for i in infos:
+    strings.add($$i)
+    if strings[strings.high] in ["nan", "-nan"]: return
+  for i, f in fmt_hr_fields:
+    if hr_exprs[i].field in used: continue
+    used.add(hr_exprs[i].field)
+    strings.add($$f[kid.i])
+    strings.add($$f[kid.dad.i])
+    strings.add($$f[kid.mom.i])
+  for i, f in fmt_het_fields:
+    if het_exprs[i].field in used: continue
+    used.add(het_exprs[i].field)
+    strings.add($$f[kid.i])
+    strings.add($$f[kid.dad.i])
+    strings.add($$f[kid.mom.i])
+
+  fh.write_line(&"""{1 - int(violation)}	{join(strings, "\t")}""")
+
 proc ddc_main*() =
   var p = newParser("slivar ddc"):
     #option("-x", help="haploid (x) chromosome", default="chrX")
@@ -195,9 +234,13 @@ proc ddc_main*() =
 
 
   var kids = samples.trio_kids
+  var header_written: bool = false
   var last_rid = -1
   var last_lapper: Lapper[region]
   var vi = 0
+  var ofh: File
+  if not ofh.open("slivar_ddc_table.tsv", fmWrite):
+    quit "could not open table"
 
   for v in ivcf.query(opts.chrom):
     if vi mod 500_000 == 0:
@@ -222,6 +265,11 @@ proc ddc_main*() =
     var het_fields = newSeq[seq[float32]]()
     var hr_fields = newSeq[seq[float32]]()
 
+    var violations = newSeq[bool](samples.len)
+    var passes = newSeq[bool](samples.len)
+    var infos = newSeqOfCap[float32](info_fields.len)
+
+
     if v.should_skip(info_exprs): continue
     # collect all the format fields once and then access then below for the
     # trios.
@@ -238,6 +286,7 @@ proc ddc_main*() =
       else:
         vals = v.getINFOf32(e, info_values[e].abs)
       # if this field is not in the variant, we can't do anything
+      infos.add(if vals.len > 0: vals[0] else: Nan)
       if vals.len == 0: continue
       for kid in kids:
         if alts[kid.i] != 1: continue
@@ -247,6 +296,8 @@ proc ddc_main*() =
           if not kid.mom.passes(fmt_hr_exprs, hr_fields): continue
           if not kid.dad.passes(fmt_hr_exprs, hr_fields): continue
           info_values[e].violation.add(vals[0])
+          violations[kid.i] = true
+          passes[kid.i] = true
 
         elif kid.inherited(alts):
           if not kid.passes(fmt_het_exprs, het_fields): continue
@@ -255,6 +306,11 @@ proc ddc_main*() =
           if alts[kid.dad.i] == 1 and not kid.dad.passes(fmt_het_exprs, het_fields): continue
           elif alts[kid.dad.i] == 0 and not kid.dad.passes(fmt_hr_exprs, hr_fields): continue
           info_values[e].inherited.add(vals[0])
+          passes[kid.i] = true
+
+    for kid in kids:
+      if not passes[kid.i]: continue
+      ofh.write_fields(infos, info_fields, kid, hr_fields, fmt_hr_exprs, het_fields, fmt_het_exprs, violations[kid.i], header_written)
 
 
     # todo: handle flags

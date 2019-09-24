@@ -77,6 +77,7 @@ proc check*(d:Dukexpr): bool {.inline.} =
   discard d.ctx.duk_push_heapptr(d.vptr)
   if d.ctx.duk_pcall(0) != 0:
     var err = $d.ctx.duk_safe_to_string(-1)
+    d.ctx.pop()
     raise newException(ValueError, "error from duktape: " & $err & " for expression:" & d.expr & "\n")
   else:
     result = 1 == d.ctx.duk_get_boolean(-1)
