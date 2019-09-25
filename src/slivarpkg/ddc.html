@@ -29,24 +29,23 @@
 </nav>
 
 <div class="container-fluid h-100">
-    <div class="row">
-        <div class="col">
-            <label for="select">choose a field to plot</label>
-            <select name="select" id="select"></select>
+    <div class="row pt-2 pb-2 bg-light">
+        <div class="col-6">
+            <label for="select">Plot metric</label>
+            <select class="form-control" name="select" id="select"></select>
+        </div>
+        <div class="col-6 d-flex flex-row-reverse">
+            <div style="font-size: .9em">
+                <div id="message"></div>
+            </div>
         </div>
     </div>
-    <div class="row h-50">
+    <div class="row" style="height:70%">
         <div class="col">
             <div class="h-100" id="plots"></div>
         </div>
     </div>
-    <div class="row">
-        <div class="col">
-            <div id="message"></div>
-        </div>
-    </div>
 </div>
-
 <script>
 var nan = NaN; // hack to support json dumped with NaN values.
 var traces = <INPUT_JSON>
@@ -75,7 +74,7 @@ var layout = {
     legend: {
         xanchor: "right",
         yanchor: "bottom",
-        y: 1,
+        y: 0.1,
         x: 1,
         orientation: "h",
         borderwidth: 1,
@@ -100,6 +99,7 @@ for(i=0;i<traces.length;i++){
 
 }
 
+/*
 jQuery(sel).on("change", function() {
   var i = jQuery(this).val()
   var p = Plotly.newPlot(div, [traces[i]], layout)
@@ -120,6 +120,33 @@ jQuery(sel).on("change", function() {
 	  var cutoff = p.text.split(traces[i].lt ? "<": ">");
 	  text += cutoff[cutoff.length - 1]
 	  msg.innerHTML = text + "</b>"
+  })
+
+}).trigger("change")
+*/
+
+
+jQuery(sel).on("change", function() {
+  var i = jQuery(this).val()
+  var p = Plotly.newPlot(div, [traces[i]], layout)
+  var field = jQuery("#select option:selected").text()
+  msg.innerHTML = ""
+  div.on("plotly_hover", function(data) {
+      var p = data.points[0];
+      var falsepos = 100 * p.x
+      var truepos = 100 * p.y
+      var text = "Remove <b>" + (100 - falsepos).toFixed(2) + "%</b> of mendelian violations (false-positives)<br/>Retain <b>" + truepos.toFixed(2) + "%</b> of transmitted variants (true-positives)"
+      text += "<br/> Use filter: <code>"
+      if(traces[i].abs ) {
+          text += "abs(" + field + ")"
+      } else {
+          text += field
+      }
+      text += (traces[i].lt ? "<" : ">")
+      // NOTE: this depends on the text not changing (e.g. <1.23 is the last thing in the text
+      var cutoff = p.text.split(traces[i].lt ? "<": ">");
+      text += cutoff[cutoff.length - 1]
+      msg.innerHTML = text + "</code>"
   })
 
 }).trigger("change")

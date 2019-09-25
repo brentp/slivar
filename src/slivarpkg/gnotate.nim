@@ -60,7 +60,7 @@ proc open*(g:var Gnotater, zpath: string, tmpDir:string="/tmp", missing_val:floa
     stderr.write_line &"[slivar] error opening {zpath} for annotation"
     return false
 
-  var r = $random(int.high) & $random(int.high)
+  var r = $rand(int.high) & $rand(int.high)
   var path = g.tmpDir / &"chroms{r}.txt"
   g.zip.extract_file("sli.var/chroms.txt", path)
   for l in path.lines:

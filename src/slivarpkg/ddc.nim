@@ -218,12 +218,13 @@ proc ddc_main*() =
 
   var samples = parse_ped(opts.ped).match(ivcf)
   var info_fields: seq[string] = opts.info
+  info_fields.add("variant_length")
   #var fmt_fields: seq[string] = opts.fmt
 
   var info_values = newTable[string, TF]()
   for i in info_fields.mitems:
-    if i == "QUAL":
-      info_values[i] = TF()
+    if i in ["variant_length", "QUAL"]:
+      info_values[i] = TF(flip: i == "variant_length", abs: i == "variant_length")
       continue
     try:
       discard ivcf.header.get(i.strip(chars={'^', '+'}), BCF_HEADER_TYPE.BCF_HL_INFO)
@@ -283,6 +284,8 @@ proc ddc_main*() =
       var vals: seq[float32]
       if e == "QUAL":
         vals.add(v.QUAL.float32)
+      elif e == "variant_length":
+        vals.add(float32(v.ALT[0].len - v.REF.len).abs)
       else:
         vals = v.getINFOf32(e, info_values[e].abs)
       # if this field is not in the variant, we can't do anything
@@ -332,6 +335,8 @@ proc ddc_main*() =
       let lo = min(inh[0], vio[0])
       let hi = max(inh[^1], vio[^1])
       var step = (hi - lo) / 1000'f32 # 1k steps should be more than enough.
+      if info_name == "variant_length":
+        step = 1'f32
       var cutoff = lo - step - 1e-10
       while cutoff <= hi + step:
         cutoff += step
