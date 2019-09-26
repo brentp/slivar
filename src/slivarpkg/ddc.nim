@@ -24,6 +24,13 @@ type Trace = object
   name: string
   lt: bool
   abs: bool
+  size_range: array[2, int]
+
+  trues: seq[int32]
+  falses: seq[int32]
+  cutoffs: seq[float32]
+  false_count: int32
+  true_count: int32
 
 
 
@@ -142,7 +149,7 @@ proc `$$`(k:float32): string {.inline.} =
   result = &"{k:.2f}"
 
 proc get_variant_length(v:Variant): float32 =
-  var length = float32(v.ALT[0].len - v.REF.len)
+  var length = float32(v.REF.len - v.ALT[0].len)
   if v.ALT[0][0] == '<':
     var lengths: seq[int32]
     if v.info.get("SVLEN", lengths) == Status.OK:
@@ -231,19 +238,21 @@ proc ddc_main*() =
 
   var samples = parse_ped(opts.ped).match(ivcf)
   var info_fields: seq[string] = opts.info
-  info_fields.add("variant_length")
   #var fmt_fields: seq[string] = opts.fmt
 
   var info_values = newTable[string, TF]()
+  var sizes_tbl = newTable[string, TF]()
   for i in info_fields.mitems:
-    if i in ["variant_length", "QUAL"]:
-      info_values[i] = TF() #flip: i == "variant_length", abs: i == "variant_length")
+    if i  == "QUAL":
+      info_values[i] = TF()
+      sizes_tbl[i] =  TF()
       continue
     try:
       discard ivcf.header.get(i.strip(chars={'^', '+'}), BCF_HEADER_TYPE.BCF_HL_INFO)
     except KeyError:
       quit &"requested info field {i} not found in header"
     info_values[i.strip(chars={'^', '+'})] = TF(flip:'^' in i, abs: '+' in i)
+    sizes_tbl[i.strip(chars={'^', '+'})] =  TF()
     i = i.strip(chars={'^', '+'})
 
 
@@ -260,7 +269,6 @@ proc ddc_main*() =
     if vi mod 500_000 == 0:
       stderr.write_line &"[slivar] at variant {v.CHROM}:{v.POS} ({vi})"
     vi.inc
-
     if v.FILTER != "PASS": continue
     if v.ALT[0] == "*": continue
 
@@ -283,7 +291,6 @@ proc ddc_main*() =
     var passes = newSeq[bool](samples.len)
     var infos = newSeqOfCap[float32](info_fields.len)
 
-
     if v.should_skip(info_exprs): continue
     # collect all the format fields once and then access then below for the
     # trios.
@@ -297,13 +304,13 @@ proc ddc_main*() =
       var vals: seq[float32]
       if e == "QUAL":
         vals.add(v.QUAL.float32)
-      elif e == "variant_length":
-        vals.add(v.get_variant_length)
       else:
         vals = v.getINFOf32(e, info_values[e].abs)
       # if this field is not in the variant, we can't do anything
       infos.add(if vals.len > 0: vals[0] else: Nan)
       if vals.len == 0: continue
+      var vlen = v.get_variant_length.float32
+
       for kid in kids:
         if alts[kid.i] != 1: continue
 
@@ -312,6 +319,7 @@ proc ddc_main*() =
           if not kid.mom.passes(fmt_hr_exprs, hr_fields): continue
           if not kid.dad.passes(fmt_hr_exprs, hr_fields): continue
           info_values[e].violation.add(vals[0])
+          sizes_tbl[e].violation.add(vlen)
           violations[kid.i] = true
           passes[kid.i] = true
 
@@ -322,6 +330,7 @@ proc ddc_main*() =
           if alts[kid.dad.i] == 1 and not kid.dad.passes(fmt_het_exprs, het_fields): continue
           elif alts[kid.dad.i] == 0 and not kid.dad.passes(fmt_hr_exprs, hr_fields): continue
           info_values[e].inherited.add(vals[0])
+          sizes_tbl[e].inherited.add(vlen)
           passes[kid.i] = true
 
     for kid in kids:
@@ -332,68 +341,85 @@ proc ddc_main*() =
     # todo: handle flags
     # todo: what about hom-ref calls?
 
-  var traces: seq[Trace]
+  var traces = newTable[string, seq[Trace]]()
+  var cuts = [0,1,2,3,4,5,6,8,10,20,30,40,50,100,300,1_000,10_000,int.high]
+  stderr.write_line "collected variants, now creating ROC curves by size class"
+
 
   for info_name, seqs in info_values.mpairs:
+      traces[info_name] = newSeq[Trace]()
+      var sizes = sizes_tbl[info_name]
 
-      var tr = Trace(name: info_name, lt: seqs.flip, abs: seqs.abs)
-      var inh = seqs.inherited
-      var vio = seqs.violation
-      sort(inh)
-      sort(vio)
-      var last_tpr = float32.low
-      var last_fpr = float32.low
-      if vio.len == 0 or inh.len == 0: continue
+      doAssert seqs.inherited.len == sizes.inherited.len, &"{info_name}: {seqs.inherited.len} vs {sizes.inherited.len}"
+      doAssert seqs.violation.len == sizes.violation.len, &"{info_name}: {seqs.inherited.len} vs {sizes.inherited.len}"
 
-      let lo = min(inh[0], vio[0])
-      let hi = max(inh[^1], vio[^1])
+      var trs = newSeq[Trace]()
+      # >= size_range[0], < size_range[1]
+      trs.add(Trace(name: info_name, lt: seqs.flip, abs: seqs.abs, size_range: [0, 1]))
+      for i, c in cuts:
+        if i == 0: continue
+        if i == cuts.high: break
+        trs.add(Trace(name: info_name, lt: seqs.flip, abs: seqs.abs, size_range: [c, cuts[i+1]]))
+        trs.add(Trace(name: info_name, lt: seqs.flip, abs: seqs.abs, size_range: [-c, -cuts[i - 1]]))
+      trs.add(Trace(name: info_name, lt: seqs.flip, abs: seqs.abs, size_range: [-cuts[cuts.high], - cuts[cuts.high-1]]))
+
+      var inh_all = seqs.inherited
+      var vio_all = seqs.violation
+      if vio_all.len == 0 or inh_all.len == 0: continue
+
+      let lo = min(min(inh_all), min(vio_all))
+      let hi = max(max(inh_all), max(vio_all))
       var step = (hi - lo) / 1000'f32 # 1k steps should be more than enough.
-      if info_name == "variant_length":
-        step = 1'f32
-      var cutoff = lo - step - 1e-10
-      while cutoff <= hi + step:
-        cutoff += step
-        var
-          ti: int
-          vi: int
+      # get the step for the entire set.
+      # now partition into sizes
+      for tr in trs.mitems:
 
-        if seqs.flip:
-          ti = lowerBound(inh, cutoff)
-          vi = lowerBound(vio, cutoff)
-        else:
-          ti = inh.len - lowerBound(inh, cutoff)
-          vi = vio.len - lowerBound(vio, cutoff)
-        #var ti = lowerBound(inh, cutoff)
-        var tpr = ti.float32 / inh.len.float32
+        var inh: seq[float32]
+        var vio: seq[float32]
+        for i, v in inh_all:
+          var sz = sizes.inherited[i].int32
+          if sz >= tr.size_range[0] and sz < tr.size_range[1]:
+            inh.add(v)
 
-        #var vi = lowerBound(vio, cutoff)
-        var fpr = vi.float32 / vio.len.float32
+        for i, v in vio_all:
+          var sz = sizes.violation[i].int32
+          if sz >= tr.size_range[0] and sz < tr.size_range[1]:
+            vio.add(v)
 
-        if abs(fpr - last_fpr) < 2e-4 and abs(tpr - last_tpr) < 2e-4:
-          continue
-        last_fpr = fpr
-        last_tpr = tpr
+        var cutoff = lo - step - 1e-10
+        while cutoff <= hi + step:
+          cutoff += step
+          var
+            ti: int
+            vi: int
 
-        tr.x.add(fpr)
-        tr.y.add(tpr)
-        let sign = if seqs.flip: '<' else: '>'
-        let value = if seqs.abs: &"abs({info_name})": else: info_name
-        tr.text.add(&"trues:{ti} falses:{vi} total:{vio.len + inh.len}<br>include:{value}{sign}{cutoff:.2f}")
-        #tr.text.add(&"trues:{ti} falses:{vi} total:{total}, cutoff:{cutoff}")
+          if seqs.flip:
+            ti = lowerBound(inh, cutoff)
+            vi = lowerBound(vio, cutoff)
+          else:
+            ti = inh.len - lowerBound(inh, cutoff)
+            vi = vio.len - lowerBound(vio, cutoff)
 
-      #for i, c in cutoffs:
-      #  echo &"{info_name}:{c} tpr:{tprs[i]:.3f} fpr:{fprs[i]:.3f}"
-      traces.add(tr)
+          #var tpr = ti.float32 / inh.len.float32
+          #var fpr = vi.float32 / vio.len.float32
 
-  sort(traces, proc(a, b: Trace): int =
-    result = cmp(a.name, b.name)
-  )
+          #tr.x.add(fpr)
+          #tr.y.add(tpr)
+          tr.trues.add(ti.int32)
+          tr.falses.add(vi.int32)
+          tr.false_count = vio.len.int32
+          tr.true_count = inh.len.int32
+          tr.cutoffs.add(cutoff)
+
+        traces[info_name].add(tr)
+
   var s = %* traces
   var fh:File
   if not fh.open("slivar_ddc_roc.html", mode=fmWrite):
     quit "couldn't open output file."
 
-  fh.write(tmpl_html.replace("<INPUT_JSON>", $s))
+  var sc = %* cuts
+  fh.write(tmpl_html.replace("<SIZES>", $sc).replace("<INPUT_JSON>", $s))
   fh.close()
 
 when isMainModule:

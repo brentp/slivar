@@ -30,11 +30,27 @@
 
 <div class="container-fluid h-100">
     <div class="row pt-2 pb-2 bg-light">
-        <div class="col-6">
+        <div class="col-3">
             <label for="select">Plot metric</label>
             <select class="form-control" name="select" id="select"></select>
         </div>
-        <div class="col-6 d-flex flex-row-reverse">
+	<!--
+        <div class="col-3">
+            <label for="select_type">Variant Class</label>
+            <select class="form-control" name="select_type" id="select_type">
+  	      <option value="any" selected>Any<option>
+  	      <option value="del" selected>Deletion<option>
+  	      <option value="ins" selected>Insertion<option>
+	    </select>
+        </div>
+	-->
+        <div class="col-3">
+            <label for="min_size">Size Range (&lt; 0 is deletion, &gt; 0 is insertion, 0 is SNP)</label>
+	    <select name="min_size" id="min_size"/></select>
+	    <select name="max_size" id="max_size"/></select>
+	</div>
+
+        <div class="col-3 d-flex flex-row-reverse">
             <div style="font-size: .9em">
                 <div id="message"></div>
             </div>
@@ -48,7 +64,8 @@
 </div>
 <script>
 var nan = NaN; // hack to support json dumped with NaN values.
-var traces = <INPUT_JSON>
+var trace_table = <INPUT_JSON>
+var sizes = <SIZES>
 </script>
 <script>
 
@@ -85,73 +102,106 @@ var layout = {
 var div = document.getElementById("plots")
 var sel = document.getElementById("select")
 var msg = document.getElementById("message")
+var min_size = document.getElementById("min_size")
+var max_size = document.getElementById("max_size")
 
-
-for(i=0;i<traces.length;i++){
-	traces[i].mode = 'lines+markers';
-	traces[i].type = 'scatter';
-	traces[i].marker = {size: 4};
-	var opt = document.createElement("option")
-	opt.value = i
-	opt.innerHTML = traces[i].name
-	opt.selected = i == 0
-	sel.appendChild(opt)
-
+for(var i = sizes.length-1; i > 0; i--) {
+  jQuery(min_size).append("<option value=" + -sizes[i] + ">&gt;="+ (-sizes[i]) + "</option>")
+  jQuery(max_size).append("<option value=" + -sizes[i] + ">&lt;"+ (-sizes[i]) + "</option>")
+}
+for(var i = 0; i < sizes.length; i++) {
+  jQuery(min_size).append("<option value=" + sizes[i] + ">&gt;="+ (sizes[i]) + "</option>")
+  jQuery(max_size).append("<option value=" + sizes[i] + ">&lt;"+ (sizes[i]) + "</option>")
 }
 
-/*
-jQuery(sel).on("change", function() {
-  var i = jQuery(this).val()
-  var p = Plotly.newPlot(div, [traces[i]], layout)
-  var field = jQuery("#select option:selected").text()
-  div.on("plotly_hover", function(data) {
-	  var p = data.points[0];
-	  var falsepos = 100 * p.x
-	  var truepos = 100 * p.y
-	  var text = "remove <b>" + (100 - falsepos).toFixed(2) + "%</b> of mendelian violations (false-positives)<br/>retain <b>" + truepos.toFixed(2) + "%</b> of transmitted variants (true-positives)"
-	  text += "<br/> by requiring <b>"
-	  if(traces[i].abs ) {
-		  text += "abs(" + field + ")"
-	  } else {
-		  text += field
-	  }
-	  text += (traces[i].lt ? "<" : ">")
-	  // NOTE: this depends on the text not changing (e.g. <1.23 is the last thing in the text
-	  var cutoff = p.text.split(traces[i].lt ? "<": ">");
-	  text += cutoff[cutoff.length - 1]
-	  msg.innerHTML = text + "</b>"
-  })
-
-}).trigger("change")
-*/
+var i = 0
+for(field in trace_table) {
+	traces=trace_table[field];
+	for(i=0;i<traces.length;i++){
+		traces[i].mode = 'lines+markers';
+		traces[i].type = 'scatter';
+		traces[i].marker = {size: 4};
+	}
+	var opt = document.createElement("option")
+	opt.value = field
+	opt.innerHTML = field
+	opt.selected = i == 0
+	sel.appendChild(opt)
+	i += 1;
+}
 
 
 jQuery(sel).on("change", function() {
-  var i = jQuery(this).val()
-  var p = Plotly.newPlot(div, [traces[i]], layout)
-  var field = jQuery("#select option:selected").text()
+
+  var field = jQuery(this).val()
+  var ftraces = trace_table[field];
+  var lo = jQuery("#min_size").val()
+  var hi = jQuery("#max_size").val()
+  var trace = {x:[], y:[], trues: [], falses: [], cutoffs: [],
+	  name: field,
+	  false_count: 0, true_count: 0, text:[], mode:'lines+markers', marker: {size: 4}, type:'scatter'}
+
+  for(var i = 0; i < ftraces.length; i++ ){
+    var ft = ftraces[i];
+    if(ft.size_range[1] <= lo) { continue;}
+    if(ft.size_range[0] > hi) { continue;}
+	  console.log(ft.size_range)
+    if(trace.true_count + trace.false_count == 0){
+	    // use the loop to copy so we don't modify the original arrays
+	    for(var k=0;k<ft.falses.length;k++){
+		    trace.trues.push(ft.trues[k]);
+		    trace.falses.push(ft.falses[k]);
+		    trace.cutoffs.push(ft.cutoffs[k]);
+	    }
+	    trace.false_count = ft.false_count
+	    trace.true_count = ft.true_count
+	    trace.abs = ft.abs
+	    trace.lt = ft.lt
+    } else {
+	    for(var k=0;k<ft.falses.length;k++){
+		    trace.trues[k] += ft.trues[k];
+		    trace.falses[k] += ft.falses[k];
+	    }
+	    trace.false_count += ft.false_count
+	    trace.true_count += ft.true_count
+    }
+  }
+  // now we have counts. need to convert to ratio
+  for(var k = 0; k < trace.falses.length; k++){
+      trace.text.push("cutoff:" + trace.cutoffs[k].toFixed(2) + "<br>inherited:" + trace.trues[k] + " (of: " + trace.true_count + "), violations:" + trace.falses[k] + " (of: " + trace.false_count + ")")
+      trace.x.push(trace.falses[k] / trace.false_count)
+      trace.y.push(trace.trues[k] / trace.true_count)
+  }
+
+  var p = Plotly.newPlot(div, [trace], layout)
+
   msg.innerHTML = ""
   div.on("plotly_hover", function(data) {
       var p = data.points[0];
       var falsepos = 100 * p.x
       var truepos = 100 * p.y
-      var text = "Remove <b>" + (100 - falsepos).toFixed(2) + "%</b> of mendelian violations (false-positives)<br/>Retain <b>" + truepos.toFixed(2) + "%</b> of transmitted variants (true-positives)"
-      text += "<br/> Use filter: <code>"
-      if(traces[i].abs ) {
+      var text = "Remove <b>" + (100 - falsepos).toFixed(2) + "%</b> of mendelian violations (false-positives)<br>Retain <b>" + truepos.toFixed(2) + "%</b> of transmitted variants (true-positives)"
+      text += "<br> Use filter: <code>"
+      if(trace.abs ) {
           text += "abs(" + field + ")"
       } else {
           text += field
       }
-      text += (traces[i].lt ? "<" : ">")
-      // NOTE: this depends on the text not changing (e.g. <1.23 is the last thing in the text
-      var cutoff = p.text.split(traces[i].lt ? "<": ">");
-      text += cutoff[cutoff.length - 1]
+      text += (trace.lt ? "<" : ">")
+      text += trace.cutoffs[p.pointIndex].toFixed(3)
+      text += "<br/>False discovery rate:" +  (trace.falses[p.pointIndex] / ( trace.falses[p.pointIndex] + trace.trues[p.pointIndex])).toFixed(4)
       msg.innerHTML = text + "</code>"
   })
 
 }).trigger("change")
 
 
+jQuery(min_size).on("change", function() {
+	jQuery(sel).trigger("change")
+})
+jQuery(max_size).on("change", function() {
+	jQuery(sel).trigger("change")
+})
 
 </script>
 
