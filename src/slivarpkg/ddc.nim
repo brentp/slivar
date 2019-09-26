@@ -141,6 +141,19 @@ proc should_skip(v:Variant, info_exprs: seq[BoolExpr]): bool =
 proc `$$`(k:float32): string {.inline.} =
   result = &"{k:.2f}"
 
+proc get_variant_length(v:Variant): float32 =
+  var length = float32(v.ALT[0].len - v.REF.len)
+  if v.ALT[0][0] == '<':
+    var lengths: seq[int32]
+    if v.info.get("SVLEN", lengths) == Status.OK:
+      length = lengths[0].float32
+    else:
+      length = float32(v.stop - v.start - 1)
+      var svt:string
+      if v.info.get("SVTYPE", svt) == Status.OK and svt == "DEL":
+        length = -length
+  result = length
+
 proc write_fields(fh:File, infos: seq[float32], info_fields: seq[string], kid:Sample, fmt_hr_fields: seq[seq[float32]], hr_exprs: seq[BoolExpr], fmt_het_fields: seq[seq[float32]], het_exprs: seq[BoolExpr], violation:bool, header_written: var bool) =
   if not header_written:
     var strings: seq[string]
@@ -224,7 +237,7 @@ proc ddc_main*() =
   var info_values = newTable[string, TF]()
   for i in info_fields.mitems:
     if i in ["variant_length", "QUAL"]:
-      info_values[i] = TF(flip: i == "variant_length", abs: i == "variant_length")
+      info_values[i] = TF() #flip: i == "variant_length", abs: i == "variant_length")
       continue
     try:
       discard ivcf.header.get(i.strip(chars={'^', '+'}), BCF_HEADER_TYPE.BCF_HL_INFO)
@@ -285,7 +298,7 @@ proc ddc_main*() =
       if e == "QUAL":
         vals.add(v.QUAL.float32)
       elif e == "variant_length":
-        vals.add(float32(v.ALT[0].len - v.REF.len).abs)
+        vals.add(v.get_variant_length)
       else:
         vals = v.getINFOf32(e, info_values[e].abs)
       # if this field is not in the variant, we can't do anything
