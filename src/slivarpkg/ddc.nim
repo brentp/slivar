@@ -337,7 +337,6 @@ proc ddc_main*() =
       if not passes[kid.i]: continue
       ofh.write_fields(infos, info_fields, kid, hr_fields, fmt_hr_exprs, het_fields, fmt_het_exprs, violations[kid.i], header_written)
 
-
     # todo: handle flags
     # todo: what about hom-ref calls?
 
@@ -400,11 +399,6 @@ proc ddc_main*() =
             ti = inh.len - lowerBound(inh, cutoff)
             vi = vio.len - lowerBound(vio, cutoff)
 
-          #var tpr = ti.float32 / inh.len.float32
-          #var fpr = vi.float32 / vio.len.float32
-
-          #tr.x.add(fpr)
-          #tr.y.add(tpr)
           tr.trues.add(ti.int32)
           tr.falses.add(vi.int32)
           tr.false_count = vio.len.int32

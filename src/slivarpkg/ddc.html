@@ -33,24 +33,15 @@
         <div class="col-3">
             <label for="select">Plot metric</label>
             <select class="form-control" name="select" id="select"></select>
+	    <input type="button" id="clearbutton" value="clear other lines">
         </div>
-	<!--
-        <div class="col-3">
-            <label for="select_type">Variant Class</label>
-            <select class="form-control" name="select_type" id="select_type">
-  	      <option value="any" selected>Any<option>
-  	      <option value="del" selected>Deletion<option>
-  	      <option value="ins" selected>Insertion<option>
-	    </select>
-        </div>
-	-->
-        <div class="col-3">
+        <div class="col-4">
             <label for="min_size">Size Range (&lt; 0 is deletion, &gt; 0 is insertion, 0 is SNP)</label>
 	    <select name="min_size" id="min_size"/></select>
 	    <select name="max_size" id="max_size"/></select>
 	</div>
 
-        <div class="col-3 d-flex flex-row-reverse">
+        <div class="col-4 d-flex flex-row-reverse">
             <div style="font-size: .9em">
                 <div id="message"></div>
             </div>
@@ -111,7 +102,8 @@ for(var i = sizes.length-1; i > 0; i--) {
 }
 for(var i = 0; i < sizes.length; i++) {
   jQuery(min_size).append("<option value=" + sizes[i] + ">&gt;="+ (sizes[i]) + "</option>")
-  jQuery(max_size).append("<option value=" + sizes[i] + ">&lt;"+ (sizes[i]) + "</option>")
+  var selected = (i == sizes.length - 1 ? " selected": "");
+  jQuery(max_size).append("<option value=" + sizes[i] + selected + ">&lt;"+ (sizes[i]) + "</option>")
 }
 
 var i = 0
@@ -130,6 +122,7 @@ for(field in trace_table) {
 	i += 1;
 }
 
+var plot_data = [];
 
 jQuery(sel).on("change", function() {
 
@@ -138,14 +131,16 @@ jQuery(sel).on("change", function() {
   var lo = jQuery("#min_size").val()
   var hi = jQuery("#max_size").val()
   var trace = {x:[], y:[], trues: [], falses: [], cutoffs: [],
-	  name: field,
-	  false_count: 0, true_count: 0, text:[], mode:'lines+markers', marker: {size: 4}, type:'scatter'}
+          name: field + " for sizes: (" + lo + "," + hi + "]",
+	  field: field,
+          false_count: 0, true_count: 0, text:[], mode:'lines+markers', marker: {size: 4}, type:'scatter'}
 
   for(var i = 0; i < ftraces.length; i++ ){
     var ft = ftraces[i];
-    if(ft.size_range[1] <= lo) { continue;}
-    if(ft.size_range[0] > hi) { continue;}
-	  console.log(ft.size_range)
+     if(ft.size_range[1] > hi) { continue;}
+    if(ft.size_range[0] < lo) { continue;}
+     console.log("pass:", ft.size_range[0], ft.size_range[1])
+
     if(trace.true_count + trace.false_count == 0){
 	    // use the loop to copy so we don't modify the original arrays
 	    for(var k=0;k<ft.falses.length;k++){
@@ -172,20 +167,26 @@ jQuery(sel).on("change", function() {
       trace.x.push(trace.falses[k] / trace.false_count)
       trace.y.push(trace.trues[k] / trace.true_count)
   }
+  
+  if(trace.x.length == 0) { return; }
 
-  var p = Plotly.newPlot(div, [trace], layout)
+  plot_data.push(trace)
+  Plotly.newPlot(div, plot_data, layout)
 
   msg.innerHTML = ""
   div.on("plotly_hover", function(data) {
       var p = data.points[0];
+      var idx = p.curveNumber
+      var trace = plot_data[idx]
+
       var falsepos = 100 * p.x
       var truepos = 100 * p.y
       var text = "Remove <b>" + (100 - falsepos).toFixed(2) + "%</b> of mendelian violations (false-positives)<br>Retain <b>" + truepos.toFixed(2) + "%</b> of transmitted variants (true-positives)"
       text += "<br> Use filter: <code>"
       if(trace.abs ) {
-          text += "abs(" + field + ")"
+          text += "abs(" + trace.field + ")"
       } else {
-          text += field
+          text += trace.field
       }
       text += (trace.lt ? "<" : ">")
       text += trace.cutoffs[p.pointIndex].toFixed(3)
@@ -194,6 +195,11 @@ jQuery(sel).on("change", function() {
   })
 
 }).trigger("change")
+
+jQuery("#clearbutton").on("click", function() {
+  plot_data = [];
+  jQuery(sel).trigger("change")
+})
 
 
 jQuery(min_size).on("change", function() {
