@@ -149,7 +149,7 @@ proc `$$`(k:float32): string {.inline.} =
   result = &"{k:.2f}"
 
 proc get_variant_length(v:Variant): float32 =
-  var length = float32(v.REF.len - v.ALT[0].len)
+  var length = float32(v.ALT[0].len - v.REF.len)
   if v.ALT[0][0] == '<':
     var lengths: seq[int32]
     if v.info.get("SVLEN", lengths) == Status.OK:

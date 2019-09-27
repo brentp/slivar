@@ -53,6 +53,25 @@
         </div>
     </div>
 </div>
+
+<hr>
+
+<!-- plot for FPR -->
+<div class="container-fluid h-100">
+    <div class="row pt-2 pb-2 bg-light">
+        <div class="col-3">
+            <label for="select">Plot metric</label>
+            <select class="form-control" name="hist_select" id="hist_select"></select>
+        </div>
+    </div>
+    <div class="row" style="height:70%">
+        <div class="col">
+            <div class="h-100" id="hist_plot"></div>
+        </div>
+    </div>
+</div>
+
+
 <script>
 var nan = NaN; // hack to support json dumped with NaN values.
 var trace_table = <INPUT_JSON>
@@ -92,6 +111,7 @@ var layout = {
 
 var div = document.getElementById("plots")
 var sel = document.getElementById("select")
+var hist_sel = document.getElementById("hist_select")
 var msg = document.getElementById("message")
 var min_size = document.getElementById("min_size")
 var max_size = document.getElementById("max_size")
@@ -119,6 +139,12 @@ for(field in trace_table) {
 	opt.innerHTML = field
 	opt.selected = i == 0
 	sel.appendChild(opt)
+
+	var opt = document.createElement("option")
+	opt.value = field
+	opt.innerHTML = field
+	opt.selected = i == 0
+	hist_sel.appendChild(opt)
 	i += 1;
 }
 
@@ -139,7 +165,6 @@ jQuery(sel).on("change", function() {
     var ft = ftraces[i];
      if(ft.size_range[1] > hi) { continue;}
     if(ft.size_range[0] < lo) { continue;}
-     console.log("pass:", ft.size_range[0], ft.size_range[1])
 
     if(trace.true_count + trace.false_count == 0){
 	    // use the loop to copy so we don't modify the original arrays
@@ -208,6 +233,66 @@ jQuery(min_size).on("change", function() {
 jQuery(max_size).on("change", function() {
 	jQuery(sel).trigger("change")
 })
+
+
+// FPR histogram
+jQuery(hist_sel).on("change", function() {
+  var field = jQuery(this).val()
+  var traces=trace_table[field];
+  traces.sort(function(a, b) {
+	  return a.size_range[0] - b.size_range[0]
+  })
+
+  var ptraces = [
+          {x:[], y:[], text: [], type: "bar", name: "deletions"},
+          {x:[], y:[], text: [], type: "bar", name: "snps"},
+          {x:[], y:[], text: [], type: "bar", name: "insertions"}]
+
+  for(var i = 0; i < traces.length; i++){
+    var tr = traces[i]
+   if((tr.true_count + tr.false_count) == 0){ continue;}
+    var trace;
+    if(tr.size_range[0] < 0) {
+       trace = ptraces[0];
+    } else if (tr.size_range[0] > 0) {
+       trace = ptraces[2];
+    } else {
+        trace = ptraces[1];
+    }
+
+    trace.text.push("<b>inherited:</b>" + tr.true_count + " <b>violations</b>:" + tr.false_count)
+
+    trace.x.push(tr.size_range[0] + ".." + tr.size_range[1])
+    trace.y.push(tr.falses[tr.falses.length-1] / (tr.falses[tr.falses.length-1] + tr.trues[tr.trues.length-1]))
+  }
+   
+   
+var layout = {
+    autosize: true,
+    margin: {t: 30, pad: 0},
+    xaxis: {
+        title: "Variant size-class",
+        hoverformat: '.3f',
+    },
+    yaxis: {
+        title: "False discovery rate",
+        hoverformat: '.3f',
+    },
+    hovermode: 'closest',
+    showlegend: true,
+    legend: {
+        x: 0.4,
+        y: 0.9,
+        borderwidth: 1,
+        bordercolor: '#eeeeee'
+    },
+
+}
+
+  Plotly.newPlot("hist_plot", ptraces, layout)
+
+
+}).trigger("change")
 
 </script>
 
