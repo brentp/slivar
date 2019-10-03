@@ -61,12 +61,16 @@
     <div class="row pt-2 pb-2 bg-light">
         <div class="col-3">
             <label for="select">Plot metric</label>
-            <select class="form-control" name="hist_select" id="hist_select"></select>
+            <select class="form-control" name="fpr_select" id="fpr_select"></select>
+            <input class="form-control" name="fpr_cutoff" id="fpr_cutoff" value="12">
         </div>
     </div>
     <div class="row" style="height:70%">
         <div class="col">
-            <div class="h-100" id="hist_plot"></div>
+            <div class="h-100" id="fpr_plot"></div>
+        </div>
+        <div class="col">
+            <div class="h-100" id="tpr_plot"></div>
         </div>
     </div>
 </div>
@@ -111,7 +115,7 @@ var layout = {
 
 var div = document.getElementById("plots")
 var sel = document.getElementById("select")
-var hist_sel = document.getElementById("hist_select")
+var fpr_sel = document.getElementById("fpr_select")
 var msg = document.getElementById("message")
 var min_size = document.getElementById("min_size")
 var max_size = document.getElementById("max_size")
@@ -144,7 +148,7 @@ for(field in trace_table) {
 	opt.value = field
 	opt.innerHTML = field
 	opt.selected = i == 0
-	hist_sel.appendChild(opt)
+	fpr_sel.appendChild(opt)
 	i += 1;
 }
 
@@ -234,38 +238,82 @@ jQuery(max_size).on("change", function() {
 	jQuery(sel).trigger("change")
 })
 
+function reset_cutoff() {
+  var field = jQuery(fpr_sel).val();
+  var tr =trace_table[field][0];
+  var v = tr.cutoffs[0];
+  if(tr.lt) {
+    v = tr.cutoffs[tr.cutoffs.length-1]; 
+  }
+  jQuery("#fpr_cutoff").val(v)
+}
 
-// FPR histogram
-jQuery(hist_sel).on("change", function() {
-  var field = jQuery(this).val()
+
+
+// FPR plot
+jQuery(fpr_sel).on("change", function() {
+  reset_cutoff()
+  change_fpr_plot()
+}).trigger("change")
+
+function change_fpr_plot() {
+
+  var field = jQuery(fpr_sel).val()
   var traces=trace_table[field];
+
   traces.sort(function(a, b) {
 	  return a.size_range[0] - b.size_range[0]
   })
+  cutoff = parseFloat(jQuery("#fpr_cutoff").val())
 
-  var ptraces = [
+
+  var fpr_traces = [
           {x:[], y:[], text: [], type: "bar", name: "deletions"},
           {x:[], y:[], text: [], type: "bar", name: "snps"},
           {x:[], y:[], text: [], type: "bar", name: "insertions"}]
 
-  for(var i = 0; i < traces.length; i++){
-    var tr = traces[i]
-   if((tr.true_count + tr.false_count) == 0){ continue;}
-    var trace;
+  var tpr_traces = [
+          {x:[], y:[], text: [], type: "bar", name: "deletions"},
+          {x:[], y:[], text: [], type: "bar", name: "snps"},
+          {x:[], y:[], text: [], type: "bar", name: "insertions"}]
+
+
+  var i = 0;
+  for(;i < traces.length && (traces[i].true_count + traces[i].false_count) == 0; i++){}
+  var tlen = traces.length;
+  for(;tlen > i && (traces[tlen - 1].true_count + traces[tlen-1].false_count) == 0; tlen--){}
+  for(; i < tlen; i++){
+
+   var tr = traces[i]
+    var trace_i;
     if(tr.size_range[0] < 0) {
-       trace = ptraces[0];
+       trace_i = 0;
     } else if (tr.size_range[0] > 0) {
-       trace = ptraces[2];
+       trace_i = 2;
     } else {
-        trace = ptraces[1];
+        trace_i = 1;
+    }
+    var k = 0;
+    for(; (k < tr.cutoffs.length - 1) && (tr.cutoffs[k] < cutoff);k++){}
+
+
+    fpr_traces[trace_i].text.push("<b>inherited:</b>" + tr.true_count + " <b>violations</b>:" + tr.false_count)
+    fpr_traces[trace_i].x.push(tr.size_range[0] + "-" + tr.size_range[1])
+    //fpr_traces[trace_i].y.push(tr.falses[tr.falses.length-1] / (tr.falses[tr.falses.length-1] + tr.trues[tr.trues.length-1]))
+
+    tpr_traces[trace_i].text.push("<b>inherited:</b>" + tr.true_count + " <b>violations</b>:" + tr.false_count)
+    tpr_traces[trace_i].x.push(tr.size_range[0] + "-" + tr.size_range[1])
+
+    if(tr.lt) {
+      fpr_traces[trace_i].y.push(tr.falses[k] / (tr.falses[k] + tr.trues[k]))
+      tpr_traces[trace_i].y.push(tr.trues[k] / tr.true_count)
+    } else {
+      fpr_traces[trace_i].y.push(tr.falses[k] / (tr.falses[k] + tr.trues[k]))
+      tpr_traces[trace_i].y.push(tr.trues[k] / tr.true_count)
     }
 
-    trace.text.push("<b>inherited:</b>" + tr.true_count + " <b>violations</b>:" + tr.false_count)
 
-    trace.x.push(tr.size_range[0] + ".." + tr.size_range[1])
-    trace.y.push(tr.falses[tr.falses.length-1] / (tr.falses[tr.falses.length-1] + tr.trues[tr.trues.length-1]))
   }
-   
    
 var layout = {
     autosize: true,
@@ -289,10 +337,18 @@ var layout = {
 
 }
 
-  Plotly.newPlot("hist_plot", ptraces, layout)
+
+  Plotly.newPlot("fpr_plot", fpr_traces, layout)
+  let layoutt = Object.assign({}, layout)
+
+  layoutt.yaxis.title = "Sensitivity"
+  Plotly.newPlot("tpr_plot", tpr_traces, layoutt)
 
 
-}).trigger("change")
+
+}
+
+jQuery('#fpr_cutoff').on("change", change_fpr_plot);
 
 </script>
 

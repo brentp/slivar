@@ -15,6 +15,7 @@ import os
 var p = newParser("dn_roc"):
   option("-x", "--exclude", help="BED file of exclude regions (e.g. LCRs)")
   option("--gq", help="integer genotype quality cutoff between 0 and 99 inclusive", multiple=true)
+  option("-q", "--min-variant-quality", help="variants with a quality lower than this are excluded", default="0")
   arg("ped")
   arg("vcf")
 
@@ -30,6 +31,8 @@ var samples = parse_ped(opts.ped)
 var ivcf:VCF
 if not open(ivcf, opts.vcf, threads=3):
   quit "couldn't open vcf"
+
+var mvq = parseFloat(opts.min_variant_quality)
 
 var gq_cutoffs = newSeq[int](opts.gq.len)
 for i, gq in opts.gq:
@@ -118,6 +121,7 @@ goodABs[gq_cutoffs[0]] = newSeqOfCap[float32](65536*1048)
 var empty: seq[region]
 var last_tid = -1
 for v in ivcf:
+  if v.QUAL < mvq: continue
   if v.rid != last_tid:
     last_tid = v.rid
     if $v.CHROM in ["X", "chrX"]: break
