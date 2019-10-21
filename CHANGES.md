@@ -7,6 +7,7 @@ v0.1.7 (dev)
 + only samples with parents in the vcf (not just ped) are counted as trios
 + expose sample.phenotype attribute which is a string taken directly from the pedigree file
 + given an error on an INFO expression, don't bail, just report and continue
++ fix for VCFs without index AND without contigs in header (#44)
 
 v0.1.6
 ======

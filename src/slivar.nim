@@ -115,6 +115,8 @@ proc expr_main*(dropfirst:bool=false) =
 
   var ev = newEvaluator(ovcf, samples, groups, iTbl, trioExprs, groupExprs, familyExprs, sampleExprs, opts.info, gnos, field_names=id2names(ivcf.header), opts.skip_non_variable)
   doAssert ovcf.write_header
+  # update the input vcf with the output vcf
+  ivcf.copy_header(ovcf.header)
   if trioExprs.len != 0 and groupExprs.len == 0 and sampleExprs.len == 0:
     for kid in samples.trio_kids(nil):
       out_samples.add(kid.id)
@@ -136,7 +138,6 @@ proc expr_main*(dropfirst:bool=false) =
     nerrors = 0
     written = 0
   for variant in ivcf.variants(opts.region):
-    variant.vcf = ovcf
     i += 1
     if i mod n == 0:
       var secs = cpuTime() - t

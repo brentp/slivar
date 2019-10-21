@@ -147,3 +147,11 @@ rm xx.tsv
 run check_bad_field_type_fails_in_make_gnotate $exe make-gnotate -f culprit --prefix xx tests/ashk-trio.vcf.gz
 assert_exit_code 1
 assert_in_stderr "only Integer and Float are supported"
+
+
+rm -f _clinvar.test.zip
+run check_make_gnotate_clinvar $exe make-gnotate -f ALLELEID:clinvar_a tests/clinvar_20191007.vcf.gz  --prefix _clinvar.test
+assert_exit_code 0
+run check_make_gnotate_clinvar_annotation $exe expr -g _clinvar.test.zip -v tests/clinvar_20191007.vcf.gz -o _clinvar_self.vcf.gz
+assert_exit_code 0
+
