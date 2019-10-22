@@ -2,6 +2,7 @@ import hts/vcf
 import ./evaluator
 import times
 import ./version
+import ./gnotate
 import algorithm
 import strformat
 #import zip/zipfiles
@@ -296,7 +297,7 @@ proc main*(dropfirst:bool=false) =
                 calculated_values[r.name] = r.val
             ov.encode_and_update(fields, kvs, longs, calculated_values)
           stderr.write_line &"[slivar] kvs.len for {last_chrom}: {kvs.len} after {vcf_paths[i]}"
-        fchrom.write(last_chrom & "\n")
+        fchrom.write(last_chrom.sanitize_chrom & "\n")
         zip.write_chrom(last_chrom, prefix, kvs, longs, fields)
 
         longs = newSeqOfCap[PosValue](65536)
