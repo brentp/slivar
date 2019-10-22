@@ -18,7 +18,8 @@ license       = "MIT"
 
 # Dependencies
 
-requires "hts >= 0.2.20", "lapper", "nimgen", "binaryheap", "zip", "https://github.com/brentp/duktape-nim#dev", "docopt", "https://github.com/brentp/nim-minizip >= 0.0.2 ", "argparse >= 0.7.0"
+requires "hts >= 0.2.20", "lapper", "nimgen", "binaryheap", "https://github.com/brentp/duktape-nim#dev"
+requires "docopt", "https://github.com/brentp/nim-minizip >= 0.0.3 ", "argparse >= 0.7.0"
 srcDir = "src"
 installExt = @["nim"]
 

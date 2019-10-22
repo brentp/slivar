@@ -8,6 +8,8 @@ v0.1.7 (dev)
 + expose sample.phenotype attribute which is a string taken directly from the pedigree file
 + given an error on an INFO expression, don't bail, just report and continue
 + fix for VCFs without index AND without contigs in header (#44)
++ support for file sizes > 4.2GB and support for gnotate files with chr prefix annotating query files without
+
 
 v0.1.6
 ======
