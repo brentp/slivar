@@ -6,8 +6,9 @@ import algorithm
 import strformat
 import random
 
-import minizip
-type ZipArchive = Zip
+#import minizip
+#type ZipArchive = Zip
+import zip/zipfiles
 
 import ./pracode
 import hts
@@ -61,27 +62,27 @@ proc open*(g:var Gnotater, zpath: string, tmpDir:string="/tmp", missing_val:floa
 
   var r = $rand(int.high) & $rand(int.high)
   var path = g.tmpDir / &"chroms{r}.txt"
-  path = g.zip.extract_file("sli.var/chroms.txt", path)
+  g.zip.extract_file("sli.var/chroms.txt", path)
   for l in path.lines:
     g.chroms.add(l.strip)
   removeFile(path)
 
   path = g.tmpDir / &"fields{r}.txt"
-  path = g.zip.extract_file("sli.var/fields.txt", path)
+  g.zip.extract_file("sli.var/fields.txt", path)
   for l in path.lines:
     g.names.add(l.strip())
   removeFile(path)
 
   var hasMsg = false
   if getEnv("SLIVAR_QUIET") == "":
-    for i, p in g.zip:
+    for p in g.zip.walkFiles:
       if p.endsWith("message.txt"):
         hasMsg = true
         break
 
   if hasMsg:
     path = g.tmpDir / &"message{r}.txt"
-    path = g.zip.extract_file("sli.var/message.txt", path)
+    g.zip.extract_file("sli.var/message.txt", path)
     stderr.write_line "[slivar] message for " & zpath & ":"
     for l in path.lines:
       if l.strip() != "":
@@ -107,7 +108,7 @@ proc parseLong(line: string, n_fields:int): Long {.inline.} =
     elif i == 3:
       result.filter = t[0] == 't'
     elif i == 4:
-      var ts = t.split(seps={'|'}, maxsplit=n_fields)
+      let ts = t.split(seps={'|'}, maxsplit=n_fields)
       result.values.setLen(ts.len)
       for i, it in ts:
         result.values[i] = parseFloat(it)
@@ -115,32 +116,67 @@ proc parseLong(line: string, n_fields:int): Long {.inline.} =
   if i < 3:
     quit "bad line:" & line
 
+
 proc readLongs(g:var Gnotater, chrom: string) =
-  let big = g.zip.extractFileToMemory(&"sli.var/{chrom}/long-alleles.txt")
+  let st = g.zip.getStream(&"sli.var/{chrom}/long-alleles.txt")
   g.longs.setLen(0)
   # reading into memory here is the fastest way I could find. I think the calls
   # to streams are not inlined and therefore can be expensive. reading this
   # file is still slower than reading the encoded binary data.
+  let big = st.readAll
   var i = 0
   for l in big.split(seps={'\n'}):
     if unlikely(l.len == 0): continue
     if unlikely(i == 0 and l.startswith("position")): continue
     g.longs.add(parseLong(l, g.n_fields))#.strip(chars={'\n'})))
     i += 1
+  st.close()
 
 proc readEncs(g:Gnotater, chrom: string) =
-  g.zip.extractInto(&"sli.var/{chrom}/gnotate-variant.bin", g.encs)
+  var st = g.zip.getStream(&"sli.var/{chrom}/gnotate-variant.bin")
+  var chunk = 21660531 # this is the exact number of elements in chr1 so it makes this the fastest
+  if g.encs.len > chunk:
+    g.encs.setLen(chunk)
+  else:
+    g.encs = newSeqUninitialized[uint64](chunk)
+  while true:
+    let bytesRead = st.readData(g.encs[g.encs.len - chunk].addr, chunk * uint64.sizeof)
+    if bytesRead < chunk * uint64.sizeof:
+      g.encs.setLen(g.encs.len - chunk + int(bytesRead / uint64.sizeof))
+      break
+    g.encs.setLen(g.encs.len + chunk)
+  st.close()
 
-proc readValues(g: var Gnotater, chrom: string, field_i: int) =
+proc readValues(g: var Gnotater, chrom: string, field_i: int, expected_length:int) =
   var field_name = g.names[field_i]
   # gnotate-gnomad_num_homalt.bin
+  #var st = g.zip.getStream(&"sli.var/{chrom}/gnotate-{field_name}.bin")
+  var chunk = expected_length
   shallow(g.values)
+  if field_i > g.values.high:
+    # if we encounter a new chromosome after an empty one.
+    g.values.setLen(field_i + 1)
+  if g.values[field_i].len >= chunk:
+    g.values[field_i].setLen(chunk)
+  else:
+    g.values[field_i] = newSeqUninitialized[float32](chunk)
   shallow(g.values[field_i])
-  g.zip.extractInto(&"sli.var/{chrom}/gnotate-{field_name}.bin", g.values[field_i])
 
-proc readValues(g: var Gnotater, chrom: string) =
+  g.zip.extractInto(&"sli.var/{chrom}/gnotate-{field_name}.bin", g.values[field_i])
+  #var vs = g.values[field_i]
+  #echo "len:", vs.len, " chunk:", chunk
+
+  #let bytesRead = st.readData(g.values[field_i][0].addr, chunk * float32.sizeof)
+  #if bytesRead != chunk * float32.sizeof:
+  #  raise newException(IOError, "didn't get expected size")
+  #var x:int
+  #doAssert 0 == st.readData(x.addr, x.sizeof)
+  #doAssert st.atEnd
+  #st.close()
+
+proc readValues(g: var Gnotater, chrom: string, expected_length:int) =
   for i in 0..<g.n_fields:
-    g.readValues(chrom, i)
+    g.readValues(chrom, i, expected_length)
 
 proc sanitize_chrom*(c:string): string {.inline.} =
   if c.len == 1: return c
@@ -163,7 +199,7 @@ proc load(g:var Gnotater, chrom: cstring): bool =
   when defined(gnotate_times):
     var etime = cpuTime() - t
   var t2 = cpuTime()
-  g.readValues(chrom)
+  g.readValues(chrom, g.encs.len)
   when defined(gnotate_times):
     var atime = cpuTime() - t2
   t2 = cpuTime()
@@ -172,8 +208,10 @@ proc load(g:var Gnotater, chrom: cstring): bool =
     var ltime = cpuTime() - t2
   when defined(gnotate_times):
     stderr.write_line &"len: {g.encs.len}. time to extract encs: {etime:.3f} afs: {atime:.3f} longs: {ltime:.3f} total:{cpuTime() - t:.3f}"
-  for v in g.values:
-    doAssert v.len == g.encs.len, $(v.len, g.encs.len)
+  for i, v in g.values:
+    echo v.len
+  for i, v in g.values:
+    doAssert v.len == g.encs.len, $(i, v.len, g.encs.len)
   return true
 
 proc show*(g:var Gnotater, chrom:string, start:int, stop:int) =
