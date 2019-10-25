@@ -19,7 +19,8 @@ license       = "MIT"
 # Dependencies
 
 requires "hts >= 0.2.20", "lapper", "nimgen", "binaryheap", "https://github.com/brentp/duktape-nim#dev"
-requires "docopt", "https://github.com/brentp/nim-minizip >= 0.0.3 ", "argparse >= 0.7.0"
+requires "docopt", "https://github.com/brentp/nim-minizip#dev", "argparse >= 0.7.0"
+requires "https://github.com/brentp/zip#dev"
 srcDir = "src"
 installExt = @["nim"]
 
@@ -31,12 +32,12 @@ import ospaths,strutils
 
 task test, "run the tests":
   exec "bash tests/functional-tests.sh"
-  exec "nim c --lineDir:on --debuginfo -r --threads:on src/slivarpkg/duko"
-  exec "nim c --lineDir:on --debuginfo -r --threads:on src/slivarpkg/pracode"
-  exec "nim c --lineDir:on --debuginfo -r --threads:on src/slivarpkg/groups"
-  exec "nim c --lineDir:on --debuginfo -r --threads:on src/slivarpkg/comphet"
-  exec "nim c --lineDir:on --debuginfo -r --threads:on src/slivarpkg/fastsets"
-  exec "nim c --lineDir:on --debuginfo -r --threads:on src/slivarpkg/pedfile"
+  exec "nim c  -d:useSysAssert -d:useGcAssert --lineDir:on --debuginfo --lineDir:on --debuginfo -r --threads:on src/slivarpkg/duko"
+  exec "nim c  -d:useSysAssert -d:useGcAssert --lineDir:on --debuginfo --lineDir:on --debuginfo -r --threads:on src/slivarpkg/pracode"
+  exec "nim c  -d:useSysAssert -d:useGcAssert --lineDir:on --debuginfo --lineDir:on --debuginfo -r --threads:on src/slivarpkg/groups"
+  exec "nim c  -d:useSysAssert -d:useGcAssert --lineDir:on --debuginfo --lineDir:on --debuginfo -r --threads:on src/slivarpkg/comphet"
+  exec "nim c  -d:useSysAssert -d:useGcAssert --lineDir:on --debuginfo --lineDir:on --debuginfo -r --threads:on src/slivarpkg/fastsets"
+  exec "nim c  -d:useSysAssert -d:useGcAssert --lineDir:on --debuginfo --lineDir:on --debuginfo -r --threads:on src/slivarpkg/pedfile"
 
 task docs, "Builds documentation":
   mkDir("docs"/"slivar")

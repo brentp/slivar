@@ -209,8 +209,6 @@ proc load(g:var Gnotater, chrom: cstring): bool =
   when defined(gnotate_times):
     stderr.write_line &"len: {g.encs.len}. time to extract encs: {etime:.3f} afs: {atime:.3f} longs: {ltime:.3f} total:{cpuTime() - t:.3f}"
   for i, v in g.values:
-    echo v.len
-  for i, v in g.values:
     doAssert v.len == g.encs.len, $(i, v.len, g.encs.len)
   return true
 

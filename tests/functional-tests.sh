@@ -6,7 +6,7 @@ test -e ssshtest || wget -q https://raw.githubusercontent.com/ryanlayer/ssshtest
 set -o nounset
 
 set -e
-nim c -d:debug --boundChecks:on -x:on src/slivar
+nim c -d:debug  -d:useSysAssert -d:useGcAssert --lineDir:on --debuginfo --boundChecks:on -x:on src/slivar
 set +e
 exe=./src/slivar
 

@@ -104,10 +104,8 @@ proc write_to(positions:var seq[PosValue], fname:string, fields:seq[field]) =
   fh.close()
 
 proc write_chrom(zip: var Zip, chrom: string, prefix: string, kvs:var seq[evalue], longs:var seq[PosValue], fields: seq[field]) =
-  var chrom = chrom
+  var chrom = chrom.sanitize_chrom
   stderr.write_line &"[slivar] writing {kvs.len} encoded and {longs.len} long values for chromosome {chrom}"
-  if chrom.startsWith("chr"): chrom = chrom[3..chrom.high]
-  if chrom == "MT": chrom = "M"
   if kvs.len == 0 and longs.len == 0: return
 
   longs.write_to(prefix & &"long-alleles.txt", fields)
@@ -332,7 +330,7 @@ proc main*(dropfirst:bool=false) =
             calculated_values[r.name] = r.val
         ov.encode_and_update(fields, kvs, longs, calculated_values)
       stderr.write_line &"[slivar] kvs.len for {last_chrom}: {kvs.len} after {vcf_paths[i]}"
-    fchrom.write(last_chrom & "\n")
+    fchrom.write(last_chrom.sanitize_chrom & "\n")
     zip.write_chrom(last_chrom, prefix, kvs, longs, fields)
 
   for ivcf in vcfs: ivcf.close()
