@@ -280,7 +280,7 @@ proc annotate*(g:var Gnotater, v:Variant): bool {.inline.} =
         break
       i += 1
 
-    if i > g.values.high:
+    if unlikely(i > g.longs.high):
       return g.annotate_missing(v)
 
     values = g.longs[i].values

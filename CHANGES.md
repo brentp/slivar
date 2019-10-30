@@ -9,6 +9,7 @@ v0.1.7 (dev)
 + given an error on an INFO expression, don't bail, just report and continue
 + fix for VCFs without index AND without contigs in header (#44)
 + support for file sizes > 4.2GB and support for gnotate files with chr prefix annotating query files without
++ fix gnotate bug where some long alleles were not annotated
 
 
 v0.1.6
