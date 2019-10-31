@@ -341,9 +341,8 @@ proc ddc_main*() =
     # todo: what about hom-ref calls?
 
   var traces = newTable[string, seq[Trace]]()
-  var cuts = [0,1,2,3,4,5,6,8,10,20,30,40,50,100,300,1_000,10_000,int.high]
+  var cuts = [0,1,2,3,4,5,6,7,8,9,10,20,30,40,50,100,300,1_000,10_000,int.high]
   stderr.write_line "collected variants, now creating ROC curves by size class"
-
 
   for info_name, seqs in info_values.mpairs:
       traces[info_name] = newSeq[Trace]()
@@ -362,8 +361,8 @@ proc ddc_main*() =
         trs.add(Trace(name: info_name, lt: seqs.flip, abs: seqs.abs, size_range: [-c, -cuts[i - 1]]))
       trs.add(Trace(name: info_name, lt: seqs.flip, abs: seqs.abs, size_range: [-cuts[cuts.high], - cuts[cuts.high-1]]))
 
-      var inh_all = seqs.inherited
-      var vio_all = seqs.violation
+      let inh_all = seqs.inherited
+      let vio_all = seqs.violation
       if vio_all.len == 0 or inh_all.len == 0: continue
 
       let lo = min(min(inh_all), min(vio_all))

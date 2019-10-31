@@ -298,11 +298,16 @@ function change_fpr_plot() {
 
 
     fpr_traces[trace_i].text.push("<b>inherited:</b>" + tr.true_count + " <b>violations</b>:" + tr.false_count)
-    fpr_traces[trace_i].x.push(tr.size_range[0] + "-" + tr.size_range[1])
+    if(tr.size_range[0] == tr.size_range[1] - 1) {
+       fpr_traces[trace_i].x.push("&nbsp;" + tr.size_range[0].toString())
+       tpr_traces[trace_i].x.push("&nbsp;" + tr.size_range[0].toString())
+    } else {
+       fpr_traces[trace_i].x.push(tr.size_range[0] + "-" + tr.size_range[1])
+       tpr_traces[trace_i].x.push(tr.size_range[0] + "-" + tr.size_range[1])
+    }
     //fpr_traces[trace_i].y.push(tr.falses[tr.falses.length-1] / (tr.falses[tr.falses.length-1] + tr.trues[tr.trues.length-1]))
 
     tpr_traces[trace_i].text.push("<b>inherited:</b>" + tr.true_count + " <b>violations</b>:" + tr.false_count)
-    tpr_traces[trace_i].x.push(tr.size_range[0] + "-" + tr.size_range[1])
 
     if(tr.lt) {
       fpr_traces[trace_i].y.push(tr.falses[k] / (tr.falses[k] + tr.trues[k]))

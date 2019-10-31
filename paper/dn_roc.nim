@@ -140,9 +140,13 @@ for v in ivcf:
 
   for i, kid in kids:
     var lowest_gq = 99
+    #var skip = false
     for s in [kid, kid.mom, kid.dad]:
       if GQ[s.i] < lowest_gq:
         lowest_gq = GQ[s.i]
+    #  if AD[2*s.i] + AD[2*s.i+1] < 6:
+    #    skip = true
+    #if skip: continue
     #stderr.write_line "loest:", $lowest_gq, " cutoffs:", $gq_cutoffs
 
     var ab = kid.good(AD, alts)

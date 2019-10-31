@@ -19,7 +19,7 @@ for df in [df_exome, df_genome]:
 
 gqs = [x for x in df_exome.GQ.unique() if x != 1]
 
-fig, axes = plt.subplots(len(gqs), 2, figsize=(8, 12))
+fig, axes = plt.subplots(len(gqs), 2, figsize=(12, 7), sharey=True)
 assert len(df_exome.GQ.unique()) == len(df_genome.GQ.unique())
 
 for ci, df in enumerate((df_exome, df_genome)):
@@ -43,24 +43,28 @@ for ci, df in enumerate((df_exome, df_genome)):
             ax.plot([cut.fp], [cut.tp], color=colors[j+1], ls='none',
                     marker='o', label="%.2g-%.2g" % (cutoff, 1 - cutoff))
 
-            if ci == 0 and cutoff == 0.25 and gq == 20:
-                ax.plot([cut.fp], [cut.tp], color='gray', ls='none',
-                        markersize=12,
-                        marker='o', zorder=-1)
-            elif ci == 1 and cutoff == 0.25 and gq == 20:
+            if cutoff == 0.25 and gq == 20:
+                print(sys.argv[ci + 1], cut)
                 ax.plot([cut.fp], [cut.tp], color='gray', ls='none',
                         markersize=12,
                         marker='o', zorder=-1)
 
+        """
         if ci == 0:
             ax.set_xlim(0.0, 0.0011)
         else:
             ax.set_xlim(0.0, 0.008)
-        ax.set_ylim(0.88, 1)
+        """
+        ax.set_ylim(0.8, 1)
+
+        if ci == 1:
+            ax.set_xlim(0, 0.005)
+        else:
+            ax.set_xlim(0, 0.005)
 
         sns.despine()
-        if i == 0 and ci == 0:
-            ax.legend(title="Allele-balance cut-offs")
+        if i == 1 and ci == 0:
+            ax.legend(title="Allele-balance cut-offs", fontsize=9)
         ax.set_title("Genotype-quality cutoff: %d" % gqs[i])
         ax.set_ylabel("Transmission rate")
 
@@ -71,13 +75,15 @@ axes[len(axes)-1, 0].set_xlabel("Mendelian-violation rate")
 axes[len(axes)-1, 1].set_xlabel("Mendelian-violation rate")
 
 
-axes[0, 0].set_title("Exome", fontsize=15)
-axes[0, 1].set_title("Genome", fontsize=15)
+#axes[0, 0].set_title("Exome", fontsize=15)
+#axes[0, 1].set_title("Genome", fontsize=15)
+axes[0, 0].set_title("Deep Variant", fontsize=15)
+axes[0, 1].set_title("GATK", fontsize=15)
 
 #plt.ylim(0.8, 1)
-#sns.despine()
+sns.despine()
 ax = axes[0]
-plt.tight_layout()
+plt.tight_layout(rect=(0, 0.005, 1, 0.995))
 plt.show()
 
 
