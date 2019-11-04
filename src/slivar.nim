@@ -102,16 +102,16 @@ proc expr_main*(dropfirst:bool=false) =
     out_samples: seq[string] # only output kids if only trio expressions were specified
 
   if opts.trio.len != 0:
-    trioExprs = ovcf.getNamedExpressions(opts.trio, opts.vcf)
+    trioExprs = ovcf.getNamedExpressions(opts.trio, opts.vcf, false)
   if opts.group_expr.len != 0:
-    groupExprs = ovcf.getNamedExpressions(opts.group_expr, opts.vcf, trioExprs)
+    groupExprs = ovcf.getNamedExpressions(opts.group_expr, opts.vcf, false, trioExprs)
   if opts.sample_expr.len != 0:
-    sampleExprs = ovcf.getNamedExpressions(opts.sample_expr, opts.vcf, trioExprs, groupExprs)
+    sampleExprs = ovcf.getNamedExpressions(opts.sample_expr, opts.vcf, false, trioExprs, groupExprs)
 
   if opts.family_expr.len != 0:
     if opts.ped == "":
       quit "error must specify --ped to use with --family-expr"
-    familyExprs = ovcf.getNamedExpressions(opts.family_expr, opts.vcf, trioExprs, groupExprs, sampleExprs)
+    familyExprs = ovcf.getNamedExpressions(opts.family_expr, opts.vcf, false, trioExprs, groupExprs, sampleExprs)
 
   var ev = newEvaluator(ovcf, samples, groups, iTbl, trioExprs, groupExprs, familyExprs, sampleExprs, opts.info, gnos, field_names=id2names(ivcf.header), opts.skip_non_variable)
   doAssert ovcf.write_header

@@ -1,6 +1,6 @@
 FROM centos:centos6
 
-RUN yum install -y git curl wget zlib-devel xz-devel bzip2-devel openssl-devel libcurl-devel && \
+RUN yum install -y git libzip-devel curl wget zlib-devel xz-devel bzip2-devel openssl-devel libcurl-devel && \
     wget http://people.centos.org/tru/devtools-2/devtools-2.repo -O /etc/yum.repos.d/devtools-2.repo && \
     yum install -y devtoolset-2-gcc devtoolset-2-binutils devtoolset-2-gcc-c++ && \
     source scl_source enable devtoolset-2 && \
@@ -22,6 +22,7 @@ RUN yum install -y git curl wget zlib-devel xz-devel bzip2-devel openssl-devel l
     echo "/usr/local/lib" >> etc/ld.so.conf && \
     ldconfig
 
+
 RUN cd / &&     \
     echo hi && \
     git clone -b devel --depth 9 git://github.com/nim-lang/nim nim && \
@@ -36,6 +37,7 @@ RUN cd / &&        \
     source scl_source enable devtoolset-2  && \
     git clone --depth 1 git://github.com/brentp/slivar.git && \
     cd slivar && \
+    sed -i 's/-no-pie//' nim.cfg && \
     nimble install --verbose -y && \
     nim c -d:danger -o:/usr/bin/slivar src/slivar && \
     rm -rf /slivar /duktape-nim && slivar expr -h

@@ -30,7 +30,7 @@ proc assertNewLabel(label: string, previous: seq[NamedExpression]) =
     if pe.name == label:
       quit &"[slivar] ERROR duplicate label '{pe.name}'. Use unique labels"
 
-proc getNamedExpressions*(ovcf:VCF, expressions:seq[string], invcf:string, previousExpressions: varargs[seq[NamedExpression]]): seq[NamedExpression] =
+proc getNamedExpressions*(ovcf:VCF, expressions:seq[string], invcf:string, asfloat:bool, previousExpressions: varargs[seq[NamedExpression]]): seq[NamedExpression] =
   ## parse (split on :) the expressions, return a sequence, and update the vcf header with a reasonable description.
   result = newSeq[NamedExpression]()
   for e in expressions:
@@ -43,8 +43,12 @@ proc getNamedExpressions*(ovcf:VCF, expressions:seq[string], invcf:string, previ
       assertNewLabel(t[0], p)
 
     result.add(NamedExpression(name:t[0], expr:t[1]))
-    if ovcf.header.add_info(t[0], ".", "String", &"added by slivar with expression: '{t[1].clean}' from {invcf}") != Status.OK:
-      quit "error adding field to header"
+    if asfloat:
+      if ovcf.header.add_info(t[0], "1", "Float", &"added by slivar with expression: '{t[1].clean}'") != Status.OK:
+        quit "error adding field to header"
+    else:
+      if ovcf.header.add_info(t[0], ".", "String", &"added by slivar with expression: '{t[1].clean}' from {invcf}") != Status.OK:
+        quit "error adding field to header"
 
 proc looks_like_region_file(f:string): bool =
   if not f.fileExists: return false

@@ -272,8 +272,9 @@ proc main*(dropfirst:bool=false) =
       quit "couldn't open:" & p
 
   if $args["--expr"] != "nil" and $args["--expr"] != "":
-    iTbl = vcfs[0].getNamedExpressions(@(args["--expr"]), vcf_paths[0])
+    iTbl = vcfs[0].getNamedExpressions(@(args["--expr"]), vcf_paths[0], true)
   var nerrors: int
+  echo iTbl
 
   var ev = newEvaluator(vcfs[0], @[], @[], iTbl, @[], @[], @[], @[], "nil", @[], id2names(vcfs[0].header), false)
   for v in vcfs[0]:
