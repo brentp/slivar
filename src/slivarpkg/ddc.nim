@@ -15,6 +15,14 @@ import strformat
 import regex
 import os
 
+proc `$$`(k:float32): string {.inline.} =
+  result = &"{k:.3f}"
+  while result.len > 1 and result[result.high] == '0':
+    result = result.strip(chars={'0'}, leading=false)
+  if result[result.high] == '.':
+    result = result.strip(chars={'.'}, leading=false)
+
+
 const tmpl_html* = staticRead("ddc.html")
 
 type Trio = object
@@ -32,6 +40,48 @@ type VariantInfo = object
   bool_tbl: Table[string, seq[bool]]
   variant_lengths: seq[int]
   filters: seq[string]
+
+proc tojson(tbl: Table[string, seq[float32]]): string =
+  result = newStringOfCap(16384)
+  result.add('{')
+  for k, vals in tbl:
+    result.add(k)
+    result.add(":[")
+    for v in vals:
+      result.add($$v)
+      result.add(',')
+    result[result.high] = ']'
+    result.add(",\n")
+  result[result.high-1] = '\n'
+  result[result.high] = '}'
+
+proc tojson(t:Trio): string =
+  result = newStringOfCap(16384)
+  result.add(&"""{{sample_id: "{t.sample_id}",
+kid_tbl: {t.kid_tbl.tojson},
+dad_tbl: {t.dad_tbl.tojson},
+mom_tbl: {t.mom_tbl.tojson},
+kid_alts: {%t.kid_alts},
+dad_alts: {%t.dad_alts},
+mom_alts: {%t.mom_alts},
+variant_idxs: {%t.variant_idxs}
+}}""")
+
+proc tojson(ts:seq[Trio]): string =
+  result = newStringOfCap(16384*128)
+  result.add('[')
+  for t in ts:
+    result.add(t.tojson)
+    result.add(',')
+  result[result.high] = ']'
+
+proc tojson(v:VariantInfo): string =
+  result = newStringOfCap(16384)
+  result.add(&"""{{float_tbl: {v.float_tbl.tojson},
+bool_tbl: {%v.bool_tbl},
+variant_lengths: {%v.variant_lengths},
+filters: {%v.filters}
+}}""")
 
 
 proc trio_kids(samples: seq[Sample]): seq[Sample] =
@@ -83,13 +133,6 @@ proc violation(kid:Sample, alts: seq[int8]): bool =
 
 proc inherited(kid:Sample, alts: seq[int8]): bool =
   return alts[kid.i] == 1 and [alts[kid.mom.i], alts[kid.dad.i]] in [[0'i8, 1], [1'i8, 0]]
-
-proc `$$`(k:float32): string {.inline.} =
-  result = &"{k:.3f}"
-  while result.len > 1 and result[result.high] == '0':
-    result = result.strip(chars={'0'})
-  if result[result.high] == '.':
-    result = result.strip(chars={'.'})
 
 proc get_variant_length(v:Variant): int =
   var length = int(v.ALT[0].len - v.REF.len)
@@ -226,8 +269,8 @@ proc ddc_main*() =
     for k, fseq in output_infos.float_tbl.mpairs:
       fseq.add(v.getINFOf32(k))
 
-  echo (%output_infos)
-  echo (%output_trios)
+  echo (output_infos.tojson)
+  echo (output_trios.tojson)
 
   stderr.write_line "number of infos:", output_infos.variant_lengths.len
   for tr in output_trios:
