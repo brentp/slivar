@@ -85,7 +85,6 @@ filters: {%v.filters},
 violations: {%v.violations}
 }}""")
 
-
 proc trio_kids(samples: seq[Sample]): seq[Sample] =
   ## return all samples that have a mom and dad.
   result = newSeqOfCap[Sample](16)
@@ -214,6 +213,7 @@ proc ddc_main*() =
   const max_trios = 4
   if len(kids) > max_trios:
     stderr.write_line &"[slivar] sub-sampling to {max_trios} random kids"
+    randomize()
     shuffle(kids)
     kids = kids[0..<max_trios]
     kids.sort(proc(a, b:Sample): int = a.i - b.i)
@@ -224,8 +224,6 @@ proc ddc_main*() =
         samples.add(k.dad)
       if k.mom notin samples:
         samples.add(k.mom)
-    samples = samples.match(ivcf)
-
 
   var output_infos = VariantInfo(float_tbl: initTable[string, seq[float32]](), bool_tbl: initTable[string, seq[bool]]())
   var output_trios = newSeq[Trio](kids.len)
