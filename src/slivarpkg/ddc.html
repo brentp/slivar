@@ -5,11 +5,13 @@
     <meta name="author" content="Brent Pedersen" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/selectize.js/0.12.6/css/selectize.bootstrap3.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.3.1/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/14.0.2/nouislider.min.css">
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/selectize.js/0.12.6/js/standalone/selectize.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.3.1/js/bootstrap.bundle.min.js"></script>
-    <style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/14.0.2/nouislider.min.js"></script>
+  <style>
     html,body { height: 100%; margin: 0px; padding: 0px; }
     .form-control.selectize-control {
         padding: 5px 6px 0px;
@@ -20,7 +22,16 @@
         top: -1px !important;
         font-size: 20px !important;
     }
-    </style>
+label {
+	font-size: 16px !important;
+        margin-left:15px;
+
+}
+		.container-fluid {
+			margin-left:10px;
+		}
+
+  </style>
 </head>
 <body>
 
@@ -28,53 +39,54 @@
 <a class="navbar-brand ml-2" href="https://github.com/brentp/slivar">slivar data-driven cut-offs</a>
 </nav>
 
-<div class="container-fluid h-100">
+<!-- first row -->
+<div class="container-fluid h-25">
     <div class="row pt-2 pb-2 bg-light">
-        <div class="col-3">
-            <label for="select">Plot metric</label>
-            <select class="form-control" name="select" id="select"></select>
-	    <input type="button" id="clearbutton" value="clear other lines">
-        </div>
-        <div class="col-4">
-            <label for="min_size">Size Range (&lt; 0 is deletion, &gt; 0 is insertion, 0 is SNP)</label>
-	    <select name="min_size" id="min_size"/></select>
-	    <select name="max_size" id="max_size"/></select>
-	</div>
+        <!-- FILTER COLUMN -->
+        <div class="col-2 bg-secondary" id="filter-column"></div>
 
-        <div class="col-4 d-flex flex-row-reverse">
-            <div style="font-size: .9em">
-                <div id="message"></div>
-            </div>
+        <!-- PLOT COLUMN -->
+        <div class="col-8">
+        <h1>PLOT</h1>
+        </div>
+
+        <!-- MESSAGE COLUMN -->
+        <div class="col-2">
         </div>
     </div>
-    <div class="row" style="height:70%">
-        <div class="col">
-            <div class="h-100" id="plots"></div>
+</div>
+
+<!-- 2nd row -->
+<div class="container-fluid h-25">
+    <div class="row pt-2 pb-2 bg-light">
+        <!-- FILTER COLUMN -->
+        <div class="col-8" id="variant-sliders">
+            <h1>variant filtering</h1>
         </div>
+
+        <!-- MESSAGE COLUMN -->
+        <div class="col-4">
+        </div>
+
+    </div>
+</div>
+
+<!-- 3rd row -->
+<div class="container-fluid h-25">
+    <div class="row pt-2 pb-2 bg-light">
+        <!-- FILTER COLUMN -->
+        <div class="col-8" id="sample-sliders">
+            <h1>sample filtering</h1>
+        </div>
+
+        <!-- MESSAGE COLUMN -->
+        <div class="col-4">
+        </div>
+
     </div>
 </div>
 
 <hr>
-
-<!-- plot for FPR -->
-<div class="container-fluid h-100">
-    <div class="row pt-2 pb-2 bg-light">
-        <div class="col-3">
-            <label for="select">Plot metric</label>
-            <select class="form-control" name="fpr_select" id="fpr_select"></select>
-            <input class="form-control" name="fpr_cutoff" id="fpr_cutoff" value="12">
-        </div>
-    </div>
-    <div class="row" style="height:70%">
-        <div class="col">
-            <div class="h-100" id="fpr_plot"></div>
-        </div>
-        <div class="col">
-            <div class="h-100" id="tpr_plot"></div>
-        </div>
-    </div>
-</div>
-
 
 <script>
 var nan = NaN; // hack to support json dumped with NaN values.
@@ -82,6 +94,86 @@ var variant_infos = <VARIANT_JSON>;
 var trios = <TRIO_JSON>;
 </script>
 <script>
+
+var sliders = {samples:{}};
+
+function wNumb(opts) {
+    return {
+        to: function(a) {
+            return a.toFixed(opts.decimals).replace(/([0-9]+(\.[0-9]+[1-9])?)(\.?0+$)/,'$1')
+        },
+        from: function(txt) {
+            return parseFloat(txt);
+        }
+    };
+}
+
+function add_slider(values, name, label) {
+
+    jQuery('#variant-sliders').append(`
+<label for="${name}-slider">${label}</label>
+<div id=${name}-slider name=${name}-slider></div>
+    `)
+    var vlmin = Math.min.apply(null, values);
+    var vlmax = Math.max.apply(null, values);
+    sliders[`${name}-slider`] = noUiSlider.create(document.getElementById(`${name}-slider`), {
+        tooltips: [wNumb({decimals: 3}), wNumb({decimals: 3})],
+    start: [vlmin, vlmax],
+    connect: true, 
+    range: {min:vlmin, max:vlmax},
+})
+
+}
+
+
+function add_sample_slider(values, name) {
+    jQuery('#sample-sliders').append(`
+<label for="${name}-slider">${name}</label>
+<div id=${name}-slider name=${name}-slider></div>
+    `)
+    var vlmin = Math.min.apply(null, values);
+    var vlmax = Math.max.apply(null, values);
+    sliders.samples[`${name}-slider`] = noUiSlider.create(document.getElementById(`${name}-slider`), {
+        tooltips: [wNumb({decimals: 3}), wNumb({decimals: 3})],
+    start: [vlmin, vlmax],
+    connect: true, 
+    range: {min:vlmin, max:vlmax},
+})
+
+}
+
+(function(){
+var seen = {}
+for(i=0; i < variant_infos.filters.length;i++) {
+    seen[variant_infos.filters[i]] = true
+};
+var nseen = 0;
+var haspass = false
+for(k in seen) { nseen += 1; if(k == "PASS"){ haspass = true; }}
+if(nseen > 0) {
+    for(k in seen){
+    var checked = ((!haspass) || (k == "PASS") ? "checked": "");
+        jQuery('#filter-column').append(`<input type='checkbox' ${checked} name=${k} value=${k} id=${k}>${k}<br>`)
+    }
+}
+
+add_slider(variant_infos.variant_lengths, "variant-length", "variant lengths")
+
+for(k in variant_infos.float_tbl){
+    var vals = variant_infos.float_tbl[k];
+    add_slider(vals, k, k)
+}
+// TODO: handle booleans
+
+for(k in trios[0].kid_tbl) {
+    var vals = trios[0].kid_tbl[k];
+    add_sample_slider(vals, k)
+}
+
+
+
+
+}());
 
 var colors = ['rgba(55,126,184,0.7)', 'rgba(228,26,28,0.7)', 'rgba(77,175,74,0.7)', 'rgba(152,78,163,0.7)', 'rgba(255,127,0,0.7)', 'rgba(166,86,40,0.7)', 'rgba(247,129,191,0.7)']
 
@@ -92,13 +184,13 @@ var layout = {
         title: "Mendelian violations",
         showspikes: true,
         spikethickness: 1,
-	hoverformat: '.4f',
+    hoverformat: '.4f',
     },
     yaxis: {
         title: "Transmitted variants",
         showspikes: true,
         spikethickness: 1,
-	hoverformat: '.4f',
+    hoverformat: '.4f',
     },
     hovermode: 'closest',
     showlegend: true,
@@ -113,213 +205,6 @@ var layout = {
     },
 }
 
-var div = document.getElementById("plots")
-var sel = document.getElementById("select")
-var fpr_sel = document.getElementById("fpr_select")
-var msg = document.getElementById("message")
-var min_size = document.getElementById("min_size")
-var max_size = document.getElementById("max_size")
-
-for(var i = sizes.length-1; i > 0; i--) {
-  jQuery(min_size).append("<option value=" + -sizes[i] + ">&gt;="+ (-sizes[i]) + "</option>")
-  jQuery(max_size).append("<option value=" + -sizes[i] + ">&lt;"+ (-sizes[i]) + "</option>")
-}
-for(var i = 0; i < sizes.length; i++) {
-  jQuery(min_size).append("<option value=" + sizes[i] + ">&gt;="+ (sizes[i]) + "</option>")
-  var selected = (i == sizes.length - 1 ? " selected": "");
-  jQuery(max_size).append("<option value=" + sizes[i] + selected + ">&lt;"+ (sizes[i]) + "</option>")
-}
-
-var i = 0
-for(field in trace_table) {
-	traces=trace_table[field];
-	for(i=0;i<traces.length;i++){
-		traces[i].mode = 'lines+markers';
-		traces[i].type = 'scatter';
-		traces[i].marker = {size: 4};
-	}
-	var opt = document.createElement("option")
-	opt.value = field
-	opt.innerHTML = field
-	opt.selected = i == 0
-	sel.appendChild(opt)
-
-	var opt = document.createElement("option")
-	opt.value = field
-	opt.innerHTML = field
-	opt.selected = i == 0
-	fpr_sel.appendChild(opt)
-	i += 1;
-}
-
-var plot_data = [];
-
-jQuery(sel).on("change", function() {
-
-  var field = jQuery(this).val()
-  var ftraces = trace_table[field];
-  var lo = jQuery("#min_size").val()
-  var hi = jQuery("#max_size").val()
-  var trace = {x:[], y:[], trues: [], falses: [], cutoffs: [],
-          name: field + " for sizes: (" + lo + "," + hi + "]",
-	  field: field,
-          false_count: 0, true_count: 0, text:[], mode:'lines+markers', marker: {size: 4}, type:'scatter'}
-
-  for(var i = 0; i < ftraces.length; i++ ){
-    var ft = ftraces[i];
-     if(ft.size_range[1] > hi) { continue;}
-    if(ft.size_range[0] < lo) { continue;}
-
-    if(trace.true_count + trace.false_count == 0){
-	    // use the loop to copy so we don't modify the original arrays
-	    for(var k=0;k<ft.falses.length;k++){
-		    trace.trues.push(ft.trues[k]);
-		    trace.falses.push(ft.falses[k]);
-		    trace.cutoffs.push(ft.cutoffs[k]);
-	    }
-	    trace.false_count = ft.false_count
-	    trace.true_count = ft.true_count
-	    trace.abs = ft.abs
-	    trace.lt = ft.lt
-    } else {
-	    for(var k=0;k<ft.falses.length;k++){
-		    trace.trues[k] += ft.trues[k];
-		    trace.falses[k] += ft.falses[k];
-	    }
-	    trace.false_count += ft.false_count
-	    trace.true_count += ft.true_count
-    }
-  }
-  // now we have counts. need to convert to ratio
-  for(var k = 0; k < trace.falses.length; k++){
-      trace.text.push("cutoff:" + trace.cutoffs[k].toFixed(2) + "<br>inherited:" + trace.trues[k] + " (of: " + trace.true_count + "), violations:" + trace.falses[k] + " (of: " + trace.false_count + ")")
-      trace.x.push(trace.falses[k] / trace.false_count)
-      trace.y.push(trace.trues[k] / trace.true_count)
-  }
-  
-  if(trace.x.length == 0) { return; }
-
-  plot_data.push(trace)
-  Plotly.newPlot(div, plot_data, layout)
-
-  msg.innerHTML = ""
-  div.on("plotly_hover", function(data) {
-      var p = data.points[0];
-      var idx = p.curveNumber
-      var trace = plot_data[idx]
-
-      var falsepos = 100 * p.x
-      var truepos = 100 * p.y
-      var text = "Remove <b>" + (100 - falsepos).toFixed(2) + "%</b> of mendelian violations (false-positives)<br>Retain <b>" + truepos.toFixed(2) + "%</b> of transmitted variants (true-positives)"
-      text += "<br> Use filter: <code>"
-      if(trace.abs ) {
-          text += "abs(" + trace.field + ")"
-      } else {
-          text += trace.field
-      }
-      text += (trace.lt ? "<" : ">")
-      text += trace.cutoffs[p.pointIndex].toFixed(3)
-      text += "<br/>False discovery rate:" +  (trace.falses[p.pointIndex] / ( trace.falses[p.pointIndex] + trace.trues[p.pointIndex])).toFixed(4)
-      msg.innerHTML = text + "</code>"
-  })
-
-}).trigger("change")
-
-jQuery("#clearbutton").on("click", function() {
-  plot_data = [];
-  jQuery(sel).trigger("change")
-})
-
-
-jQuery(min_size).on("change", function() {
-	jQuery(sel).trigger("change")
-})
-jQuery(max_size).on("change", function() {
-	jQuery(sel).trigger("change")
-})
-
-function reset_cutoff() {
-  var field = jQuery(fpr_sel).val();
-  var tr =trace_table[field][0];
-  var v = tr.cutoffs[0];
-  if(tr.lt) {
-    v = tr.cutoffs[tr.cutoffs.length-1]; 
-  }
-  jQuery("#fpr_cutoff").val(v)
-}
-
-
-
-// FPR plot
-jQuery(fpr_sel).on("change", function() {
-  reset_cutoff()
-  change_fpr_plot()
-}).trigger("change")
-
-function change_fpr_plot() {
-
-  var field = jQuery(fpr_sel).val()
-  var traces=trace_table[field];
-
-  traces.sort(function(a, b) {
-	  return a.size_range[0] - b.size_range[0]
-  })
-  cutoff = parseFloat(jQuery("#fpr_cutoff").val())
-
-
-  var fpr_traces = [
-          {x:[], y:[], text: [], type: "bar", name: "deletions"},
-          {x:[], y:[], text: [], type: "bar", name: "snps"},
-          {x:[], y:[], text: [], type: "bar", name: "insertions"}]
-
-  var tpr_traces = [
-          {x:[], y:[], text: [], type: "bar", name: "deletions"},
-          {x:[], y:[], text: [], type: "bar", name: "snps"},
-          {x:[], y:[], text: [], type: "bar", name: "insertions"}]
-
-
-  var i = 0;
-  for(;i < traces.length && (traces[i].true_count + traces[i].false_count) == 0; i++){}
-  var tlen = traces.length;
-  for(;tlen > i && (traces[tlen - 1].true_count + traces[tlen-1].false_count) == 0; tlen--){}
-  for(; i < tlen; i++){
-
-   var tr = traces[i]
-    var trace_i;
-    if(tr.size_range[0] < 0) {
-       trace_i = 0;
-    } else if (tr.size_range[0] > 0) {
-       trace_i = 2;
-    } else {
-        trace_i = 1;
-    }
-    var k = 0;
-    for(; (k < tr.cutoffs.length - 1) && (tr.cutoffs[k] < cutoff);k++){}
-
-
-    fpr_traces[trace_i].text.push("<b>inherited:</b>" + tr.true_count + " <b>violations</b>:" + tr.false_count)
-    if(tr.size_range[0] == tr.size_range[1] - 1) {
-       fpr_traces[trace_i].x.push("&nbsp;" + tr.size_range[0].toString())
-       tpr_traces[trace_i].x.push("&nbsp;" + tr.size_range[0].toString())
-    } else {
-       fpr_traces[trace_i].x.push(tr.size_range[0] + "-" + tr.size_range[1])
-       tpr_traces[trace_i].x.push(tr.size_range[0] + "-" + tr.size_range[1])
-    }
-    //fpr_traces[trace_i].y.push(tr.falses[tr.falses.length-1] / (tr.falses[tr.falses.length-1] + tr.trues[tr.trues.length-1]))
-
-    tpr_traces[trace_i].text.push("<b>inherited:</b>" + tr.true_count + " <b>violations</b>:" + tr.false_count)
-
-    if(tr.lt) {
-      fpr_traces[trace_i].y.push(tr.falses[k] / (tr.falses[k] + tr.trues[k]))
-      tpr_traces[trace_i].y.push(tr.trues[k] / tr.true_count)
-    } else {
-      fpr_traces[trace_i].y.push(tr.falses[k] / (tr.falses[k] + tr.trues[k]))
-      tpr_traces[trace_i].y.push(tr.trues[k] / tr.true_count)
-    }
-
-
-  }
-   
 var layout = {
     autosize: true,
     margin: {t: 30, pad: 0},
@@ -343,17 +228,6 @@ var layout = {
 }
 
 
-  Plotly.newPlot("fpr_plot", fpr_traces, layout)
-  let layoutt = Object.assign({}, layout)
-
-  layoutt.yaxis.title = "Sensitivity"
-  Plotly.newPlot("tpr_plot", tpr_traces, layoutt)
-
-
-
-}
-
-jQuery('#fpr_cutoff').on("change", change_fpr_plot);
 
 </script>
 
