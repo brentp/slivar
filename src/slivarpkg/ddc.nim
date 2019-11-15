@@ -1,5 +1,6 @@
 # data-driven cutoffs
 import times
+import random
 import hts/vcf
 import math
 import json
@@ -22,7 +23,6 @@ proc `$$`(k:float32): string {.inline.} =
   if result[result.high] == '.':
     result = result.strip(chars={'.'}, leading=false)
 
-
 const tmpl_html* = staticRead("ddc.html")
 
 type Trio = object
@@ -40,6 +40,7 @@ type VariantInfo = object
   bool_tbl: Table[string, seq[bool]]
   variant_lengths: seq[int]
   filters: seq[string]
+  violations: seq[bool]
 
 proc tojson(tbl: Table[string, seq[float32]]): string =
   result = newStringOfCap(16384)
@@ -80,7 +81,8 @@ proc tojson(v:VariantInfo): string =
   result.add(&"""{{float_tbl: {v.float_tbl.tojson},
 bool_tbl: {%v.bool_tbl},
 variant_lengths: {%v.variant_lengths},
-filters: {%v.filters}
+filters: {%v.filters},
+violations: {%v.violations}
 }}""")
 
 
@@ -209,6 +211,21 @@ proc ddc_main*() =
 
   var samples = parse_ped(opts.ped).match(ivcf)
   var kids = samples.trio_kids
+  const max_trios = 4
+  if len(kids) > max_trios:
+    stderr.write_line &"[slivar] sub-sampling to {max_trios} random kids"
+    shuffle(kids)
+    kids = kids[0..<max_trios]
+    kids.sort(proc(a, b:Sample): int = a.i - b.i)
+    samples = newSeq[Sample]()
+    for k in kids:
+      samples.add(k)
+      if k.dad notin samples:
+        samples.add(k.dad)
+      if k.mom notin samples:
+        samples.add(k.mom)
+    samples = samples.match(ivcf)
+
 
   var output_infos = VariantInfo(float_tbl: initTable[string, seq[float32]](), bool_tbl: initTable[string, seq[bool]]())
   var output_trios = newSeq[Trio](kids.len)
@@ -237,12 +254,14 @@ proc ddc_main*() =
     var alts = v.format.genotypes(x).alts
     shallow(alts)
     var any_used = false
+    var any_violation = false
 
     for i, kid in kids:
       let vio = kid.violation(alts)
       let inh = kid.inherited(alts)
       if not (vio or inh): continue
       any_used = true
+      if vio: any_violation = true
 
       var tr = output_trios[i]
       tr.variant_idxs.add((variant_idx).uint32)
@@ -264,13 +283,22 @@ proc ddc_main*() =
 
     output_infos.filters.add(v.FILTER)
     output_infos.variant_lengths.add(v.get_variant_length)
+    output_infos.violations.add(any_violation)
     for k, bseq in output_infos.bool_tbl.mpairs:
       bseq.add(v.info.has_flag(k))
     for k, fseq in output_infos.float_tbl.mpairs:
       fseq.add(v.getINFOf32(k))
 
-  echo (output_infos.tojson)
-  echo (output_trios.tojson)
+  var html = tmpl_html.replace("<VARIANT_JSON>", output_infos.tojson)
+  html = html.replace("<TRIO_JSON>", output_trios.tojson)
+
+
+  var fh:File
+  if not open(fh, "ddc.html", fmWrite):
+    quit "couldn't open output hmlt file"
+  fh.write(html)
+  fh.close
+
 
   stderr.write_line "number of infos:", output_infos.variant_lengths.len
   for tr in output_trios:
