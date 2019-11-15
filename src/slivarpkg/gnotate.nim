@@ -212,6 +212,12 @@ proc load(g:var Gnotater, chrom: cstring): bool =
     doAssert v.len == g.encs.len, $(i, v.len, g.encs.len)
   return true
 
+proc values_at(g: Gnotater, i: int): seq[float32] =
+  result = newSeq[float32](g.n_fields)
+  for k in 0..g.values.high:
+    # g.values  is shape (n_fields, n_variants)
+    result[k] = g.values[k][i]
+
 proc show*(g:var Gnotater, chrom:string, start:int, stop:int) =
   if g.chrom != chrom:
    discard g.load(chrom)
@@ -224,7 +230,7 @@ proc show*(g:var Gnotater, chrom:string, start:int, stop:int) =
   j = min(j + 5, g.encs.high)
 
   for k in i..j:
-    echo g.encs[k].decode, " # ", g.encs[k]
+    echo g.encs[k].decode, " # ", g.encs[k], " values:", g.values_at(k)
 
 proc annotate_missing(g:Gnotater, v:Variant): bool {.inline.} =
   if g.missing_value != MissingVal:
@@ -234,12 +240,6 @@ proc annotate_missing(g:Gnotater, v:Variant): bool {.inline.} =
         quit &"couldn't set info of {n} to {values[0]}"
     return true
   return false
-
-proc values_at(g: Gnotater, i: int): seq[float32] =
-  result = newSeq[float32](g.n_fields)
-  for k in 0..g.values.high:
-    # g.values  is shape (n_fields, n_variants)
-    result[k] = g.values[k][i]
 
 proc annotate*(g:var Gnotater, v:Variant): bool {.inline.} =
   ## annotate the variant INFO field with the allele frequencies and flags in g
@@ -304,6 +304,18 @@ proc update_header*(g:Gnotater, ivcf:VCF) =
     doAssert ivcf.header.add_info(n & "_filter", "0", "Flag", "non-passing flag in gnotate source VCF") == Status.OK
 
 when isMainModule:
+
+  var zip_path = paramStr(1)
+  var loc = paramStr(2)
+  var g:Gnotater
+  if not g.open(zip_path, tmpDir="/tmp", missing_val= -1.0'f32):
+    quit "[slivar] error opening zip. check path and contents"
+  var se = loc.split(":")[1].split("-")
+  g.show(loc.split(":")[0], parseInt(se[0])-1, parseInt(se[1]))
+
+
+
+  #[
   import times
 
   var vcf_path = paramStr(1)
@@ -383,3 +395,4 @@ when isMainModule:
 
     n += 1
   echo "PASS:", $n, " variants tested with max difference:", max_diff
+  ]#
