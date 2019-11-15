@@ -40,11 +40,17 @@ function roc(values, violations, invert, abs) {
 function add_slider(values, name, label) {
 
     jQuery('#variant-sliders').append(`<hr>
-<label for="${name}-slider"><h3>${label}</h3></label>
+<label for=${name}-flip>flip values</label>
+<input type="checkbox" id=${name}-flip name=${name}-flip>
+<label for=${name}-abs>take absolute value</label>
+<input type="checkbox" id=${name}-abs name=${name}-abs>
+
 <div id=${name}-slider name=${name}-slider></div>
-<div class="col-8" id=${name}-hist-plot></div>
-<!--- Joe Q. How to make these plots side-by-side. -->
-<div class="col-8" id=${name}-roc-plot></div>
+<label for="${name}-slider"><h3>${label}</h3></label>
+<div class="row pt-2 pb-2 bg-light">
+<div class="col-6" id=${name}-hist-plot></div>
+<div class="col-6" id=${name}-roc-plot></div>
+</div>
     `)
     var vlmin = Math.min.apply(null, values);
     var vlmax = Math.max.apply(null, values);
@@ -80,7 +86,10 @@ function add_slider(values, name, label) {
         {type: 'histogram', x: vio_vals, name:"violations", autobinx: false,  xbins: {size: bin_size}, histnorm: "count"},
     ];
 
-    var roc_layout = {xaxis: {title:"mendelian violations"}, yaxis: {title:"transmitted variants"}}
+    var roc_layout = {xaxis: {title:"mendelian violations"}, yaxis: {title:"transmitted variants"}, 
+        height:150, margin: {t: 0, b:20, r:0},
+        legend: {x: 0.9, y: 0.9},
+    }
 
     plots.hists[`${name}`] = Plotly.newPlot(`${name}-hist-plot`, traces, layout);
     plots.rocs[`${name}`] = Plotly.newPlot(`${name}-roc-plot`, [roc_tr], roc_layout);
