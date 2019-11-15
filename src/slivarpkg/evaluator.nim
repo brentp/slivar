@@ -50,6 +50,11 @@ proc getNamedExpressions*(ovcf:VCF, expressions:seq[string], invcf:string, asflo
       if ovcf.header.add_info(t[0], ".", "String", &"added by slivar with expression: '{t[1].clean}' from {invcf}") != Status.OK:
         quit "error adding field to header"
 
+proc isDigit(s:string): bool {.inline.} =
+  for c in s:
+    if not c.isdigit: return false
+  true
+
 proc looks_like_region_file(f:string): bool =
   if not f.fileExists: return false
   if '-' in f and ':' in f: return false
@@ -424,7 +429,7 @@ proc id2names*(h:Header): seq[idpair] =
     result[idp.val.id] = ($name, idp.val.hrec[1] != nil, idp.val.hrec[2] != nil)
 
 
-proc c_memset*(p: pointer, value: cint, size: csize): pointer {.
+proc c_memset*(p: pointer, value: cint, size: csize_t): pointer {.
   importc: "memset", header: "<string.h>", discardable.}
 
 
@@ -756,7 +761,7 @@ proc set_format_fields*(ev:var Evaluator, v:Variant, alts: var seq[int8], ints: 
       if ev.samples.len * (1 + v.ALT.len) != ints.len:
         stderr.write_line &"""[slivar] error !!! please decompose and normalize after setting Number=A for the AD field in your VCF header"""
         stderr.write_line &"""         expected 2 values per sample for 'AD' field, but got {ints.len / ev.samples.len:.1f} for variant: {v.CHROM}:{v.start + 1}:{v.REF}:{join(v.ALT, ",")}"""
-        quit """         see: https://github.com/brentp/slivar/wiki/decomposing-and-subsetting-vcfs"""
+        stderr.write_line """         see: https://github.com/brentp/slivar/wiki/decomposing-and-subsetting-vcfs"""
       if not has_ab:
         ev.set_ab(fmt, ints)
         has_ab = true
