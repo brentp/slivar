@@ -79,7 +79,9 @@ function add_slider(values, name, label) {
          
     };
 
-    var roc_tr = roc(values, vios, false, false);
+    var do_flip = jQuery(`#{name}-flip`).is(":checked")
+    var do_abs = jQuery(`#{name}-abs`).is(":checked")
+    var roc_tr = roc(values, vios, do_flip, do_abs);
 
     var traces = [
         {type: 'histogram', x: inh_vals, name:"transmitted", autobinx: false, xbins: {size: bin_size}, histnorm: "count"},
