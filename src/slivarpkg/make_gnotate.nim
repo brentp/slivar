@@ -15,13 +15,12 @@ import streams
 
 let doc = """
 
-Usage: slivar make-gnotate [options --field <string>... --expr <string>...] <vcfs>...
+Usage: slivar make-gnotate [options --field <string>...] <vcfs>...
 
 Options:
 
   --prefix <string>          prefix for output [default: gno]
   -f --field <string>...     field(s) to pull from VCF. format is source:dest. e.g. AF_popmax:gnomad_popmax_af [default: AF_popmax]
-  -e --expr <string>...      optional name:expression that return floats to be used by --field
   -m --message <string>      optional usage message (or license) to associate with the gnotate file.
 
 Arguments:
@@ -250,7 +249,6 @@ proc main*(dropfirst:bool=false) =
     imod = 500_000
     fields = parse_fields(@(args["--field"]))
     message = $args["--message"]
-    iTbl: seq[NamedExpression]
 
   var vcfs = newSeq[VCF](vcf_paths.len)
 
@@ -271,12 +269,9 @@ proc main*(dropfirst:bool=false) =
     if not open(vcfs[i], p, threads=3):
       quit "couldn't open:" & p
 
-  if $args["--expr"] != "nil" and $args["--expr"] != "":
-    iTbl = vcfs[0].getNamedExpressions(@(args["--expr"]), vcf_paths[0], true)
   var nerrors: int
-  echo iTbl
 
-  var ev = newEvaluator(vcfs[0], @[], @[], iTbl, @[], @[], @[], @[], "nil", @[], id2names(vcfs[0].header), false)
+  var ev = newEvaluator(vcfs[0], @[], @[], @[], @[], @[], @[], @[], "nil", @[], id2names(vcfs[0].header), false)
   for v in vcfs[0]:
     if len(v.ALT) > 1:
       quit "input should be decomposed and normalized"
@@ -287,13 +282,7 @@ proc main*(dropfirst:bool=false) =
           # skip first vcf since we already used it.
           if i == 0: continue
 
-          if iTbl.len > 0:
-            ev = newEvaluator(ovcf, @[], @[], iTbl, @[], @[], @[], @[], "nil", @[], id2names(ovcf.header), false)
-
           for ov in ovcf.query(last_chrom):
-            if iTbl.len > 0:
-              for r in ev.evaluate(ov, nerrors):
-                calculated_values[r.name] = r.val
             ov.encode_and_update(fields, kvs, longs, calculated_values)
           stderr.write_line &"[slivar] kvs.len for {last_chrom}: {kvs.len} after {vcf_paths[i]}"
         fchrom.write(last_chrom.sanitize_chrom & "\n")
@@ -301,14 +290,11 @@ proc main*(dropfirst:bool=false) =
 
         longs = newSeqOfCap[PosValue](65536)
         kvs = newSeqOfCap[evalue](65536)
-        ev = newEvaluator(vcfs[0], @[], @[], iTbl, @[], @[], @[], @[], "nil", @[], id2names(vcfs[0].header), false)
+        ev = newEvaluator(vcfs[0], @[], @[], @[], @[], @[], @[], @[], "nil", @[], id2names(vcfs[0].header), false)
 
       last_chrom = $v.CHROM
       last_rid = v.rid
 
-    if iTbl.len > 0:
-      for r in ev.evaluate(v, nerrors):
-        calculated_values[r.name] = r.val
     v.encode_and_update(fields, kvs, longs, calculated_values)
 
     if kvs.len mod imod == 0:
@@ -322,13 +308,7 @@ proc main*(dropfirst:bool=false) =
       # skip first vcf since we already used it.
       if i == 0: continue
 
-      if iTbl.len > 0:
-        ev = newEvaluator(ovcf, @[], @[], iTbl, @[], @[], @[], @[], "nil", @[], id2names(ovcf.header), false)
-
       for ov in ovcf.query(last_chrom):
-        if iTbl.len > 0:
-          for r in ev.evaluate(ov, nerrors):
-            calculated_values[r.name] = r.val
         ov.encode_and_update(fields, kvs, longs, calculated_values)
       stderr.write_line &"[slivar] kvs.len for {last_chrom}: {kvs.len} after {vcf_paths[i]}"
     fchrom.write(last_chrom.sanitize_chrom & "\n")
