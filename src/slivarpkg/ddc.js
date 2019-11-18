@@ -58,6 +58,21 @@ function roc(values, violations, invert, abs, name, filters_to_keep) {
     return result
 }
 
+function arr_min(arr) {
+    var min = arr[0];
+    for(i=1;i < arr.length; i++){
+        if(arr[i] < min) {min = arr[i]; }
+    }
+    return min
+}
+function arr_max(arr) {
+    var max = arr[0];
+    for(i=1;i < arr.length; i++){
+        if(arr[i] > max) {max = arr[i]; }
+    }
+    return max
+}
+
 function add_slider(values, name, label) {
 
     jQuery('#variant-sliders').append(`<hr>
@@ -73,8 +88,8 @@ function add_slider(values, name, label) {
 <div class="col-6" id=${name}-roc-plot></div>
 </div>
     `)
-    var vlmin = Math.min.apply(null, values);
-    var vlmax = Math.max.apply(null, values);
+    var vlmin = arr_min(values); // can't use apply or destructring as we run out of stack
+    var vlmax = arr_max(values); // can't use apply or destructring as we run out of stack
     sliders[`${name}`] = noUiSlider.create(document.getElementById(`${name}-slider`), {
         tooltips: [wNumb({decimals: 3}), wNumb({decimals: 3})],
         start: [vlmin, vlmax],
@@ -119,6 +134,33 @@ function get_passing_info_idxs() {
     return idxs
 }
 
+const ROC_VAR = "AB"
+
+function adjust_with_order(arr, order) {
+    var result = new Array(arr.length)
+
+    for(var i = 0; i < arr.length; i++){
+        result[i] = arr[order[i]];
+    }
+    return result;
+}
+
+function sort_trio(trio) {
+    // on page-load, we sort each trio so that the kid's lowest ABs
+    // are first so we can draw the ROC curve
+    var order = new Array(trio.violations.length)
+    for(var i = 0; i < trio.violations.length; i++){ order[i] = i; }
+
+    var roc_var = trio.tbl[ROC_VAR];
+    order.sort(function(a, b) { return roc_var[a] - roc_var[b]; });
+
+    for(k in trio.tbl) {
+        trio.tbl[k] = adjust_with_order(trio.tbl[k], order)
+    }
+    trio.violations = adjust_with_order(trio.violations, order);
+    trio.variant_idxs = adjust_with_order(trio.variant_idxs, order);
+}
+
 function main_plot() {
     // main-roc-plot
     console.time('main-plot')
@@ -130,20 +172,19 @@ function main_plot() {
         var trace = {x:[], y:[], text:[], name: trio.sample_id}
         for(var i=0; i < trio.variant_idxs.length; i++) {
             if(!idxs.has(trio.variant_idxs[i])){ continue; }
+            var vio = trio.violations[i] //== 0 && trio.mom_alts[i] == 0 && trio.kid_alts[i] == 1;
             trace.x.push(1)
             trace.y.push(1)
 
-
         }
         traces.push(trace)
-
     })
     console.timeEnd('main-plot')
 }
 
 function plot_info(values, name, label) {
-    var vlmin = Math.min.apply(null, values);
-    var vlmax = Math.max.apply(null, values);
+    var vlmin = arr_min(values);
+    var vlmax = arr_max(values);
     var filters_to_keep = jQuery('.slivar-filters:checked').map(function(v) { return this.name }).toArray();
 
     var bin_size = (vlmax - vlmin) / 100;
@@ -231,6 +272,11 @@ for(k in trios[0].kid_tbl) {
     add_sample_slider(vals, k)
 }
 
+console.time('trio-sort')
+trios.forEach(function(trio) {
+    sort_trio(trio)
+})
+console.timeEnd('trio-sort')
 
 main_plot()
 

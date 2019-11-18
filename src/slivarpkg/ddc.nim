@@ -27,13 +27,15 @@ const tmpl_html* = staticRead("ddc.html")
 
 type Trio = object
   sample_id: string
-  kid_tbl: Table[string, seq[float32]]
-  kid_alts: seq[int8]
+  tbl: Table[string, seq[float32]]
+  #kid_alts: seq[int8]
   dad_tbl: Table[string, seq[float32]]
-  dad_alts: seq[int8]
+  #dad_alts: seq[int8]
   mom_tbl: Table[string, seq[float32]]
-  mom_alts: seq[int8]
+  #mom_alts: seq[int8]
   variant_idxs: seq[uint32]
+
+  violations: seq[bool]
 
 type VariantInfo = object
   float_tbl: Table[string, seq[float32]]
@@ -59,15 +61,17 @@ proc tojson(tbl: Table[string, seq[float32]]): string =
 proc tojson(t:Trio): string =
   result = newStringOfCap(16384)
   result.add(&"""{{sample_id: "{t.sample_id}",
-kid_tbl: {t.kid_tbl.tojson},
+tbl: {t.tbl.tojson},
+violations: {%t.violations},
 dad_tbl: {t.dad_tbl.tojson},
 mom_tbl: {t.mom_tbl.tojson},
-kid_alts: {%t.kid_alts},
-dad_alts: {%t.dad_alts},
-mom_alts: {%t.mom_alts},
 variant_idxs: {%t.variant_idxs}
 }}""")
 
+# kid_alts: {%t.kid_alts},
+# dad_alts: {%t.dad_alts},
+# mom_alts: {%t.mom_alts},
+#
 proc tojson(ts:seq[Trio]): string =
   result = newStringOfCap(16384*128)
   result.add('[')
@@ -93,14 +97,19 @@ proc trio_kids(samples: seq[Sample]): seq[Sample] =
     result.add(sample)
 
 proc getAB(v:Variant): seq[float32] =
-  if v.format.get("AB", result) == Status.OK: return
+  if v.format.get("AB", result) != Status.OK:
 
-  var ad: seq[int32]
-  if v.format.get("AD", ad) != Status.OK:
-    return
-  result = newSeq[float32](v.n_samples)
-  for i in 0..<v.n_samples:
-    result[i] = ad[2*i+1].float32 / max(1, ad[2*i+1] + ad[2*i]).float32
+    var ad: seq[int32]
+    if v.format.get("AD", ad) != Status.OK:
+      return
+    result = newSeq[float32](v.n_samples)
+    for i in 0..<v.n_samples:
+      result[i] = ad[2*i+1].float32 / max(1, ad[2*i+1] + ad[2*i]).float32
+
+  # flip so that the alllele balance for hets is always < 0.5
+  for i, ab in result.mpairs:
+    if ab == 0'f32 or ab == 1'f32: continue
+    if ab > 0.5: ab = 1-ab
 
 proc getINFOf32(v:Variant, f:string): float32 =
   if f == "QUAL":
@@ -167,7 +176,7 @@ proc check*[T: VariantInfo|seq[Trio]](ivcf:VCF, fields: seq[string], ftype:BCF_H
         case hr["Type"]
         of "Float", "Integer":
           for s in infos.mitems:
-            s.kid_tbl[f] = newSeqOfCap[float32](65536)
+            s.tbl[f] = newSeqOfCap[float32](65536)
             s.mom_tbl[f] = newSeqOfCap[float32](65536)
             s.dad_tbl[f] = newSeqOfCap[float32](65536)
         else:
@@ -179,7 +188,7 @@ proc check*[T: VariantInfo|seq[Trio]](ivcf:VCF, fields: seq[string], ftype:BCF_H
       else:
         if f == "AB":
           for s in infos.mitems:
-            s.kid_tbl[f] = newSeqOfCap[float32](65536)
+            s.tbl[f] = newSeqOfCap[float32](65536)
             s.mom_tbl[f] = newSeqOfCap[float32](65536)
             s.dad_tbl[f] = newSeqOfCap[float32](65536)
         else:
@@ -229,7 +238,7 @@ proc ddc_main*() =
   var output_trios = newSeq[Trio](kids.len)
   for i, o in output_trios.mpairs:
     o.sample_id = kids[i].id
-    o.kid_tbl = initTable[string, seq[float32]]()
+    o.tbl = initTable[string, seq[float32]]()
     o.dad_tbl = initTable[string, seq[float32]]()
     o.mom_tbl = initTable[string, seq[float32]]()
 
@@ -263,11 +272,12 @@ proc ddc_main*() =
 
       var tr = output_trios[i]
       tr.variant_idxs.add((variant_idx).uint32)
-      tr.kid_alts.add(alts[kid.i])
-      tr.dad_alts.add(alts[kid.dad.i])
-      tr.mom_alts.add(alts[kid.mom.i])
+      tr.violations.add(vio)
+      #tr.alts.add(alts[kid.i])
+      #tr.dad_alts.add(alts[kid.dad.i])
+      #tr.mom_alts.add(alts[kid.mom.i])
 
-      for k, kid_seq in tr.kid_tbl.mpairs:
+      for k, kid_seq in tr.tbl.mpairs:
 
         let fi = fmt_fields.find(k)
         let fmt = fmts[fi]
