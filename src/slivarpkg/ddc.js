@@ -169,17 +169,28 @@ function main_plot() {
     let idxs = new Set(get_passing_info_idxs())
     console.log(idxs.length)
     trios.forEach(function(trio) {
+        var tps = 0
+        var fps = 0
+        var last_val = trio.tbl[ROC_VAR] - 1;
         var trace = {x:[], y:[], text:[], name: trio.sample_id}
+
         for(var i=0; i < trio.variant_idxs.length; i++) {
             if(!idxs.has(trio.variant_idxs[i])){ continue; }
             var vio = trio.violations[i] //== 0 && trio.mom_alts[i] == 0 && trio.kid_alts[i] == 1;
-            trace.x.push(1)
-            trace.y.push(1)
+            if(vio) { fps += 1; }
+            else { tps += 1; }
+            if(trio.tbl[ROC_VAR][i] == last_val) { continue; }
+            last_val = trio.tbl[ROC_VAR][i];
+
+            trace.x.push(fps);
+            trace.y.push(tps);
+            trace.text.push(`${ROC_VAR} < ${last_val} fpr: ${(fps / (fps + tps)).toFixed(3)}`)
 
         }
         traces.push(trace)
     })
-    console.timeEnd('main-plot')
+
+    Plotly.newPlot('main-roc-plot', traces, {});
 }
 
 function plot_info(values, name, label) {
