@@ -96,6 +96,10 @@ function add_slider(values, name, label) {
         connect: true, 
         range: {min:vlmin, max:vlmax},
     })
+
+    sliders[`${name}`].on('change', function() {
+        main_plot()
+    })
     plot_info(values, name, label)
 
     jQuery(`#${name}-abs, #${name}-flip`).on('change', function() {
@@ -152,7 +156,8 @@ function sort_trio(trio) {
     for(var i = 0; i < trio.violations.length; i++){ order[i] = i; }
 
     var roc_var = trio.tbl[ROC_VAR];
-    order.sort(function(a, b) { return roc_var[a] - roc_var[b]; });
+    //order.sort(function(a, b) { return roc_var[a] - roc_var[b]; });
+    order.sort(function(a, b) { return (roc_var[b] - roc_var[a]); });
 
     for(k in trio.tbl) {
         trio.tbl[k] = adjust_with_order(trio.tbl[k], order)
@@ -184,13 +189,15 @@ function main_plot() {
 
             trace.x.push(fps);
             trace.y.push(tps);
-            trace.text.push(`${ROC_VAR} < ${last_val} fpr: ${(fps / (fps + tps)).toFixed(3)}`)
+            trace.text.push(`${ROC_VAR} > ${last_val} fpr: ${(fps / (fps + tps)).toFixed(3)}`)
 
         }
         traces.push(trace)
     })
+    console.timeEnd('main-plot')
 
-    Plotly.newPlot('main-roc-plot', traces, {});
+    var layout = {xaxis: {title:"Violations"}, yaxis: {title: "Transmissions", autorange:true}}
+    Plotly.newPlot('main-roc-plot', traces, layout);
 }
 
 function plot_info(values, name, label) {
