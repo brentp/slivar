@@ -154,7 +154,7 @@ type Evaluator* = ref object
 template fill[T: int8 | int32 | float32 | string](sample:ISample, name:string, values:var seq[T], nper:int) =
   if nper == 1:
     sample.duk[name] = values[sample.ped_sample.i]
-  elif nper <= 2:
+  elif nper >= 2:
     sample.duk[name] = values[(nper*sample.ped_sample.i)..<(nper*(sample.ped_sample.i+1))]
 
 
@@ -429,18 +429,20 @@ proc id2names*(h:Header): seq[idpair] =
     result[idp.val.id] = ($name, idp.val.hrec[1] != nil, idp.val.hrec[2] != nil)
 
 
-proc c_memset*(p: pointer, value: cint, size: csize_t): pointer {.
+proc c_memset*(p: pointer, value: cint, size: csize): pointer {.
   importc: "memset", header: "<string.h>", discardable.}
 
 
-proc set_ab(ctx: Evaluator, fmt:FORMAT, ints: var seq[int32]) =
+proc set_ab(ctx: Evaluator, fmt:FORMAT, ints: var seq[int32], n_alleles:int=2) =
   var
     r: float32
     a: float32
 
   for s in ctx.samples:
-    r = ints[2 * s.ped_sample.i].float32
-    a = ints[2 * s.ped_sample.i + 1].float32
+    r = ints[n_alleles * s.ped_sample.i].float32
+    a = ints[n_alleles * s.ped_sample.i + 1].float32
+    for j in 2..<n_alleles:
+      a += ints[n_alleles * s.ped_sample.i + j].float32
     if r < 0 or a < 0:
       s.duk["AB"] = -1.0
     else:
@@ -484,6 +486,8 @@ proc set_variant_fields*(ctx:Evaluator, variant:Variant) =
   ctx.variant["ALT"] = variant.ALT
   ctx.variant["is_multiallelic"] = (len(variant.ALT) > 1)
   ctx.variant["ID"] = $variant.ID
+  if variant.ALT.len > 1:
+    stderr.write_line &"[slivar] warning! found multiallelic site at {variant.CHROM}:{variant.start + 1}. slivar will do sane things with this, but it's better to decompose"
 
 proc sum(counts: array[4, int]): int {.inline.} =
     return counts[0] + counts[1] + counts[2] + counts[3]
@@ -763,7 +767,7 @@ proc set_format_fields*(ev:var Evaluator, v:Variant, alts: var seq[int8], ints: 
         stderr.write_line &"""         expected 2 values per sample for 'AD' field, but got {ints.len / ev.samples.len:.1f} for variant: {v.CHROM}:{v.start + 1}:{v.REF}:{join(v.ALT, ",")}"""
         stderr.write_line """         see: https://github.com/brentp/slivar/wiki/decomposing-and-subsetting-vcfs"""
       if not has_ab:
-        ev.set_ab(fmt, ints)
+        ev.set_ab(fmt, ints, v.ALT.len + 1)
         has_ab = true
 
     elif f.name == "AB":
