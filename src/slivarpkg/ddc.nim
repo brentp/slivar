@@ -249,9 +249,8 @@ proc ddc_main*() =
   var f32: seq[float32]
   var i32: seq[int32]
 
-  var variant_idx = -1
+  var variant_idx = 0
   for v in ivcf.query(opts.chrom):
-    variant_idx += 1
 
     var fmts = newSeq[seq[float32]](fmt_fields.len)
     for i, f in fmt_fields:
@@ -296,6 +295,7 @@ proc ddc_main*() =
       bseq.add(v.info.has_flag(k))
     for k, fseq in output_infos.float_tbl.mpairs:
       fseq.add(v.getINFOf32(k))
+    variant_idx.inc
 
   var html = tmpl_html.replace("<VARIANT_JSON>", output_infos.tojson)
   html = html.replace("<TRIO_JSON>", output_trios.tojson)

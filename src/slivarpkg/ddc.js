@@ -1,6 +1,25 @@
 var sliders = {samples:{}};
 var plots = {hists: {}, rocs: {}}
 
+var stats = {}
+
+function set_stats() {
+    stats.n_variants = variant_infos.violations.length;
+    stats.n_violations = 0
+    for(i=0;i<variant_infos.violations.length;i++){ stats.n_violations += variant_infos.violations[i]; }
+}
+
+function iNumb(opts) {
+    return {
+        to: function (a) {
+            return parseInt(Math.round(a)).toString()
+        },
+        from: function (txt) {
+            return parseInt(txt)
+        },
+    }
+}
+
 function wNumb(opts) {
     return {
         to: function(a) {
@@ -74,6 +93,10 @@ function arr_min_max(arr) {
         if(arr[i] < min) {min = arr[i]; }
         if(arr[i] > max) {max = arr[i]; }
     }
+    if(Math.abs(parseInt(min) - min) > 0.001) {
+        min -= 0.01;
+        max += 0.01;
+    }
     return [min, max]
 }
 
@@ -111,8 +134,11 @@ function add_slider(values, name, label, is_fmt_field, idxs) {
 </div>
     `)
     var [vlmin, vlmax] = arr_min_max(values); // can't use apply or destructring as we run out of stack
+    var fmtF = name == "variant-length" ? iNumb : wNumb
+    
+    
     sliders[`${prefix}${name}`] = noUiSlider.create(document.getElementById(`${prefix}${name}-slider`), {
-        tooltips: [wNumb({decimals: 3}), wNumb({decimals: 3})],
+        tooltips: [fmtF({decimals: 3}), fmtF({decimals: 3})],
         start: [vlmin, vlmax],
         connect: true, 
         range: {min:vlmin, max:vlmax},
@@ -272,6 +298,10 @@ function main_plot() {
             trace.text.push(`${ROC_VAR} > ${last_val} fpr: ${(fps / (fps + tps)).toFixed(3)}`)
 
         }
+        console.log(`tps: ${tps} fps: ${fps} N: ${trio.variant_idxs.length}`)
+        trace.x.push(fps);
+        trace.y.push(tps);
+        trace.text.push(`${ROC_VAR} > ${last_val} fpr: ${(fps / (fps + tps)).toFixed(3)}`)
         traces.push(trace)
     })
     console.timeEnd('main-plot')
@@ -326,8 +356,6 @@ function plot_bool(values, name, vios, idxs) {
     }
 
     let xlabels = ["unfiltered", "filtered"]
-    // TODO: this is kind of confusing. should label by filtered and
-    // group by violation
     var traces = [
                   {y: vio, x: xlabels, name:"violations", type: "bar"},
                   {y: tra, x: xlabels, name:"transmissions", type: "bar"},
@@ -385,6 +413,9 @@ for(i=0; i < variant_infos.filters.length;i++) {
 };
 var nseen = 0;
 var haspass = false
+
+set_stats()
+
 for(k in seen) { nseen += 1; if(k == "PASS"){ haspass = true; }}
 if(nseen > 0) {
     for(k in seen){
