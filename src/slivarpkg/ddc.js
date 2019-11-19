@@ -12,46 +12,57 @@ function wNumb(opts) {
     };
 }
 
-function roc(values, violations, invert, name, filters_to_keep) {
+var colors = ['rgba(55,126,184,0.7)', 'rgba(228,26,28,0.7)', 'rgba(77,175,74,0.7)', 'rgba(152,78,163,0.7)', 'rgba(255,127,0,0.7)', 'rgba(166,86,40,0.7)', 'rgba(247,129,191,0.7)']
+
+function roc(values, violations, invert, name, filters_to_keep, idxs) {
     let filters = variant_infos.filters
-    var A = values.map(function(val, i) {
+
+    var Aorig = values.map(function(val, i) {
         if(invert) {val = -val};
         return [val, violations[i]]
-    }).filter(function(val, i) {
-        return filters_to_keep.includes(filters[i])
     })
-    A.sort(function(a, b) {
+    var Afilt = Aorig.filter(function(val, i) {
+        return (idxs.size == 0 || idxs.has(i)) && filters_to_keep.includes(filters[i])
+    })
+    Aorig.sort(function(a, b) {
         return a[0] - b[0]
     })
-    result = {x:[0], y:[0], text: [""]}
-    var tps = 0
-    var fps = 0
-    let N = A.length
-    if(N == 0) {
-        return result
-    }
+    Afilt.sort(function(a, b) {
+        return a[0] - b[0]
+    })
+    let N = Aorig.length
     var txt = "INFO." + name + (invert ? ">" : "<")
     // we can't just iterate over A, we also have to track the change in
     // cutoff so we don't draw a smooth curve when the cutoff value hasn't
     // changed.
-    var last_val = A[0][0] - 1;
-    A.forEach(function(pair, i) {
-        // FP
-        if(pair[1]) { fps += 1; }
-        else {tps += 1; }
-        var val = pair[0]
-        if (val == last_val) { return; }
-        last_val = val;
+    result = [{x:[0], y:[0], text: [""], name: "unfiltered", marker: {color: colors[2]}},
+              {x:[0], y:[0], text: [""], name: "filtered", marker: {color: colors[3]}}]
+    if(N == 0) {
+        return result
+    }
 
-        // TODO: scale by A.length
-        // but might be good to leave as numbers for now.
-        result.x.push(fps)
-        result.y.push(tps)
-        result.text.push(`${txt} ${val} gives FDR: ${(fps/(tps + fps)).toFixed(3)}`)
+    [Aorig, Afilt].forEach(function(A, Ai) {
+        var last_val = A[0][0] - 1;
+        var tps = 0
+        var fps = 0
+        A.forEach(function(pair, i) {
+            // FP
+            if(pair[1]) { fps += 1; }
+            else {tps += 1; }
+            var val = pair[0]
+            if (val == last_val) { return; }
+            last_val = val;
+
+            // TODO: scale by A.length
+            // but might be good to leave as numbers for now.
+            result[Ai].x.push(fps)
+            result[Ai].y.push(tps)
+            result[Ai].text.push(`${txt} ${val} gives FDR: ${(fps/(tps + fps)).toFixed(3)}`)
+        })
+        result[Ai].x.push(fps)
+        result[Ai].y.push(tps)
+        result[Ai].text.push(`${txt} ${A[A.length-1][0]} gives FDR: ${(fps/(tps + fps)).toFixed(3)}`)
     })
-    result.x.push(fps)
-    result.y.push(tps)
-    result.text.push(`${txt} ${A[A.length-1][0]} gives FDR: ${(fps/(tps + fps)).toFixed(3)}`)
 
     return result
 }
@@ -245,7 +256,7 @@ function plot_field(values, name, label, prefix, vios, idxs) {
          
     };
     var do_flip = jQuery(`#${prefix}${name}-flip`).is(":checked")
-    var roc_tr = roc(values, vios, do_flip, name, filters_to_keep);
+    var roc_trs = roc(values, vios, do_flip, name, filters_to_keep, idxs);
     var bin_size = (vlmax - vlmin) / 100;
 
     var traces = [
@@ -259,7 +270,7 @@ function plot_field(values, name, label, prefix, vios, idxs) {
     }
 
     plots.hists[`${prefix}${name}`] = Plotly.newPlot(`${prefix}${name}-hist-plot`, traces, layout, {displayModeBar: false});
-    plots.rocs[`${prefix}${name}`] = Plotly.newPlot(`${prefix}${name}-roc-plot`, [roc_tr], roc_layout, {displayModeBar: false});
+    plots.rocs[`${prefix}${name}`] = Plotly.newPlot(`${prefix}${name}-roc-plot`, roc_trs, roc_layout, {displayModeBar: false});
 }
 
 (function(){
@@ -309,8 +320,9 @@ main_plot()
 
 function update_info_plots() {
     let idxs = new Set(get_passing_info_idxs())
-    console.log("idxs size:", idxs.size)
+    let prefix = "";
     for(k in variant_infos.float_tbl) {
-        plot_field(variant_infos.float_tbl[k], k, k, "", variant_infos.violations, idxs);
+        plot_field(variant_infos.float_tbl[k], k, k, prefix, variant_infos.violations, idxs);
     }
+    plot_field(variant_infos.variant_lengths, "variant-length", "variant-lengths", prefix, variant_infos.violations, idxs);
 }
