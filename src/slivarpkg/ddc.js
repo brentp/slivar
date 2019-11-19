@@ -9,6 +9,24 @@ function set_stats() {
     for(i=0;i<variant_infos.violations.length;i++){ stats.n_violations += variant_infos.violations[i]; }
 }
 
+function update_stats(idxs) {
+    if(stats.filtered == undefined){ stats.filtered = {} }
+    stats.filtered.n_violations = 0
+    stats.filtered.n_variants = idxs.size
+    idxs.forEach(function(e) {
+        stats.filtered.n_violations += variant_infos.violations[e]
+    })
+
+    jQuery('#message').html(`<pre>
+original variants: ${stats.n_variants}
+variants after filtering: ${stats.filtered.n_variants} (${(100 * stats.filtered.n_variants / stats.n_variants ).toFixed(1)})
+
+original violations: ${stats.n_violations}
+violations after filtering: ${stats.filtered.n_violations} (${(100 * stats.filtered.n_violations / stats.n_violations ).toFixed(3)})
+
+    </pre>`)
+}
+
 function iNumb(opts) {
     return {
         to: function (a) {
@@ -145,12 +163,12 @@ function add_slider(values, name, label, is_fmt_field, idxs) {
     })
 
     sliders[`${prefix}${name}`].on('change', function() {
-        main_plot()
-        update_info_plots()
+        let idxs = new Set(get_passing_info_idxs())
+        main_plot(idxs)
+        update_info_plots(idxs)
     })
 
     plot_field(values, name, label, prefix, variant_infos.violations, idxs)
-
 }
 
 function get_sample_bounds() {
@@ -161,6 +179,7 @@ function get_sample_bounds() {
             continue
         }
         let tmp = sliders[k].get()
+        // remove sample- prefix
         fmt_ranges[k.substring(7)] = [parseFloat(tmp[0]), parseFloat(tmp[1])]
     }
     return fmt_ranges
@@ -269,12 +288,14 @@ function sample_skippable(trio, sample_bounds, i) {
     return false;
 }
 
-function main_plot() {
+function main_plot(idxs) {
     // main-roc-plot
     console.time('main-plot')
     var traces = [];
     // we only plot points that pass the INFO filters
-    let idxs = new Set(get_passing_info_idxs())
+    if(idxs == undefined) {
+        idxs = new Set(get_passing_info_idxs())
+    }
     let sample_bounds = get_sample_bounds()
     console.log(idxs.length)
     trios.forEach(function(trio) {
@@ -453,16 +474,23 @@ for(k in trios[0].tbl) {
 }
 
 // whenever a checkbox (and slider) changes, re-draw all the plots
-jQuery(`.slivar-changer`).on('change', update_info_plots)
+// wrap in another function because update_info_plots expects first arg to be a
+// set. if empty, it creates it.
+jQuery(`.slivar-changer`).on('change', function() { update_info_plots() })
 
 
 main_plot()
 
 }());
 
-function update_info_plots() {
-    let idxs = new Set(get_passing_info_idxs())
+function update_info_plots(idxs) {
+    if(idxs == undefined) {
+        idxs = new Set(get_passing_info_idxs())
+    } else {
+        console.log("got idxs", idxs)
+    }
     let prefix = "";
+    update_stats(idxs)
     plot_field(variant_infos.variant_lengths, "variant-length", "variant-lengths", prefix, variant_infos.violations, idxs);
     for(k in variant_infos.float_tbl) {
         plot_field(variant_infos.float_tbl[k], k, k, prefix, variant_infos.violations, idxs);
