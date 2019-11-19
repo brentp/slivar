@@ -12,11 +12,10 @@ function wNumb(opts) {
     };
 }
 
-function roc(values, violations, invert, abs, name, filters_to_keep) {
+function roc(values, violations, invert, name, filters_to_keep) {
     let filters = variant_infos.filters
     var A = values.map(function(val, i) {
         if(invert) {val = -val};
-        if(abs){val = Math.abs(val)};
         return [val, violations[i]]
     }).filter(function(val, i) {
         return filters_to_keep.includes(filters[i])
@@ -31,7 +30,7 @@ function roc(values, violations, invert, abs, name, filters_to_keep) {
     if(N == 0) {
         return result
     }
-    var txt = (abs ? "Math.abs(": "") + "INFO." + name + (abs ? ") ": " ") + (invert ? ">" : "<")
+    var txt = "INFO." + name + (invert ? ">" : "<")
     // we can't just iterate over A, we also have to track the change in
     // cutoff so we don't draw a smooth curve when the cutoff value hasn't
     // changed.
@@ -58,63 +57,78 @@ function roc(values, violations, invert, abs, name, filters_to_keep) {
     return result
 }
 
-function arr_min(arr) {
+function arr_min_max(arr) {
     var min = arr[0];
+    var max = arr[0]
     for(i=1;i < arr.length; i++){
         if(arr[i] < min) {min = arr[i]; }
-    }
-    return min
-}
-function arr_max(arr) {
-    var max = arr[0];
-    for(i=1;i < arr.length; i++){
         if(arr[i] > max) {max = arr[i]; }
     }
-    return max
+    return [min, max]
 }
 
-function add_slider(values, name, label) {
 
-    jQuery('#variant-sliders').append(`<hr>
-<label for=${name}-flip>flip values</label>
-<input type="checkbox" class=slivar-checkbox id=${name}-flip name=${name}-flip>
-<label for=${name}-abs>take absolute value</label>
-<input type="checkbox" class=slivar-checkbox id=${name}-abs name=${name}-abs>
 
-<div id=${name}-slider name=${name}-slider></div>
-<label for="${name}-slider"><h3>${label}</h3></label>
+function add_slider(values, name, label, is_fmt_field) {
+
+    var prefix = is_fmt_field ? "sample-": ""
+
+    jQuery(is_fmt_field ? '#sample-sliders' : '#variant-sliders').append(`<hr>
+<label for=${prefix}${name}-flip>flip values</label>
+<input type="checkbox" class=slivar-checkbox id=${prefix}${name}-flip name=${prefix}${name}-flip>
+
+<div id=${prefix}${name}-slider name=${prefix}${name}-slider></div>
+<label for="${prefix}${name}-slider"><h3>${label}</h3></label>
 <div class="row pt-2 pb-2 bg-light">
-<div class="col-6" id=${name}-hist-plot></div>
-<div class="col-6" id=${name}-roc-plot></div>
+<div class="col-6" id=${prefix}${name}-hist-plot></div>
+<div class="col-6" id=${prefix}${name}-roc-plot></div>
 </div>
     `)
-    var vlmin = arr_min(values); // can't use apply or destructring as we run out of stack
-    var vlmax = arr_max(values); // can't use apply or destructring as we run out of stack
-    sliders[`${name}`] = noUiSlider.create(document.getElementById(`${name}-slider`), {
+    var [vlmin, vlmax] = arr_min_max(values); // can't use apply or destructring as we run out of stack
+    sliders[`${prefix}${name}`] = noUiSlider.create(document.getElementById(`${prefix}${name}-slider`), {
         tooltips: [wNumb({decimals: 3}), wNumb({decimals: 3})],
         start: [vlmin, vlmax],
         connect: true, 
         range: {min:vlmin, max:vlmax},
     })
 
-    sliders[`${name}`].on('change', function() {
+    sliders[`${prefix}${name}`].on('change', function() {
         main_plot()
     })
-    plot_info(values, name, label)
+    plot_info(values, name, label, prefix)
 
-    jQuery(`#${name}-abs, #${name}-flip`).on('change', function() {
-        plot_info(values, name, label);
+    jQuery(`#${prefix}${name}-flip`).on('change', function() {
+        plot_info(values, name, label, prefix);
     });
 
 }
 
+function get_sample_bounds() {
+    var fmt_ranges = {}
+    for(k in sliders) {
+        if(k == "samples") { continue; }
+        if(!k.startsWith("sample-")) {
+            continue
+        }
+        let tmp = sliders[k].get()
+        fmt_ranges[k.substring(7)] = [parseInt(tmp[0]), parseInt(tmp[1])]
+    }
+    return fmt_ranges
+}
+
 function get_passing_info_idxs() {
     var info_ranges = {}
+    var fmt_ranges = {}
     var info_bools = {} // TODO
     for(k in sliders) {
         if(k == "samples") { continue; }
-        var tmp = sliders[k].get()
-        info_ranges[k] = [parseInt(tmp[0]), parseInt(tmp[1])]
+        if(k.startsWith("sample-")) {
+            continue
+            //fmt_ranges[k] = [parseInt(tmp[0]), parseInt(tmp[1])]
+        } else {
+            var tmp = sliders[k].get()
+            info_ranges[k] = [parseInt(tmp[0]), parseInt(tmp[1])]
+        }
     }
     var filters_to_keep = jQuery('.slivar-filters:checked').map(function(v) { return this.name }).toArray();
 
@@ -166,12 +180,22 @@ function sort_trio(trio) {
     trio.variant_idxs = adjust_with_order(trio.variant_idxs, order);
 }
 
+
+function sample_skippable(trio, sample_bounds, i) {
+    for(k in sample_bounds) {
+        let val = trio.tbl[k][i]
+        if(val < sample_bounds[k][0] || val > sample_bounds[k][1]) { return true; }
+    }
+    return false;
+}
+
 function main_plot() {
     // main-roc-plot
     console.time('main-plot')
     var traces = [];
     // we only plot points that pass the INFO filters
     let idxs = new Set(get_passing_info_idxs())
+    let sample_bounds = get_sample_bounds()
     console.log(idxs.length)
     trios.forEach(function(trio) {
         var tps = 0
@@ -181,6 +205,8 @@ function main_plot() {
 
         for(var i=0; i < trio.variant_idxs.length; i++) {
             if(!idxs.has(trio.variant_idxs[i])){ continue; }
+
+            if(sample_skippable(trio, sample_bounds, i)){ continue; }
             var vio = trio.violations[i] //== 0 && trio.mom_alts[i] == 0 && trio.kid_alts[i] == 1;
             if(vio) { fps += 1; }
             else { tps += 1; }
@@ -200,9 +226,8 @@ function main_plot() {
     Plotly.newPlot('main-roc-plot', traces, layout);
 }
 
-function plot_info(values, name, label) {
-    var vlmin = arr_min(values);
-    var vlmax = arr_max(values);
+function plot_info(values, name, label, prefix) {
+    var [vlmin, vlmax] = arr_min_max(values);
     var filters_to_keep = jQuery('.slivar-filters:checked').map(function(v) { return this.name }).toArray();
 
     var bin_size = (vlmax - vlmin) / 100;
@@ -224,10 +249,8 @@ function plot_info(values, name, label) {
         legend: {x: 0.9, y: 0.9},
          
     };
-    var do_flip = jQuery(`#${name}-flip`).is(":checked")
-    // TODO: remove absolute value. not very helpful.
-    var do_abs = jQuery(`#${name}-abs`).is(":checked")
-    var roc_tr = roc(values, vios, do_flip, do_abs, name, filters_to_keep);
+    var do_flip = jQuery(`#${prefix}${name}-flip`).is(":checked")
+    var roc_tr = roc(values, vios, do_flip, name, filters_to_keep);
 
     var traces = [
         {type: 'histogram', x: inh_vals, name:"transmitted", autobinx: false, xbins: {size: bin_size}, histnorm: "count"},
@@ -239,24 +262,8 @@ function plot_info(values, name, label) {
         legend: {x: 0.9, y: 0.9},
     }
 
-    plots.hists[`${name}`] = Plotly.newPlot(`${name}-hist-plot`, traces, layout, {displayModeBar: false});
-    plots.rocs[`${name}`] = Plotly.newPlot(`${name}-roc-plot`, [roc_tr], roc_layout, {displayModeBar: false});
-}
-
-function add_sample_slider(values, name) {
-    jQuery('#sample-sliders').append(`
-<label for="${name}-slider">${name}</label>
-<div id=${name}-slider name=${name}-slider></div>
-    `)
-    var vlmin = Math.min.apply(null, values);
-    var vlmax = Math.max.apply(null, values);
-    sliders.samples[`${name}-slider`] = noUiSlider.create(document.getElementById(`${name}-slider`), {
-        tooltips: [wNumb({decimals: 3}), wNumb({decimals: 3})],
-    start: [vlmin, vlmax],
-    connect: true, 
-    range: {min:vlmin, max:vlmax},
-})
-
+    plots.hists[`${prefix}${name}`] = Plotly.newPlot(`${prefix}${name}-hist-plot`, traces, layout, {displayModeBar: false});
+    plots.rocs[`${prefix}${name}`] = Plotly.newPlot(`${prefix}${name}-roc-plot`, [roc_tr], roc_layout, {displayModeBar: false});
 }
 
 (function(){
@@ -277,17 +284,17 @@ if(nseen > 0) {
     });
 }
 
-add_slider(variant_infos.variant_lengths, "variant-length", "variant lengths")
+add_slider(variant_infos.variant_lengths, "variant-length", "variant lengths", false)
 
 for(k in variant_infos.float_tbl){
     var vals = variant_infos.float_tbl[k];
-    add_slider(vals, k, k)
+    add_slider(vals, k, k, false)
 }
 // TODO: handle booleans
 
-for(k in trios[0].kid_tbl) {
-    var vals = trios[0].kid_tbl[k];
-    add_sample_slider(vals, k)
+for(k in trios[0].tbl) {
+    var vals = trios[0].tbl[k];
+    add_slider(vals, k, k, true)
 }
 
 console.time('trio-sort')
