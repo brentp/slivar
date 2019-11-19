@@ -78,6 +78,22 @@ function arr_min_max(arr) {
 }
 
 
+function add_bool(values, name, idxs){
+    jQuery('#variant-sliders').append(`<hr>
+<h3>${name}</h3>
+<div class="row pt-2 pb-2 bg-light">
+<label for=${name}-yes>yes</label>
+<input type="checkbox" class="slivar-checkbox slivar-bool-checkbox slivar-changer" checked id=${name}-yes name=${name}-yes>
+<label for=${name}-yes>no</label>
+<input type="checkbox" class="slivar-checkbox slivar-bool-checkbox slivar-changer" checked id=${name}-no name=${name}-no>
+</div>
+
+<div class="row pt-2 pb-2 bg-light">
+<div class="col-6" id=${name}-bar-plot></div>
+</div>
+    `)
+    plot_bool(values, name, variant_infos.violations, idxs)
+}
 
 function add_slider(values, name, label, is_fmt_field, idxs) {
 
@@ -137,6 +153,29 @@ function get_passing_info_idxs() {
             info_ranges[k] = [parseFloat(tmp[0]), parseFloat(tmp[1])]
         }
     }
+
+    jQuery('.slivar-bool-checkbox').each(function() {
+        var n = this.name
+        var i = -1;
+        if(n.endsWith("-yes")){
+            n = n.substring(0, n.length - 4)
+            i = 1
+        } else if(n.endsWith("-no")) {
+            n = n.substring(0, n.length - 3)
+            i = 0
+        } else {
+            alert("unknown bool type")
+        }
+        if(!(n in info_bools)) { info_bools[n] = [false, false]; }
+            
+        // so now, if info_bools[$x][0] is true, then we include things without
+        // the flag. if [1] is true, we include things with the flag.
+        info_bools[n][i] = this.checked
+
+    })
+    console.log(info_bools)
+
+
     var filters_to_keep = jQuery('.slivar-filters:checked').map(function(v) { return this.name }).toArray();
 
     var variant_lengths_ranges = info_ranges['variant-length']
@@ -150,6 +189,14 @@ function get_passing_info_idxs() {
         for(k in info_ranges){
             var vf = variant_infos.float_tbl[k][i];
             if (vf < info_ranges[k][0] || vf > info_ranges[k][1]){
+                skip = true;
+                break;
+            }
+        }
+        if(skip) { continue}
+        for(k in info_bools) {
+            var fl = variant_infos.bool_tbl[k][i];
+            if(!info_bools[k][Number(fl)]){
                 skip = true;
                 break;
             }
@@ -233,6 +280,64 @@ function main_plot() {
     Plotly.newPlot('main-roc-plot', traces, layout);
 }
 
+function plot_bool(values, name, vios, idxs) {
+    var filters_to_keep = jQuery('.slivar-filters:checked').map(function(v) { return this.name }).toArray();
+    // convert bool to index (false==0) and increment counter for passing
+    // variants
+    var inh_counts = [0, 0]
+    var vio_counts = [0, 0]
+    
+    var filt_inh_counts = [0, 0]
+    var filt_vio_counts = [0, 0]
+    let filters = variant_infos.filters;
+    for(var k=0; k < values.length; k++){
+        if(vios[k]) {
+            vio_counts[Number(values[k])]++
+        } else {
+            inh_counts[Number(values[k])]++
+        }
+        if(idxs.size > 0 && !idxs.has(k)) { continue; }
+        if(!filters_to_keep.includes(filters[k])) { continue; }
+        if(vios[k]) {
+            filt_vio_counts[Number(values[k])]++
+        } else {
+            filt_inh_counts[Number(values[k])]++
+        }
+    }
+    var Y = jQuery(`#${name}-yes`).is(":checked")
+    var N = jQuery(`#${name}-no`).is(":checked")
+
+    // unfilt, filt
+    var vio = [0, 0]
+    var tra = [0, 0]
+    if(Y) {
+        vio[0] += vio_counts[1]
+        tra[0] += inh_counts[1]
+
+        vio[1] += filt_vio_counts[1]
+        tra[1] += filt_inh_counts[1]
+    }
+    if(N) {
+        vio[0] += vio_counts[0]
+        tra[0] += inh_counts[0]
+
+        vio[1] += filt_vio_counts[0]
+        tra[1] += filt_inh_counts[0]
+    }
+
+    let xlabels = ["unfiltered", "filtered"]
+    // TODO: this is kind of confusing. should label by filtered and
+    // group by violation
+    var traces = [
+                  {y: vio, x: xlabels, name:"violations", type: "bar"},
+                  {y: tra, x: xlabels, name:"transmissions", type: "bar"},
+                ]
+    var layout = {barmode: 'group'};
+    Plotly.newPlot(`${name}-bar-plot`, traces, layout)
+
+
+}
+
 function plot_field(values, name, label, prefix, vios, idxs) {
     var [vlmin, vlmax] = arr_min_max(values);
     var filters_to_keep = jQuery('.slivar-filters:checked').map(function(v) { return this.name }).toArray();
@@ -303,6 +408,12 @@ for(k in variant_infos.float_tbl){
     var vals = variant_infos.float_tbl[k];
     add_slider(vals, k, k, false, new Set())
 }
+
+for(k in variant_infos.bool_tbl) {
+    let vals = variant_infos.bool_tbl[k];
+    add_bool(vals, k, new Set())
+}
+
 // TODO: handle booleans
 
 for(k in trios[0].tbl) {
@@ -321,8 +432,11 @@ main_plot()
 function update_info_plots() {
     let idxs = new Set(get_passing_info_idxs())
     let prefix = "";
+    plot_field(variant_infos.variant_lengths, "variant-length", "variant-lengths", prefix, variant_infos.violations, idxs);
     for(k in variant_infos.float_tbl) {
         plot_field(variant_infos.float_tbl[k], k, k, prefix, variant_infos.violations, idxs);
     }
-    plot_field(variant_infos.variant_lengths, "variant-length", "variant-lengths", prefix, variant_infos.violations, idxs);
+    for(k in variant_infos.bool_tbl) {
+        plot_bool(variant_infos.bool_tbl[k], k, variant_infos.violations, idxs);
+    }
 }
