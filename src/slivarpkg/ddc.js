@@ -53,7 +53,6 @@ function roc(values, violations, invert, name, filters_to_keep) {
     result.y.push(tps)
     result.text.push(`${txt} ${A[A.length-1][0]} gives FDR: ${(fps/(tps + fps)).toFixed(3)}`)
 
-
     return result
 }
 
@@ -69,13 +68,13 @@ function arr_min_max(arr) {
 
 
 
-function add_slider(values, name, label, is_fmt_field) {
+function add_slider(values, name, label, is_fmt_field, idxs) {
 
     var prefix = is_fmt_field ? "sample-": ""
 
     jQuery(is_fmt_field ? '#sample-sliders' : '#variant-sliders').append(`<hr>
 <label for=${prefix}${name}-flip>flip values</label>
-<input type="checkbox" class=slivar-checkbox id=${prefix}${name}-flip name=${prefix}${name}-flip>
+<input type="checkbox" class="slivar-checkbox slivar-changer" id=${prefix}${name}-flip name=${prefix}${name}-flip>
 
 <div id=${prefix}${name}-slider name=${prefix}${name}-slider></div>
 <label for="${prefix}${name}-slider"><h3>${label}</h3></label>
@@ -94,12 +93,10 @@ function add_slider(values, name, label, is_fmt_field) {
 
     sliders[`${prefix}${name}`].on('change', function() {
         main_plot()
+        update_info_plots()
     })
-    plot_info(values, name, label, prefix)
 
-    jQuery(`#${prefix}${name}-flip`).on('change', function() {
-        plot_info(values, name, label, prefix);
-    });
+    plot_field(values, name, label, prefix, variant_infos.violations, idxs)
 
 }
 
@@ -111,7 +108,7 @@ function get_sample_bounds() {
             continue
         }
         let tmp = sliders[k].get()
-        fmt_ranges[k.substring(7)] = [parseInt(tmp[0]), parseInt(tmp[1])]
+        fmt_ranges[k.substring(7)] = [parseFloat(tmp[0]), parseFloat(tmp[1])]
     }
     return fmt_ranges
 }
@@ -124,10 +121,9 @@ function get_passing_info_idxs() {
         if(k == "samples") { continue; }
         if(k.startsWith("sample-")) {
             continue
-            //fmt_ranges[k] = [parseInt(tmp[0]), parseInt(tmp[1])]
         } else {
             var tmp = sliders[k].get()
-            info_ranges[k] = [parseInt(tmp[0]), parseInt(tmp[1])]
+            info_ranges[k] = [parseFloat(tmp[0]), parseFloat(tmp[1])]
         }
     }
     var filters_to_keep = jQuery('.slivar-filters:checked').map(function(v) { return this.name }).toArray();
@@ -152,7 +148,7 @@ function get_passing_info_idxs() {
     return idxs
 }
 
-const ROC_VAR = "AB"
+const ROC_VAR = "GQ"
 
 function adjust_with_order(arr, order) {
     var result = new Array(arr.length)
@@ -226,16 +222,15 @@ function main_plot() {
     Plotly.newPlot('main-roc-plot', traces, layout);
 }
 
-function plot_info(values, name, label, prefix) {
+function plot_field(values, name, label, prefix, vios, idxs) {
     var [vlmin, vlmax] = arr_min_max(values);
     var filters_to_keep = jQuery('.slivar-filters:checked').map(function(v) { return this.name }).toArray();
 
-    var bin_size = (vlmax - vlmin) / 100;
     var inh_vals = []
     var vio_vals = []
-    var vios = variant_infos.violations.slice();
     let filters = variant_infos.filters;
     for(var k=0; k < values.length; k++){
+        if(idxs.size > 0 && !idxs.has(k)) { continue; }
         if(!filters_to_keep.includes(filters[k])) { continue; }
         if(vios[k]) {
             vio_vals.push(values[k])
@@ -251,6 +246,7 @@ function plot_info(values, name, label, prefix) {
     };
     var do_flip = jQuery(`#${prefix}${name}-flip`).is(":checked")
     var roc_tr = roc(values, vios, do_flip, name, filters_to_keep);
+    var bin_size = (vlmax - vlmin) / 100;
 
     var traces = [
         {type: 'histogram', x: inh_vals, name:"transmitted", autobinx: false, xbins: {size: bin_size}, histnorm: "count"},
@@ -284,26 +280,37 @@ if(nseen > 0) {
     });
 }
 
-add_slider(variant_infos.variant_lengths, "variant-length", "variant lengths", false)
-
-for(k in variant_infos.float_tbl){
-    var vals = variant_infos.float_tbl[k];
-    add_slider(vals, k, k, false)
-}
-// TODO: handle booleans
-
-for(k in trios[0].tbl) {
-    var vals = trios[0].tbl[k];
-    add_slider(vals, k, k, true)
-}
-
 console.time('trio-sort')
 trios.forEach(function(trio) {
     sort_trio(trio)
 })
 console.timeEnd('trio-sort')
 
+add_slider(variant_infos.variant_lengths, "variant-length", "variant lengths", false, new Set())
+
+for(k in variant_infos.float_tbl){
+    var vals = variant_infos.float_tbl[k];
+    add_slider(vals, k, k, false, new Set())
+}
+// TODO: handle booleans
+
+for(k in trios[0].tbl) {
+    var vals = trios[0].tbl[k];
+    add_slider(vals, k, k, true, new Set())
+}
+
+// whenever a checkbox (and slider) changes, re-draw all the plots
+jQuery(`.slivar-changer`).on('change', update_info_plots)
+
+
 main_plot()
 
 }());
 
+function update_info_plots() {
+    let idxs = new Set(get_passing_info_idxs())
+    console.log("idxs size:", idxs.size)
+    for(k in variant_infos.float_tbl) {
+        plot_field(variant_infos.float_tbl[k], k, k, "", variant_infos.violations, idxs);
+    }
+}
