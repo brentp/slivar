@@ -68,7 +68,6 @@ proc expr_main*(dropfirst:bool=false) =
 
   let verbose=getEnv("SLIVAR_QUIET") == ""
 
-
   if opts.ped != "":
     samples = parse_ped(opts.ped, verbose=verbose)
     samples = samples.match(ivcf, verbose=verbose)
@@ -92,7 +91,6 @@ proc expr_main*(dropfirst:bool=false) =
       gno.update_header(ivcf)
       gnos.add(gno)
 
-  ovcf.copy_header(ivcf.header)
   var
     iTbl: seq[NamedExpression]
     trioExprs: seq[NamedExpression]
@@ -101,22 +99,23 @@ proc expr_main*(dropfirst:bool=false) =
     familyExprs: seq[NamedExpression]
     out_samples: seq[string] # only output kids if only trio expressions were specified
 
+  let field_names = id2names(ivcf.header)
   if opts.trio.len != 0:
-    trioExprs = ovcf.getNamedExpressions(opts.trio, opts.vcf, false)
+    trioExprs = ivcf.getNamedExpressions(opts.trio, opts.vcf, false)
   if opts.group_expr.len != 0:
-    groupExprs = ovcf.getNamedExpressions(opts.group_expr, opts.vcf, false, trioExprs)
+    groupExprs = ivcf.getNamedExpressions(opts.group_expr, opts.vcf, false, trioExprs)
   if opts.sample_expr.len != 0:
-    sampleExprs = ovcf.getNamedExpressions(opts.sample_expr, opts.vcf, false, trioExprs, groupExprs)
+    sampleExprs = ivcf.getNamedExpressions(opts.sample_expr, opts.vcf, false, trioExprs, groupExprs)
 
   if opts.family_expr.len != 0:
     if opts.ped == "":
       quit "error must specify --ped to use with --family-expr"
-    familyExprs = ovcf.getNamedExpressions(opts.family_expr, opts.vcf, false, trioExprs, groupExprs, sampleExprs)
+    familyExprs = ivcf.getNamedExpressions(opts.family_expr, opts.vcf, false, trioExprs, groupExprs, sampleExprs)
 
-  var ev = newEvaluator(ovcf, samples, groups, iTbl, trioExprs, groupExprs, familyExprs, sampleExprs, opts.info, gnos, field_names=id2names(ivcf.header), opts.skip_non_variable)
+  var ev = newEvaluator(ivcf, samples, groups, iTbl, trioExprs, groupExprs, familyExprs, sampleExprs, opts.info, gnos, field_names=field_names, opts.skip_non_variable)
+  ovcf.copy_header(ivcf.header)
+
   doAssert ovcf.write_header
-  # update the input vcf with the output vcf
-  ivcf.copy_header(ovcf.header)
   if trioExprs.len != 0 and groupExprs.len == 0 and sampleExprs.len == 0:
     for kid in samples.trio_kids(nil):
       out_samples.add(kid.id)

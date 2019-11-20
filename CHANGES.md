@@ -1,3 +1,7 @@
+v0.1.8
+======
++ fix bug when subsetting vcfs (ped file contained subset of samples in vcf). Thanks Matt for reproting.
+
 v0.1.7
 ======
 + slivar make-gnotate will error with warning if field is not a float or int
