@@ -1,6 +1,6 @@
 v0.1.8
 ======
-+ fix bug when subsetting vcfs (ped file contained subset of samples in vcf). Thanks Matt for reproting.
++ fix bug when subsetting vcfs (ped file contained subset of samples in vcf). Thanks Matt for reporting.
 
 v0.1.7
 ======
