@@ -54,6 +54,8 @@ var colors = ['rgba(55,126,184,0.7)', 'rgba(228,26,28,0.7)', 'rgba(77,175,74,0.7
 function roc(values, violations, invert, name, filters_to_keep, idxs) {
     let filters = variant_infos.filters
 
+    console.time("deco-sort " + name) 
+
     var Aorig = values.map(function(val, i) {
         if(invert) {val = -val};
         return [val, violations[i]]
@@ -67,6 +69,7 @@ function roc(values, violations, invert, name, filters_to_keep, idxs) {
     Afilt.sort(function(a, b) {
         return a[0] - b[0]
     })
+    console.timeEnd("deco-sort " + name) 
     let N = Aorig.length
     var txt = "INFO." + name + (invert ? ">" : "<")
     // we can't just iterate over A, we also have to track the change in
