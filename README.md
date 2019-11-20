@@ -283,7 +283,9 @@ Users can create their own gnotation files with `slivar make-gnotate`, but we pr
 
 + gnomad for hg37 with AF popmax, numhomalts (total and controls only) [here](https://s3.amazonaws.com/slivar/gnomad.hg37.zip)
 + **lifted** gnomad exomes+genomes for hg38 with AF popmax, numhomalts (updated in release v0.1.2) [here](https://s3.amazonaws.com/slivar/gnomad.hg38.v2.zip)
+<!--
 + gnomad genomes (71,702 samples) for hg38 with AF popmax, numhomalts (updated in release v0.1.7) [here](https://slivar.s3.amazonaws.com/gnomad.hg38.genomes.v3.zip)
+-->
 + spliceai scores (maximum value of the 4 scores in spliceai) [here](https://s3.amazonaws.com/slivar/spliceai.hg37.zip)
 
 + [topmed allele frequencies (via dbsnp)](https://slivar.s3.amazonaws.com/topmed.hg38.dbsnp.151.zip) these can be used with `INFO.topmed_af`. Useful when analyzing data in hg38 because [some variants in hg38 are not visible in GRCh37](https://twitter.com/brent_p/status/1139540523364917248)
