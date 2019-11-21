@@ -107,9 +107,9 @@ proc getAB(v:Variant): seq[float32] =
       result[i] = ad[2*i+1].float32 / max(1, ad[2*i+1] + ad[2*i]).float32
 
   # flip so that the alllele balance for hets is always < 0.5
-  for i, ab in result.mpairs:
-    if ab == 0'f32 or ab == 1'f32: continue
-    if ab > 0.5: ab = 1-ab
+  #for i, ab in result.mpairs:
+  #  if ab == 0'f32 or ab == 1'f32: continue
+  #  if ab > 0.5: ab = 1-ab
 
 proc getINFOf32(v:Variant, f:string): float32 =
   if f == "QUAL":

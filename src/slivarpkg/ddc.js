@@ -4,25 +4,30 @@ var plots = {hists: {}, rocs: {}}
 var stats = {}
 
 function set_stats() {
-    stats.n_variants = variant_infos.violations.length;
     stats.n_violations = 0
     for(i=0;i<variant_infos.violations.length;i++){ stats.n_violations += variant_infos.violations[i]; }
+    stats.n_transmitted = variant_infos.violations.length - stats.n_violations;
 }
 
 function update_stats(idxs) {
     if(stats.filtered == undefined){ stats.filtered = {} }
     stats.filtered.n_violations = 0
     stats.filtered.n_variants = idxs.size
+    stats.filtered.n_transmitted = 0
     idxs.forEach(function(e) {
         stats.filtered.n_violations += variant_infos.violations[e]
     })
+    stats.filtered.n_transmitted = idxs.size - stats.filtered.n_violations
 
     jQuery('#message').html(`<pre>
-original variants: ${stats.n_variants}
-variants after filtering: ${stats.filtered.n_variants} (${(100 * stats.filtered.n_variants / stats.n_variants ).toFixed(1)})
-
+original transmitted variants: ${stats.n_transmitted}
 original violations: ${stats.n_violations}
+original FPR: ${(stats.n_violations/(stats.n_violations + stats.n_transmitted)).toFixed(3)}
+
+
+transmitted after filtering: ${stats.filtered.n_transmitted} (${(100 * stats.filtered.n_transmitted / stats.n_transmitted ).toFixed(1)})
 violations after filtering: ${stats.filtered.n_violations} (${(100 * stats.filtered.n_violations / stats.n_violations ).toFixed(3)})
+filtered FPR: ${(stats.filtered.n_violations/(stats.filtered.n_violations + stats.filtered.n_transmitted)).toFixed(3)}
 
     </pre>`)
 }
@@ -436,6 +441,8 @@ function plot_bool(values, name, vios, idxs) {
 }
 
 function plot_field(values, name, label, is_fmt_field, vios, idxs) {
+    // update_only is used only when is_fmt_field to add samples to an existing
+    // fmt roc plot
     var [vlmin, vlmax] = arr_min_max(values);
     var filters_to_keep = jQuery('.slivar-filters:checked').map(function(v) { return this.name }).toArray();
 
@@ -461,8 +468,11 @@ function plot_field(values, name, label, is_fmt_field, vios, idxs) {
     };
     var prefix = is_fmt_field ? "sample-": "";
     var do_flip = jQuery(`#${prefix}${name}-flip`).is(":checked")
-    var roc_trs = roc(values, vios, do_flip, name, filters_to_keep, idxs);
     var bin_size = (vlmax - vlmin) / 100;
+    var roc_trs;
+    if(!is_fmt_field) {
+        roc_trs = roc(values, vios, do_flip, name, filters_to_keep, idxs);
+    }
 
     var traces = [
         {type: 'histogram', x: inh_vals, name:"transmitted", autobinx: false, xbins: {size: bin_size}, histnorm: "count"},
@@ -475,7 +485,9 @@ function plot_field(values, name, label, is_fmt_field, vios, idxs) {
     }
 
     plots.hists[`${prefix}${name}`] = Plotly.newPlot(`${prefix}${name}-hist-plot`, traces, layout, {displayModeBar: false});
-    plots.rocs[`${prefix}${name}`] = Plotly.newPlot(`${prefix}${name}-roc-plot`, roc_trs, roc_layout, {displayModeBar: false});
+    if(!is_fmt_field){
+        plots.rocs[`${prefix}${name}`] = Plotly.newPlot(`${prefix}${name}-roc-plot`, roc_trs, roc_layout, {displayModeBar: false});
+    }
 }
 
 (function(){
@@ -518,8 +530,11 @@ for(k in variant_infos.bool_tbl) {
 // TODO: handle booleans
 
 for(k in trios[0].tbl) {
-    var vals = trios[0].tbl[k];
-    add_slider(vals, k, k, true, new Set(), trios[0].violations)
+    add_slider(trios[0].tbl[k], k, k, true, new Set(), trios[0].violations)
+    for(var i=1; i < trios.length; i++) {
+        var vals = trios[i].tbl[k];
+        plot_field(vals, k, k, true, trios[i].violations, new Set());
+    }
 }
 
 // whenever a checkbox (and slider) changes, re-draw all the plots
@@ -552,9 +567,9 @@ function update_info_plots(idxs) {
     let sample_bounds = get_sample_bounds()
 
     for(k in trios[0].tbl) {
-        var vals = trios[0].tbl[k];
-
-
-        plot_field(vals, k, k, true, trios[0].violations, idxs);
+        for(var i=0;i<trios.length;i++){
+            var vals = trios[i].tbl[k].slice(0);
+            plot_field(vals, k, k, true, trios[i].violations, idxs);
+        }
     }
 }
