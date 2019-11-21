@@ -51,27 +51,29 @@ function wNumb(opts) {
 
 var colors = ['rgba(55,126,184,0.7)', 'rgba(228,26,28,0.7)', 'rgba(77,175,74,0.7)', 'rgba(152,78,163,0.7)', 'rgba(255,127,0,0.7)', 'rgba(166,86,40,0.7)', 'rgba(247,129,191,0.7)']
 
+var sorted = {}
+
 function roc(values, violations, invert, name, filters_to_keep, idxs) {
     let filters = variant_infos.filters
 
-    console.time("deco-sort " + name) 
-
-    var Aorig = values.map(function(val, i) {
-        if(invert) {val = -val};
-        return [val, violations[i]]
-    })
+    //console.time("deco-sort " + name) 
+    let key = name + "__" + invert
+    if(sorted[key] == undefined) {
+        sorted[key] = values.map(function(val, i) {
+            if(invert) {val = -val};
+            return [val, violations[i]]
+        })
+        sorted[key].sort(function(a, b) {
+            return a[0] - b[0]
+        })
+    }
+    var Aorig = sorted[key];
     var Afilt = Aorig.filter(function(val, i) {
         return (idxs.size == 0 || idxs.has(i)) && filters_to_keep.includes(filters[i])
     })
-    Aorig.sort(function(a, b) {
-        return a[0] - b[0]
-    })
-    Afilt.sort(function(a, b) {
-        return a[0] - b[0]
-    })
-    console.timeEnd("deco-sort " + name) 
+    //console.timeEnd("deco-sort " + name) 
     let N = Aorig.length
-    var txt = "INFO." + name + (invert ? ">" : "<")
+    var txt = "INFO." + name + (invert ? ">" : "<") + " "
     // we can't just iterate over A, we also have to track the change in
     // cutoff so we don't draw a smooth curve when the cutoff value hasn't
     // changed.
@@ -80,29 +82,33 @@ function roc(values, violations, invert, name, filters_to_keep, idxs) {
     if(N == 0) {
         return result
     }
+    console.time("prepare traces " + name) ;
 
     [Aorig, Afilt].forEach(function(A, Ai) {
         var last_val = A[0][0] - 1;
         var tps = 0
         var fps = 0
         A.forEach(function(pair, i) {
-            // FP
-            if(pair[1]) { fps += 1; }
-            else {tps += 1; }
-            var val = pair[0]
-            if (val == last_val) { return; }
-            last_val = val;
+            //if(pair[1]) { fps += 1; }
+            //else {tps += 1; }
+            fps += pair[1] // pair[1] indicates that it's a violation
+            tps += (1-pair[1])
+            if (pair[0] != last_val) { 
+                let val = pair[0]
+                last_val = val;
 
-            // TODO: scale by A.length
-            // but might be good to leave as numbers for now.
-            result[Ai].x.push(fps)
-            result[Ai].y.push(tps)
-            result[Ai].text.push(`${txt} ${val} gives FDR: ${(fps/(tps + fps)).toFixed(3)}`)
+                // TODO: scale by A.length
+                // but might be good to leave as numbers for now.
+                result[Ai].x.push(fps)
+                result[Ai].y.push(tps)
+                result[Ai].text.push(`${txt} ${val}. FDR: ${(fps/(tps + fps)).toFixed(3)}`)
+            }
         })
         result[Ai].x.push(fps)
         result[Ai].y.push(tps)
-        result[Ai].text.push(`${txt} ${A[A.length-1][0]} gives FDR: ${(fps/(tps + fps)).toFixed(3)}`)
+        result[Ai].text.push(`${txt} ${A[A.length-1][0]} FDR: ${(fps/(tps + fps)).toFixed(3)}`)
     })
+    console.timeEnd("prepare traces " + name) 
 
     return result
 }
@@ -115,8 +121,8 @@ function arr_min_max(arr) {
         if(arr[i] > max) {max = arr[i]; }
     }
     if(Math.abs(parseInt(min) - min) > 0.001) {
-        min -= 0.01;
-        max += 0.01;
+        min -= 0.004;
+        max += 0.004;
     }
     return [min, max]
 }
@@ -164,6 +170,10 @@ function add_slider(values, name, label, is_fmt_field, idxs) {
         connect: true, 
         range: {min:vlmin, max:vlmax},
     })
+    // add min and max values to the slider object so we can tell if it has
+    // been modified
+    sliders[`${prefix}${name}`].min = vlmin
+    sliders[`${prefix}${name}`].max = vlmax
 
     sliders[`${prefix}${name}`].on('change', function() {
         let idxs = new Set(get_passing_info_idxs())
@@ -182,6 +192,9 @@ function get_sample_bounds() {
             continue
         }
         let tmp = sliders[k].get()
+        if(Math.abs(parseFloat(tmp[0]) - sliders[k].min) < 0.005 && Math.abs(parseFloat(tmp[1]) - sliders[k].max) < 0.005) {
+            continue;
+        }
         // remove sample- prefix
         fmt_ranges[k.substring(7)] = [parseFloat(tmp[0]), parseFloat(tmp[1])]
     }
@@ -198,6 +211,9 @@ function get_passing_info_idxs() {
             continue
         } else {
             var tmp = sliders[k].get()
+            if(Math.abs(parseFloat(tmp[0]) - sliders[k].min) < 0.005 && Math.abs(parseFloat(tmp[1]) - sliders[k].max) < 0.005) {
+                continue
+            }
             info_ranges[k] = [parseFloat(tmp[0]), parseFloat(tmp[1])]
         }
     }
@@ -232,7 +248,7 @@ function get_passing_info_idxs() {
     var idxs = []
     for(var i = 0; i < variant_infos.variant_lengths.length; i++){
         var vl = variant_infos.variant_lengths[i];
-        if(vl < variant_lengths_ranges[0] || vl > variant_lengths_ranges[1]) { continue;}
+        if(variant_lengths_ranges != undefined && (vl < variant_lengths_ranges[0] || vl > variant_lengths_ranges[1])) { continue;}
         var skip = false;
         for(k in info_ranges){
             var vf = variant_infos.float_tbl[k][i];
@@ -300,7 +316,6 @@ function main_plot(idxs) {
         idxs = new Set(get_passing_info_idxs())
     }
     let sample_bounds = get_sample_bounds()
-    console.log(idxs.length)
     trios.forEach(function(trio) {
         var tps = 0
         var fps = 0
@@ -322,7 +337,6 @@ function main_plot(idxs) {
             trace.text.push(`${ROC_VAR} > ${last_val} fpr: ${(fps / (fps + tps)).toFixed(3)}`)
 
         }
-        console.log(`tps: ${tps} fps: ${fps} N: ${trio.variant_idxs.length}`)
         trace.x.push(fps);
         trace.y.push(tps);
         trace.text.push(`${ROC_VAR} > ${last_val} fpr: ${(fps / (fps + tps)).toFixed(3)}`)
@@ -397,6 +411,7 @@ function plot_field(values, name, label, prefix, vios, idxs) {
     var inh_vals = []
     var vio_vals = []
     let filters = variant_infos.filters;
+    console.time("plot_field filtering:" + name)
     for(var k=0; k < values.length; k++){
         if(idxs.size > 0 && !idxs.has(k)) { continue; }
         if(!filters_to_keep.includes(filters[k])) { continue; }
@@ -406,6 +421,7 @@ function plot_field(values, name, label, prefix, vios, idxs) {
             inh_vals.push(values[k])
         }
     }
+    console.timeEnd("plot_field filtering:" + name)
 
     var layout = {barmode:"overlay", xaxis: {}, yaxis: {title: "Count", autorange:true, type:"log"}, 
         height:150, margin: {t: 0, b:20, r:0},
