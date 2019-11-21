@@ -82,7 +82,7 @@ function roc(values, violations, invert, name, filters_to_keep, idxs) {
     if(N == 0) {
         return result
     }
-    console.time("prepare traces " + name) ;
+    //console.time("prepare traces " + name) ;
 
     [Aorig, Afilt].forEach(function(A, Ai) {
         var last_val = A[0][0] - 1;
@@ -108,7 +108,7 @@ function roc(values, violations, invert, name, filters_to_keep, idxs) {
         result[Ai].y.push(tps)
         result[Ai].text.push(`${txt} ${A[A.length-1][0]} FDR: ${(fps/(tps + fps)).toFixed(3)}`)
     })
-    console.timeEnd("prepare traces " + name) 
+    //console.timeEnd("prepare traces " + name) 
 
     return result
 }
@@ -145,7 +145,7 @@ function add_bool(values, name, idxs){
     plot_bool(values, name, variant_infos.violations, idxs)
 }
 
-function add_slider(values, name, label, is_fmt_field, idxs) {
+function add_slider(values, name, label, is_fmt_field, idxs, violations) {
 
     var prefix = is_fmt_field ? "sample-": ""
 
@@ -176,16 +176,16 @@ function add_slider(values, name, label, is_fmt_field, idxs) {
     sliders[`${prefix}${name}`].max = vlmax
 
     sliders[`${prefix}${name}`].on('change', function() {
-        let idxs = new Set(get_passing_info_idxs())
+        let idxs = new Set(get_passing_idxs())
         main_plot(idxs)
         update_info_plots(idxs)
     })
 
-    plot_field(values, name, label, prefix, variant_infos.violations, idxs)
+    plot_field(values, name, label, is_fmt_field, violations, idxs)
 }
 
 function get_sample_bounds() {
-    var fmt_ranges = {}
+    var sample_bounds = {}
     for(k in sliders) {
         if(k == "samples") { continue; }
         if(!k.startsWith("sample-")) {
@@ -196,15 +196,37 @@ function get_sample_bounds() {
             continue;
         }
         // remove sample- prefix
-        fmt_ranges[k.substring(7)] = [parseFloat(tmp[0]), parseFloat(tmp[1])]
+        sample_bounds[k.substring(7)] = [parseFloat(tmp[0]), parseFloat(tmp[1])]
     }
-    return fmt_ranges
+    return sample_bounds
 }
 
-function get_passing_info_idxs() {
-    var info_ranges = {}
-    var fmt_ranges = {}
-    var info_bools = {} // TODO
+function get_excluded_sample_idxs(sample_bounds) {
+    // if a variant is removed in any trio, then we remove it from all
+    // consideration
+    var result = []
+        console.log(sample_bounds)
+    for(field in sample_bounds) {
+        let [lo, hi] = sample_bounds[field]
+        for(var k = 0; k < trios.length; k++) {
+            var trio = trios[k];
+            console.log(trio)
+            var values = trio.tbl[field]
+            for(var i=0; i< values.length; i++) {
+                if((values[i] < lo) || (values[i] > hi)) { 
+                    result.push(i)
+                }
+            }
+        }
+    }
+    return new Set(result)
+}
+
+function get_passing_idxs() {
+    var info_bounds = {}
+    var info_bools = {}
+    let sample_bounds = get_sample_bounds()
+
     for(k in sliders) {
         if(k == "samples") { continue; }
         if(k.startsWith("sample-")) {
@@ -214,9 +236,11 @@ function get_passing_info_idxs() {
             if(Math.abs(parseFloat(tmp[0]) - sliders[k].min) < 0.005 && Math.abs(parseFloat(tmp[1]) - sliders[k].max) < 0.005) {
                 continue
             }
-            info_ranges[k] = [parseFloat(tmp[0]), parseFloat(tmp[1])]
+            info_bounds[k] = [parseFloat(tmp[0]), parseFloat(tmp[1])]
         }
     }
+
+
 
     jQuery('.slivar-bool-checkbox').each(function() {
         var n = this.name
@@ -242,17 +266,19 @@ function get_passing_info_idxs() {
 
     var filters_to_keep = jQuery('.slivar-filters:checked').map(function(v) { return this.name }).toArray();
 
-    var variant_lengths_ranges = info_ranges['variant-length']
-    delete info_ranges['variant-length'];
+    var variant_lengths_ranges = info_bounds['variant-length']
+    delete info_bounds['variant-length'];
+
+    var excluded_sample_idxs = get_excluded_sample_idxs(sample_bounds)
 
     var idxs = []
     for(var i = 0; i < variant_infos.variant_lengths.length; i++){
         var vl = variant_infos.variant_lengths[i];
         if(variant_lengths_ranges != undefined && (vl < variant_lengths_ranges[0] || vl > variant_lengths_ranges[1])) { continue;}
         var skip = false;
-        for(k in info_ranges){
+        for(k in info_bounds){
             var vf = variant_infos.float_tbl[k][i];
-            if (vf < info_ranges[k][0] || vf > info_ranges[k][1]){
+            if (vf < info_bounds[k][0] || vf > info_bounds[k][1]){
                 skip = true;
                 break;
             }
@@ -265,6 +291,11 @@ function get_passing_info_idxs() {
                 break;
             }
         }
+        if(excluded_sample_idxs.has(i)) {
+            continue
+        }
+
+
         if(!skip) { idxs.push(i) }
     }
     return idxs
@@ -313,7 +344,7 @@ function main_plot(idxs) {
     var traces = [];
     // we only plot points that pass the INFO filters
     if(idxs == undefined) {
-        idxs = new Set(get_passing_info_idxs())
+        idxs = new Set(get_passing_idxs())
     }
     let sample_bounds = get_sample_bounds()
     trios.forEach(function(trio) {
@@ -404,7 +435,7 @@ function plot_bool(values, name, vios, idxs) {
 
 }
 
-function plot_field(values, name, label, prefix, vios, idxs) {
+function plot_field(values, name, label, is_fmt_field, vios, idxs) {
     var [vlmin, vlmax] = arr_min_max(values);
     var filters_to_keep = jQuery('.slivar-filters:checked').map(function(v) { return this.name }).toArray();
 
@@ -428,6 +459,7 @@ function plot_field(values, name, label, prefix, vios, idxs) {
         legend: {x: 0.9, y: 0.9},
          
     };
+    var prefix = is_fmt_field ? "sample-": "";
     var do_flip = jQuery(`#${prefix}${name}-flip`).is(":checked")
     var roc_trs = roc(values, vios, do_flip, name, filters_to_keep, idxs);
     var bin_size = (vlmax - vlmin) / 100;
@@ -467,29 +499,27 @@ if(nseen > 0) {
     });
 }
 
-console.time('trio-sort')
 trios.forEach(function(trio) {
     sort_trio(trio)
 })
-console.timeEnd('trio-sort')
 
-add_slider(variant_infos.variant_lengths, "variant-length", "variant lengths", false, new Set())
+add_slider(variant_infos.variant_lengths, "variant-length", "variant lengths", false, new Set(), variant_infos.violations)
 
 for(k in variant_infos.float_tbl){
     var vals = variant_infos.float_tbl[k];
-    add_slider(vals, k, k, false, new Set())
+    add_slider(vals, k, k, false, new Set(), variant_infos.violations)
 }
 
 for(k in variant_infos.bool_tbl) {
     let vals = variant_infos.bool_tbl[k];
-    add_bool(vals, k, new Set())
+    add_bool(vals, k, new Set(), variant_infos.violations)
 }
 
 // TODO: handle booleans
 
 for(k in trios[0].tbl) {
     var vals = trios[0].tbl[k];
-    add_slider(vals, k, k, true, new Set())
+    add_slider(vals, k, k, true, new Set(), trios[0].violations)
 }
 
 // whenever a checkbox (and slider) changes, re-draw all the plots
@@ -504,17 +534,27 @@ main_plot()
 
 function update_info_plots(idxs) {
     if(idxs == undefined) {
-        idxs = new Set(get_passing_info_idxs())
+        idxs = new Set(get_passing_idxs())
     } else {
         console.log("got idxs", idxs)
     }
+    
+
     let prefix = "";
     update_stats(idxs)
-    plot_field(variant_infos.variant_lengths, "variant-length", "variant-lengths", prefix, variant_infos.violations, idxs);
+    plot_field(variant_infos.variant_lengths, "variant-length", "variant-lengths", false, variant_infos.violations, idxs);
     for(k in variant_infos.float_tbl) {
-        plot_field(variant_infos.float_tbl[k], k, k, prefix, variant_infos.violations, idxs);
+        plot_field(variant_infos.float_tbl[k], k, k, false, variant_infos.violations, idxs);
     }
     for(k in variant_infos.bool_tbl) {
         plot_bool(variant_infos.bool_tbl[k], k, variant_infos.violations, idxs);
+    }
+    let sample_bounds = get_sample_bounds()
+
+    for(k in trios[0].tbl) {
+        var vals = trios[0].tbl[k];
+
+
+        plot_field(vals, k, k, true, trios[0].violations, idxs);
     }
 }
