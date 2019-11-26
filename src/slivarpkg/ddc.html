@@ -1,100 +1,178 @@
 <!DOCTYPE html>
 <html>
+
 <head>
     <meta charset="utf-8" />
     <meta name="author" content="Brent Pedersen" />
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/selectize.js/0.12.6/css/selectize.bootstrap3.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.3.1/css/bootstrap.min.css">
+    <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/14.0.2/nouislider.min.css">
-    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/plotly.js/1.49.5/plotly.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/selectize.js/0.12.6/js/standalone/selectize.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.3.1/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/14.0.2/nouislider.min.js"></script>
-  <style>
-    html,body { height: 100%; margin: 0px; padding: 0px; }
-    .form-control.selectize-control {
-        padding: 5px 6px 0px;
-        height: unset !important;
-    }
-    .remove-single {
-        color: gray !important;
-        top: -1px !important;
-        font-size: 20px !important;
-    }
-label {
-	font-size: 16px !important;
-        margin-left:15px;
+    <style>
+        .header-offset {
+            top: 500px;
+        }
 
-}
-		.container-fluid {
-			margin-left:10px;
-		}
+        .nav-offset {
+            top: 54px;
+        }
 
-  </style>
+        .side-nav {
+            overflow-y: scroll;
+            top: 500;
+            bottom: 0;
+        }
+
+        .noUi-tooltip {
+            display: none;
+        }
+
+        .noUi-active .noUi-tooltip {
+            display: block;
+        }
+
+        div.noUi-base div.noUi-connects div.noUi-connect {
+            background: #6F7F8C;
+        }
+
+        :target {
+            display: block;
+            position: relative;
+            top: -500px;
+            visibility: hidden;
+        }
+
+        .selection-label {
+            line-height: 40px;
+        }
+
+        .text-info {
+            font-size: 0.9em !important;
+        }
+    </style>
 </head>
+
 <body>
-
-<nav class="navbar navbar-expand-lg navbar-dark p-0" style="background-color:#4b636e !important">
-<a class="navbar-brand ml-2" href="https://github.com/brentp/slivar">slivar data-driven cut-offs</a>
-</nav>
-
-<!-- first row -->
-<div class="container-fluid">
-    <div class="row pt-2 pb-2 bg-light">
-        <!-- FILTER COLUMN -->
-        <div class="col-2 bg-secondary" id="filter-column"></div>
-
-        <!-- PLOT COLUMN -->
-        <div class="col-8">
-		<div id="main-roc-plot"></div>
+    <header class="bg-primary fixed-top pb-4 nav-offset">
+        <div class="container-fluid">
+            <div class="row">
+                <div class="col-7">
+                    <div id="main-roc-plot"></div>
+                </div>
+                <div class="col-5 pt-1">
+                    <div class="row">
+                        <div class="col-6">
+                            <h5 class="text-light">Transmitted variants:</h5>
+                        </div>
+                        <div class="col-6">
+                            <h5 class="text-light" id="metrics-transmitted"></h5>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-6">
+                            <h5 class="text-light">Mendelian violations:</h5>
+                        </div>
+                        <div class="col-6">
+                            <h5 class="text-light" id="metrics-violations"></h5>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-6">
+                            <h5 class="text-light">False positive rate:</h5>
+                        </div>
+                        <div class="col-6">
+                            <h5 class="text-light" id="metrics-fpr"></h5>
+                        </div>
+                    </div>
+                    <!-- Button group to de-select active filters -->
+                </div>
+            </div>
         </div>
+    </header>
 
-        <!-- MESSAGE COLUMN -->
-        <div class="col-2">
-		<div id="message"></div>
+    <nav class="navbar fixed-top navbar-expand-lg navbar-dark bg-primary" id="navbar1">
+        <div class="container-fluid">
+            <a class="navbar-brand mr-1 mb-1 mt-0" href="https://github.com/brentp/slivar">
+                slivar: <i>data-driven cut-offs</i>
+            </a>
+            <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#collapsingNavbar">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+        </div>
+    </nav>
+
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-2">
+                <nav id="side-filter-nav" class="navbar-light header-offset side-nav position-fixed">
+                    <nav class="nav nav-pills flex-column">
+                        <a class="nav-link" href="#global-filter-label">Global Filters</a>
+                        <a class="nav-link" href="#variant-filter-label">Variant Filters</a>
+                        <nav class="nav nav-pills flex-column" id="variant-filter-nav">
+                        </nav>
+                        <a class="nav-link" href="#sample-filter-label">Sample Filters</a>
+                        <nav class="nav nav-pills flex-column" id="sample-filter-nav">
+                        </nav>
+                    </nav>
+                </nav>
+            </div>
+            <div class="col-10 header-offset">
+                <main>
+                    <!-- first row -->
+                    <div class="container-fluid" data-spy="scroll" data-target="#side-filter-nav" data-offset="0">
+                        <!-- <div class="container-fluid"> -->
+                        <div class="row pb-4">
+                            <!-- FILTER COLUMN -->
+                            <div class="col-10" id="filter-column">
+                                <a id="global-filter-label"></a>
+                                <h1>Global Filters</h1>
+                            </div>
+
+                            <!-- MESSAGE COLUMN -->
+                            <div class="col-2">
+                            </div>
+                        </div>
+
+                        <div class="row pb-4">
+                            <!-- FILTER COLUMN -->
+                            <div class="col-10" id="variant-sliders">
+                                <a id="variant-filter-label"></a>
+                                <h1>Variant Filters</h1>
+                            </div>
+
+                            <!-- MESSAGE COLUMN -->
+                            <div class="col-2">
+                            </div>
+                        </div>
+
+                        <div class="row pb-4">
+                            <!-- FILTER COLUMN -->
+                            <div class="col-10" id="sample-sliders">
+                                <a id="sample-filter-label"></a>
+                                <h1>Sample Filters</h1>
+                            </div>
+
+                            <!-- MESSAGE COLUMN -->
+                            <div class="col-2">
+                            </div>
+                        </div>
+                    </div>
+                </main>
+            </div>
         </div>
     </div>
-</div>
 
-<!-- 2nd row -->
-<div class="container-fluid">
-    <div class="row pt-2 pb-2 bg-light">
-        <!-- FILTER COLUMN -->
-        <div class="col-8" id="variant-sliders">
-            <h1>variant filtering</h1>
-        </div>
-
-        <!-- MESSAGE COLUMN -->
-        <div class="col-4">
-        </div>
-
-    </div>
-</div>
-
-<!-- 3rd row -->
-<div class="container-fluid">
-    <div class="row pt-2 pb-2 bg-light">
-        <!-- FILTER COLUMN -->
-        <div class="col-8" id="sample-sliders">
-            <h1>sample filtering</h1>
-        </div>
-
-        <!-- MESSAGE COLUMN -->
-        <div class="col-4">
-        </div>
-
-    </div>
-</div>
-
-<hr>
-
-<script>
-var nan = NaN; // hack to support json dumped with NaN values.
-var variant_infos = <VARIANT_JSON>;
-var trios = <TRIO_JSON>;
-</script>
-<script src="src/slivarpkg/ddc.js"></script>
+    <script>
+        var nan = NaN; // hack to support json dumped with NaN values.
+        var variant_infos = <VARIANT_JSON>;
+        var trios = <TRIO_JSON>;
+    </script>
+    <script src="src/slivarpkg/ddc.js"></script>
 
 </body>
+
 </html>
