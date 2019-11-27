@@ -233,7 +233,6 @@ function add_bool(values, name, idxs) {
 }
 
 function add_slider(values, name, label, is_fmt_field, idxs, violations) {
-
     var prefix = is_fmt_field ? "sample-" : ""
 
     // add the filter div
@@ -296,9 +295,6 @@ function add_slider(values, name, label, is_fmt_field, idxs, violations) {
         `)
     }
 
-    // add the menu anchor for the filter div
-
-
     var [vlmin, vlmax] = arr_min_max(values); // can't use apply or destructring as we run out of stack
     var fmtF = name == "variant-length" ? iNumb : wNumb
 
@@ -316,7 +312,6 @@ function add_slider(values, name, label, is_fmt_field, idxs, violations) {
     // been modified
     sliders[`${prefix}${name}`].min = vlmin
     sliders[`${prefix}${name}`].max = vlmax
-
     sliders[`${prefix}${name}`].on('change', function () {
         let idxs = new Set(get_passing_idxs())
         main_plot(idxs)
@@ -411,7 +406,6 @@ function get_passing_idxs() {
 
     var excluded_sample_idxs = get_excluded_sample_idxs(sample_bounds)
     let filters = variant_infos.filters;
-
     var idxs = []
     for (var i = 0; i < variant_infos.variant_lengths.length; i++) {
         var vl = variant_infos.variant_lengths[i];
@@ -437,8 +431,6 @@ function get_passing_idxs() {
         if (excluded_sample_idxs.has(i)) {
             continue
         }
-
-
         if (!skip) { idxs.push(i) }
     }
     return idxs
@@ -591,8 +583,8 @@ function plot_field(values, name, label, is_fmt_field, vios, idxs) {
             inh_vals.push(values[k])
         }
     }
-    //console.timeEnd("plot_field filtering:" + name)
 
+    //console.timeEnd("plot_field filtering:" + name)
     var prefix = is_fmt_field ? "sample-" : "";
     var do_flip = jQuery(`#${prefix}${name}-flip`).is(":checked")
     var bin_size = (vlmax - vlmin) / 100;
