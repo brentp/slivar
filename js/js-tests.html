@@ -193,14 +193,14 @@ function as_trio(kid, dad, mom) {
 
 </script>
 
-<script src="my.js"></script>
+<script src="slivar-functions.js"></script>
 <script>
 
 SECTION("trio-based tests")
 
-var mom = {id: "mom", sex: 'female', hom_ref: true, het: false, hom_alt: false, unknown: false, GQ: 12, AB: 0.0, DP: 8, AD: [8, 0], affected: false}
-var dad = {id: "dad", sex: 'male', hom_ref: true, het: false, hom_alt: false, unknown: false, GQ: 12, AB: 0.0, DP: 8, AD: [8, 0], affected: false}
-var kid = {id: "kid", sex: 'female', hom_ref: false, het: true, hom_alt: false, unknown: false, GQ: 12, AB: 0.5, DP: 8, AD: [4, 4], affected: true}
+var mom = {id: "mom", sex: 'female', hom_ref: true, het: false, hom_alt: false, unknown: false, GQ: 20, AB: 0.0, DP: 8, AD: [8, 0], affected: false}
+var dad = {id: "dad", sex: 'male', hom_ref: true, het: false, hom_alt: false, unknown: false, GQ: 20, AB: 0.0, DP: 8, AD: [8, 0], affected: false}
+var kid = {id: "kid", sex: 'female', hom_ref: false, het: true, hom_alt: false, unknown: false, GQ: 20, AB: 0.5, DP: 8, AD: [4, 4], affected: true}
 assert(denovo, [kid, dad, mom], "standard de novo")
 assert_not(denovo, [dad, dad, mom], "not de novo")
 

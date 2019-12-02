@@ -1,78 +1,158 @@
-function trio_denovo(kid, dad, mom) {
-    // alts are 0:hom_ref, 1:het, 2:hom_alt, -1:unknown
-    if(!(kid.alts == 1 && mom.alts == 0 && dad.alts == 0)){ return false}
-    // sufficient depth in all
-    if(kid.DP < 7 || mom.DP < 7 || dad.DP < 7) { return false; }
-    // no evidence for alternate in the parents
-    if((mom.AD[1] + dad.AD[1]) > 0) { return false; }
-    // check the kid's allele balance.
-    if(kid.AB < 0.2 || kid.AB > 0.8) { return false; }
-    return true
+let config = {min_GQ: 20, min_AB: 0.22}
+// hi quality variants
+function hq(kid, mom, dad) {
+  return hq1(kid) && hq1(mom) && hq1(dad)
 }
 
-function hq(sample) {
-	// this function checks that the genotype (alts) is consistent with the information
-	// and that the depth, GQ and allele balance are good.
-	if(sample.alts == -1) { return false; }
-	if(sample.DP < 8) { return false; }
-	if(sample.GQ < 10) { return false; }
-	if(sample.alts == 0) {
-		// if there is more than 1 piece of evidence for the alt allele, it's not HQ
-		if(sample.DP > 20 && sample.AB > 0.02) { return false; }
-		if(sample.DP <= 20 && sample.AD[1] > 1) { return false; }
-		return true
-	}
-	if(sample.alts == 1) {
-        if(sample.AB < 0.2 || sample.AB > 0.8) { return false; }
-		return true
-	}
-	if(sample.alts == 2) {
-		if(sample.DP > 20 && sample.AB < 0.98) { return false; }
-		if(sample.DP <= 20 && sample.AD[0] > 1) { return false; }
-		return true
-	}
-}
-
-function hiqual(kid, dad, mom) {
-	return hq(kid) && hq(dad) && hq(mom)
-}
-
-
-function trio_hets(kid, dad, mom) {
-    if(kid.DP < 7 || mom.DP < 7 || dad.DP < 7) { return false; }
-    if(kid.GQ < 10 || mom.GQ < 10 || dad.GQ < 10) { return false; }
-	if(kid.alts == 0){ return false; }
-	if(kid.alts == 1 && mom.alts == 1 && dad.alts == 1){ return false; }
-	// explicitly allow this
-	if(kid.alts == 2 && mom.alts == 1 && dad.alts == 1){ return true; }
-	return true
-}
-
-function trio_autosomal_dominant(kid, dad, mom) {
-    // affected samples must be het.
-    if(!(kid.affected == (kid.alts == 1) && mom.affected == (mom.alts == 1) && dad.affected == (dad.alts == 1))) { return false; }
-    return kid.affected && hiqual(kid, dad, mom)
-}
-
-function trio_autosomal_recessive(kid, dad, mom) {
-	return kid.affected && kid.alts == 2 && mom.alts == 1 && dad.alts == 1 && hiqual(kid, dad, mom)
-}
-
-function trio_x_linked_recessive(kid, dad, mom) {
-  if(!hiqual(kid, dad, mom)) { return false; }
-  if(kid.alts == 0 || kid.alts == -1) { return false; }
-  if((dad.alts != 0) != dad.affected) { return false; }
-  if(mom.alts != 1) { return false; }
-  return kid.affected
-}
-
-function trio_x_linked_denovo(kid, dad, mom) {
-  if(!hiqual(kid, dad, mom)) { return false; }
-  if(kid.sex == "unknown"){ return false; }
-  if(!(mom.alts == 0 && dad.alts == 0)){ return false}
-  if(kid.sex == "male") {
-    return kid.alts == 1 || kid.alts == 2;
+function hq1(sample) {
+  if (sample.unknown || sample.GQ < config.min_GQ) { return false; }
+  if (sample.hom_ref){
+      return sample.AB <= 0.02
   }
-  // female
-  return kid.alts == 1;
+  if(sample.het) {
+      return sample.AB >= config.min_AB && sample.AB <= (1 - config.min_AB)
+  }
+  return sample.AB >= 0.98
+}
+
+function hqrv(variant, INFO, af_cutoff) {
+  // hi-quality, rare variant.
+  return INFO.gnomad_popmax_af < af_cutoff && variant.FILTER == 'PASS'
+}
+
+function denovo(kid, mom, dad){
+  // check genotypes match expected pattern
+  if(!(kid.het && mom.hom_ref && dad.hom_ref)){ return false; }
+  if(!hq(kid, mom, dad)){ return false; }
+  return ((mom.AD[1] + dad.AD[1]) < 2)
+}
+
+function x_denovo(kid, mom, dad) {
+  if(!(kid.alts >= 1 && mom.hom_ref && dad.hom_ref && kid.AB > 0.3)){ return false; }
+  if(!hq(kid, mom, dad)) { return false; }
+  if(kid.sex != 'male') { return false; }
+  return ((mom.AD[1] + dad.AD[1]) < 2);
+}
+
+function uniparent_disomy(kid, mom, dad) {
+  if(kid.DP < 10 || mom.DP < 10 || dad.DP < 10) { return false; }
+  if(kid.GQ < 20 || mom.GQ < 20 || dad.GQ < 20) { return false; }
+  if(!(hq1(kid) && hq1(mom) && hq1(dad))){ return false; }
+  return (kid.alts == 0 || kid.alts == 2) && ((mom.alts == 2 && dad.alts == 0) || (mom.alts == 0 && dad.alts == 2));
+}
+
+function recessive(kid, mom, dad) {
+  return kid.hom_alt && mom.het && dad.het && hq(kid, mom, dad)
+}
+
+function x_recessive(kid, mom, dad) { 
+  return (mom.het && kid.AB > 0.75 && dad.hom_ref && kid.alts >= 1 && hq(kid, mom, dad)
+              && kid.sex == 'male' && mom.AB > config.min_AB && mom.AB < (1 - config.min_AB))
+}
+
+// heterozygous (1 side of compound het)
+function solo_ch_het_side(sample) {
+  return sample.het && hq1(sample)
+}
+
+function comphet_side(kid, mom, dad) {
+  return kid.het && (solo_ch_het_side(mom) != solo_ch_het_side(dad)) && mom.alts != 2 && dad.alts != 2 && solo_ch_het_side(kid) && hq1(mom) && hq1(dad);
+}
+
+// functions to be use with --family-expr
+
+function segregating_dominant_x(s) {
+  // this is an internal function only called after checking sample quality and on X
+  if(!s.affected) { return s.hom_ref }
+
+  if(s.sex == "male") {
+    for(var i=0; i < s.kids.length; s++) {
+      var kid = s.kids[i];
+      // kids of affected dad must be affected.
+      if(!kid.affected) { return false; }
+    }
+    // mom of affected male must be affected.
+    if(("mom" in s) && !(s.mom.affected && s.mom.het)){ return false; }
+    if(("mom" in s) && !hq1(mom)){ return false; }
+    if(("dad" in s) && !hq1(dad)){ return false; }
+
+    return (s.hom_alt || s.het) && hq1(s)
+  }
+  if(s.sex != "female"){return false; }
+  // this block enforces inherited dominant, but not find de novos
+  if(s.mom || s.dad) {
+    if(!((s.mom && s.mom.affected && s.mom.het) || (s.dad && s.dad.affected))) { return false;}
+    if(s.dad && !hq1(s.dad)){ return false; }
+    if(s.mom && !hq1(s.mom)){ return false; }
+  }
+  return s.het && hq1(s)
+}
+
+function hom_ref(s) {
+	return s && s.hom_ref && hq1(s)
+}
+
+function hom_ref_parent(s) {
+	return s.dad && s.dad.hom_ref && s.mom && s.mom.hom_ref
+}
+
+function segregating_dominant(s) {
+  if(!hq1(s)){ return false; }
+  if(variant.CHROM == "chrX" || variant.CHROM == "X") { return segregating_dominant_x(s); }
+  if (s.affected) {
+     return s.het
+  }
+  return s.hom_ref && s.AB < 0.01
+}
+
+
+function segregating_recessive_x(s) {
+  // this is an internal function only called after checking sample quality and on X
+  if(s.sex == "female") {
+    return s.affected == s.hom_alt;
+  } else if (s.sex == "male") {
+    if (s.affected && s.het && hom_ref_parent(s)) { return false; }
+    return s.affected == (s.het || s.hom_alt);
+  } else {
+    return false;
+  }
+}
+
+function segregating_recessive(s) {
+  if(!hq1(s)){ return false; }
+  if(variant.CHROM == "chrX" || variant.CHROM == "X") { return segregating_recessive_x(s); }
+  if(s.affected){
+    return s.hom_alt
+  }
+  return s.het || s.hom_ref
+}
+
+function parents_x_dn_or_homref(s) {
+	return (hom_ref(s.mom) || (s.mom && segregating_denovo_x(s.mom)))
+	    &&
+	    (hom_ref(s.dad) || (s.dad && segregating_denovo_x(s.dad)))
+}
+
+// this function is used internally. called from segregating de novo.
+// we already know it's on chrX
+function segregating_denovo_x(s) {
+  if(s.sex == "female") {
+    // in this sample, the variant may not appear denovo, but we dont want to rule out a transmitted
+    // de novo, so we check the parents of this sample.
+    if(s.affected) { return s.het && hq1(s) && parents_x_dn_or_homref(s) }
+    return s.hom_ref
+  }
+  if(s.sex == "male") {
+    if(s.affected)  { return (s.het || s.hom_alt) && parents_x_dn_or_homref(s) }
+    return s.hom_ref
+  }
+  return false
+}
+
+function segregating_denovo(s) {
+  if( !hq1(s)) { return false; }
+  if (variant.CHROM == "chrX" || variant.CHROM == "X") { return segregating_denovo_x(s); }
+  if (!s.affected) { return s.hom_ref }
+  if (s.hom_alt) { return false }
+  return s.het && s.AB >= 0.2 && s.AB <= 0.8
 }
