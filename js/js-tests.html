@@ -127,7 +127,7 @@ function stringify(o) {
 function assert_(fn, samples, description, expect) { 
     var outcome
     if(Array.isArray(samples[0])) {
-	samples = samples[0]
+    	samples = samples[0]
         outcome = samples.every(fn)
     } else {
         outcome = fn.apply(null, samples)
@@ -212,10 +212,19 @@ assert(segregating_dominant, [[kid, dad, mom]], "trio with segregating dominant"
 assert_not(segregating_recessive, [[kid, dad, mom]], "trio with-out segregating recessive")
 
 
+var mom = {id: "mom", sex: 'female', hom_ref: false, het: true, hom_alt: false, unknown: false, GQ: 20, AB: 0.5, DP: 8, AD: [8, 8], affected: true}
+var dad = {id: "dad", sex: 'male', hom_ref: true, het: false, hom_alt: false, unknown: false, GQ: 20, AB: 0.0, DP: 8, AD: [8, 0], affected: false}
+var kid = {id: "kid", sex: 'female', hom_ref: false, het: true, hom_alt: false, unknown: false, GQ: 20, AB: 0.5, DP: 8, AD: [8, 8], affected: true}
+as_trio(kid, dad, mom)
+
+kid.mom = mom; kid.dad = dad
+assert_not(segregating_denovo, [[kid, dad, mom]], "affected mom is not segregating de novo")
+
+
 var k1 = Sample(HET, {id:"kid", sex:"female", affected: true})
 var m1 = Sample(HOM_REF, {id:"mom", sex:"female", affected: false})
 var d1 = Sample(HOM_REF, {id:"dad", sex:"female", affected: false})
-as_trio(kid, dad, mom)
+as_trio(k1, m1, d1)
 
 assert(segregating_denovo, [[k1, d1, m1]], "segregating de novo")
 
@@ -282,10 +291,6 @@ assert_not(segregating_denovo, [fam], "autosomal denovo but kid is hom_alt")
 
 kid = Sample(HET, kid)
 assert(segregating_denovo, [fam], "denovo kid is het not transmitted")
-
-
-
-
 
 output = document.getElementById("testing_output")
 </script>

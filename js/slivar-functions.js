@@ -1,4 +1,4 @@
-let config = {min_GQ: 20, min_AB: 0.22}
+var config = {min_GQ: 20, min_AB: 0.22}
 // hi quality variants
 function hq(kid, mom, dad) {
   return hq1(kid) && hq1(mom) && hq1(dad)
@@ -59,6 +59,12 @@ function comphet_side(kid, mom, dad) {
   return kid.het && (solo_ch_het_side(mom) != solo_ch_het_side(dad)) && mom.alts != 2 && dad.alts != 2 && solo_ch_het_side(kid) && hq1(mom) && hq1(dad);
 }
 
+// assume that mom and kid are affected.
+function fake_auto_dom(kid, mom, dad) {
+  return kid.het && mom.het && dad.hom_ref && hq(mom, dad, kid)
+}
+
+
 // functions to be use with --family-expr
 
 function segregating_dominant_x(s) {
@@ -80,10 +86,10 @@ function segregating_dominant_x(s) {
   }
   if(s.sex != "female"){return false; }
   // this block enforces inherited dominant, but not find de novos
-  if(s.mom || s.dad) {
-    if(!((s.mom && s.mom.affected && s.mom.het) || (s.dad && s.dad.affected))) { return false;}
-    if(s.dad && !hq1(s.dad)){ return false; }
-    if(s.mom && !hq1(s.mom)){ return false; }
+  if(("mom" in s) || ("dad" in s)) {
+    if(!((("mom" in s) && s.mom.affected && s.mom.het) || (s.dad && s.dad.affected))) { return false;}
+    if(("dad" in s) && !hq1(s.dad)){ return false; }
+    if(("mom" in s) && !hq1(s.mom)){ return false; }
   }
   return s.het && hq1(s)
 }
@@ -93,7 +99,7 @@ function hom_ref(s) {
 }
 
 function hom_ref_parent(s) {
-	return s.dad && s.dad.hom_ref && s.mom && s.mom.hom_ref
+	return ("dad" in s) && s.dad.hom_ref && ("mom" in s) && s.mom.hom_ref
 }
 
 function segregating_dominant(s) {
@@ -128,9 +134,10 @@ function segregating_recessive(s) {
 }
 
 function parents_x_dn_or_homref(s) {
+    if(!("mom" in s)) { return false; }
+    if(!("dad" in s)) { return false; }
 	return (hom_ref(s.mom) || (s.mom && segregating_denovo_x(s.mom)))
-	    &&
-	    (hom_ref(s.dad) || (s.dad && segregating_denovo_x(s.dad)))
+	    && (hom_ref(s.dad) || (s.dad && segregating_denovo_x(s.dad)))
 }
 
 // this function is used internally. called from segregating de novo.
@@ -149,10 +156,21 @@ function segregating_denovo_x(s) {
   return false
 }
 
+function affected_het_leaf(s) {
+    // check if sample that is het has a parent who 
+    // is also het without a parent
+    if("mom" in s && !affected_het_leaf(s.mom)) { return false; }
+    if("dad" in s && !affected_het_leaf(s.dad)) { return false; }
+    return true;
+}
+
 function segregating_denovo(s) {
   if( !hq1(s)) { return false; }
-  if (variant.CHROM == "chrX" || variant.CHROM == "X") { return segregating_denovo_x(s); }
+ // if (variant.CHROM == "chrX" || variant.CHROM == "X") { return segregating_denovo_x(s); }
   if (!s.affected) { return s.hom_ref }
   if (s.hom_alt) { return false }
-  return s.het && s.AB >= 0.2 && s.AB <= 0.8
+  if (!( s.het && s.AB >= config.min_AB && s.AB <= (1 - config.min_AB))) { return false; }
+  // so far we just have segregating dominant. now have to check that somewhere
+  // there's a mendelian violation
+  return ("mom" in s) && ("dad" in s)
 }
