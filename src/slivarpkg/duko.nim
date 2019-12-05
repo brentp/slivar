@@ -1,6 +1,5 @@
 import times
 import strformat
-import strutils
 import duktape/js
 export js
 
@@ -262,6 +261,7 @@ proc `[]`*(o: Duko, key:string): float {.inline.} =
 
 when isMainModule:
   import unittest
+  import strutils
   var my_fatal: duk_fatal_function = (proc (udata: pointer, msg:cstring) {.stdcall.} =
       quit $msg
   )

@@ -1,10 +1,7 @@
 import strutils
 import math
-import binaryheap
-import sequtils
 import algorithm
 import strformat
-import deques
 import hashes
 import sets
 import tables

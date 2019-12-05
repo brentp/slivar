@@ -1,5 +1,4 @@
 import argparse
-import random
 import algorithm
 import math
 import stats

@@ -269,8 +269,6 @@ proc main*(dropfirst:bool=false) =
     if not open(vcfs[i], p, threads=3):
       quit "couldn't open:" & p
 
-  var nerrors: int
-
   var ev = newEvaluator(vcfs[0], @[], @[], @[], @[], @[], @[], @[], "nil", @[], id2names(vcfs[0].header), false)
   for v in vcfs[0]:
     if len(v.ALT) > 1:

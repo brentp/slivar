@@ -194,7 +194,8 @@ proc load(g:var Gnotater, chrom: cstring): bool =
     g.longs.setLen(0)
     return false
 
-  var t = cpuTime()
+  when defined(gnotate_times):
+    var t = cpuTime()
   g.readEncs(chrom)
   when defined(gnotate_times):
     var etime = cpuTime() - t
