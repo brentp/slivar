@@ -146,6 +146,10 @@ proc write_compound_hets(ovcf:VCF, kids:seq[Sample], tbl:TableRef[string, seq[Va
             found.add(variants[bi])
             foundKeys.incl(variants[bi].key)
 
+          var ab_key = variants[ai].key & "||" & variants[bi].key
+          if ab_key in foundKeys: continue
+          foundKeys.incl(ab_key)
+
           cnt.inc(@[kid.id, kid.id], "compound-het")
           variants[ai].add_comphet(variants[bi], gene, kid.id, comphet_id)
           variants[bi].add_comphet(variants[ai], gene, kid.id, comphet_id)
@@ -193,7 +197,6 @@ proc main*(dropfirst:bool=false) =
       if toAdd.len > 0 and toAdd[toAdd.high] in skip_impacts:
         discard toAdd.pop
     skip_impacts.add(toAdd)
-
 
 
   if not open(ivcf, opts.vcf, threads=2):
