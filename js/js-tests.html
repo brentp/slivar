@@ -309,6 +309,12 @@ as_trio(kid, dad, mom)
 as_trio(sib, dad, mom)
 assert(segregating_denovo, [[kid, dad, mom, sib]], "denovo in both affected, het sibs")
 
+var mom = Sample(HOM_REF, {id:"mom", sex:"female"})
+var dad = Sample(HOM_REF, {id:"dad", sex:"male"})
+var kid = Sample(HOM_ALT, {id:"kid", sex:"male", affected: true})
+assert(segregating_recessive, [[kid, dad, mom]], "hom-alt denovo is segregating recessive")
+
+
 output = document.getElementById("testing_output")
 
 </script>
