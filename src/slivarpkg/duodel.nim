@@ -81,7 +81,7 @@ proc duos(samples:seq[Sample], affected_only:bool): seq[Duo] =
 
 type Site = object
   chrom*: string
-  start*: int
+  start*: int64
   sample_i*: int
   status*: set[Transmit]
   i*: int # index of sites used in this duo
@@ -330,7 +330,7 @@ proc main*(dropfirst:bool=false) =
     if len(v.ALT) > 1: continue
     if len(v.REF) != 1: continue
     if len(v.ALT[0]) != 1: continue
-    if exclude != nil and stripChr(v.CHROM) in exclude and 0 != exclude[stripChr(v.CHROM)].count(v.start, v.start + 1):
+    if exclude != nil and stripChr(v.CHROM) in exclude and 0 != exclude[stripChr(v.CHROM)].count(v.start.int, v.start.int + 1):
       continue
     var LowQual = false
     if gno != nil and gno.annotate(v) and v.info.has_flag(gno.names[0] & "_filter"):

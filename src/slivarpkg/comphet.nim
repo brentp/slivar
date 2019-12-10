@@ -158,7 +158,7 @@ proc write_compound_hets(ovcf:VCF, kids:seq[Sample], tbl:TableRef[string, seq[Va
   sort(found, proc (a:Variant, b:Variant): int =
     if a.start == b.start:
       return a.REF.len - b.REF.len
-    return a.start - b.start)
+    return int((a.start - b.start)))
 
   for v in found:
     doAssert ovcf.write_variant(v)
