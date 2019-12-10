@@ -292,7 +292,25 @@ assert_not(segregating_denovo, [fam], "autosomal denovo but kid is hom_alt")
 kid = Sample(HET, kid)
 assert(segregating_denovo, [fam], "denovo kid is het not transmitted")
 
+
+var mom = Sample(HET, {id:"mom", sex:"female", affected: true})
+var dad = Sample(HOM_REF, {id:"dad", sex:"male"})
+var kid = Sample(HET, {id:"kid", sex:"male", affected: true})
+as_trio(kid, dad, mom)
+assert_not(segregating_denovo, [[kid, dad, mom]], "not denovo with affected, het mom")
+
+
+var mom = Sample(HOM_REF, {id:"mom", sex:"female"})
+var dad = Sample(HOM_REF, {id:"dad", sex:"male"})
+var kid = Sample(HET, {id:"kid", sex:"male", affected: true})
+var sib = Sample(HET, {id:"kid", sex:"male", affected: true})
+
+as_trio(kid, dad, mom)
+as_trio(sib, dad, mom)
+assert(segregating_denovo, [[kid, dad, mom, sib]], "denovo in both affected, het sibs")
+
 output = document.getElementById("testing_output")
+
 </script>
 
 </body>
