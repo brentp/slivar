@@ -1,4 +1,5 @@
 const ROC_VAR = "GQ"
+var ROC_SIGN = ROC_VAR == "AB" ? "<" : ">"
 var ranges = { samples: {} }
 var plots = { hists: {}, rocs: {} }
 var stats = {}
@@ -415,6 +416,13 @@ function sort_trio(trio) {
     for (var i = 0; i < trio.violations.length; i++) { order[i] = i; }
 
     var roc_var = trio.tbl[ROC_VAR];
+    if(ROC_VAR == "AB"){
+        var rv2 = new Array(roc_var.length)
+        for(var i=0; i < rv2.length; i++) {
+            rv2[i] = 0.5 - Math.abs(0.5 - roc_var[i])
+        }
+        roc_var = rv2
+    }
     //order.sort(function(a, b) { return roc_var[a] - roc_var[b]; });
     order.sort(function (a, b) { return (roc_var[b] - roc_var[a]); });
 
@@ -463,7 +471,7 @@ function main_plot(idxs) {
 
             trace.x.push(fps);
             trace.y.push(tps);
-            trace.text.push(`${ROC_VAR} > ${last_val} fpr: ${(fps / (fps + tps)).toFixed(3)}`)
+            trace.text.push(`${ROC_VAR} ${ROC_SIGN} ${last_val} fpr: ${(fps / (fps + tps)).toFixed(3)}`)
 
         }
         trace.x.push(fps);
@@ -486,12 +494,18 @@ function plot_bool(values, name, vios) {
     var filt_inh_counts = [0, 0]
     var filt_vio_counts = [0, 0]
     let filters = variant_infos.filters;
+    var Y = jQuery(`#${name}-yes`).is(":checked")
+    var N = jQuery(`#${name}-no`).is(":checked")
+
+    let info_bools = [N, Y];
+
     for (var k = 0; k < values.length; k++) {
         if (vios[k]) {
             vio_counts[Number(values[k])]++
         } else {
             inh_counts[Number(values[k])]++
         }
+        if(!info_bools[Number(values[k])]) { continue; }
         //if (idxs.size > 0 && !idxs.has(k)) { continue; }
         if (!filters_to_keep.includes(filters[k])) { continue; }
         if (vios[k]) {
@@ -500,26 +514,23 @@ function plot_bool(values, name, vios) {
             filt_inh_counts[Number(values[k])]++
         }
     }
-    var Y = jQuery(`#${name}-yes`).is(":checked")
-    var N = jQuery(`#${name}-no`).is(":checked")
+    console.log(vio_counts, filt_vio_counts)
+    console.log(Y, N)
 
     // unfilt, filt
     var vio = [0, 0]
     var tra = [0, 0]
-    if (Y) {
-        vio[0] += vio_counts[1]
-        tra[0] += inh_counts[1]
+    vio[0] += vio_counts[1]
+    tra[0] += inh_counts[1]
 
-        vio[1] += filt_vio_counts[1]
-        tra[1] += filt_inh_counts[1]
-    }
-    if (N) {
-        vio[0] += vio_counts[0]
-        tra[0] += inh_counts[0]
+    vio[1] += filt_vio_counts[1]
+    tra[1] += filt_inh_counts[1]
 
-        vio[1] += filt_vio_counts[0]
-        tra[1] += filt_inh_counts[0]
-    }
+    vio[0] += vio_counts[0]
+    tra[0] += inh_counts[0]
+
+    vio[1] += filt_vio_counts[0]
+    tra[1] += filt_inh_counts[0]
 
     let xlabels = ["Unfiltered", "Filtered"]
     var traces = [
