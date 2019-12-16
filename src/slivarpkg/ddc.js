@@ -216,12 +216,12 @@ function add_bool(values, name, idxs) {
                     <div class="btn-group-toggle" data-toggle="buttons">
                         <label class="btn btn-outline-primary m-1 p-1 active">
                             <input type="checkbox" autocomplete="off" class="slivar-checkbox slivar-bool-checkbox slivar-changer" checked name=${name}-yes id=${name}-yes>
-                                Yes (True)
+                                Yes
                             </input>
                         </label>
                         <label class="btn btn-outline-primary m-1 p-1 active">
                             <input type="checkbox" autocomplete="off" class="slivar-checkbox slivar-bool-checkbox slivar-changer" checked name=${name}-no id=${name}-no>
-                                No (False)
+                                No
                             </input>
                         </label>
                     </div>
@@ -229,10 +229,14 @@ function add_bool(values, name, idxs) {
             </div>
         </div>
     `)
-    plot_bool(values, name, variant_infos.violations, idxs)
+    plot_bool(values, name, variant_infos.violations)
+
+    jQuery(`#${name}-yes,#${name}-no`).change(function() {
+        plot_bool(values, name, variant_infos.violations)
+    })
 }
 
-function add_slider(values, name, label, is_fmt_field, idxs, violations) {
+function add_slider(values, name, label, is_fmt_field, violations) {
     var prefix = is_fmt_field ? "sample-" : ""
 
     // add the filter div
@@ -276,7 +280,7 @@ function add_slider(values, name, label, is_fmt_field, idxs, violations) {
         `)
     }
 
-    plot_field(values, name, label, is_fmt_field, violations, idxs)
+    plot_field(values, name, label, is_fmt_field, violations)
 }
 
 function get_sample_bounds() {
@@ -472,7 +476,7 @@ function main_plot(idxs) {
     Plotly.newPlot('main-roc-plot', traces, main_roc_layout)
 }
 
-function plot_bool(values, name, vios, idxs) {
+function plot_bool(values, name, vios) {
     var filters_to_keep = jQuery('.slivar-filters:checked').map(function (v) { return this.name }).toArray();
     // convert bool to index (false==0) and increment counter for passing
     // variants
@@ -488,7 +492,7 @@ function plot_bool(values, name, vios, idxs) {
         } else {
             inh_counts[Number(values[k])]++
         }
-        if (idxs.size > 0 && !idxs.has(k)) { continue; }
+        //if (idxs.size > 0 && !idxs.has(k)) { continue; }
         if (!filters_to_keep.includes(filters[k])) { continue; }
         if (vios[k]) {
             filt_vio_counts[Number(values[k])]++
@@ -518,7 +522,6 @@ function plot_bool(values, name, vios, idxs) {
     }
 
     let xlabels = ["Unfiltered", "Filtered"]
-    console.log(tra, vio)
     var traces = [
         { x: tra, y: xlabels, name: "Transmitted", type: "bar", orientation: 'h', marker: { color: colors[0] }, },
         { x: vio, y: xlabels, name: "Violations", type: "bar", orientation: 'h', marker: { color: colors[1] }, },
@@ -526,7 +529,7 @@ function plot_bool(values, name, vios, idxs) {
     Plotly.newPlot(`${name}-bar-plot`, traces, box_layout)
 }
 
-function plot_field(values, name, label, is_fmt_field, vios, idxs) {
+function plot_field(values, name, label, is_fmt_field, vios) {
     // update_only is used only when is_fmt_field to add samples to an existing
     // fmt roc plot
     var [vlmin, vlmax] = arr_min_max(values);
@@ -537,7 +540,6 @@ function plot_field(values, name, label, is_fmt_field, vios, idxs) {
     let filters = variant_infos.filters;
     //console.time("plot_field filtering:" + name)
     for (var k = 0; k < values.length; k++) {
-        if (idxs.size > 0 && !idxs.has(k)) { continue; }
         if (!filters_to_keep.includes(filters[k])) { continue; }
         if (vios[k]) {
             vio_vals.push(values[k])
@@ -552,7 +554,7 @@ function plot_field(values, name, label, is_fmt_field, vios, idxs) {
     var bin_size = (vlmax - vlmin) / 100;
     var roc_trs;
     if (!is_fmt_field) {
-        roc_trs = roc(values, vios, do_flip, name, filters_to_keep, idxs);
+        roc_trs = roc(values, vios, do_flip, name, filters_to_keep, new Set());
     }
 
     var traces = [
@@ -564,8 +566,9 @@ function plot_field(values, name, label, is_fmt_field, vios, idxs) {
     plots.hists[`${prefix}${name}`] = Plotly.newPlot(div, traces, histogram_layout, { displayModeBar: false });
     ranges[`${prefix}${name}`] = {min: vlmin, max: vlmax, omin: vlmin, omax:vlmax}
 
-    div.on('plotly_selected', function(e) {
-        if(e == undefined || !("range" in e)) { // dbl-click to reset plot doesn't have range attr
+    let x = function(e) {
+        if (e === undefined) { return ; }
+        if(e === null || !("range" in e)) { // dbl-click to reset plot doesn't have range attr
             jQuery(`#${prefix}${name}-hist-plot .select-outline`).remove();
             ranges[`${prefix}${name}`].min = ranges[`${prefix}${name}`].omin
             ranges[`${prefix}${name}`].max = ranges[`${prefix}${name}`].omax
@@ -573,14 +576,28 @@ function plot_field(values, name, label, is_fmt_field, vios, idxs) {
             ranges[`${prefix}${name}`].min = e.range.x[0]
             ranges[`${prefix}${name}`].max = e.range.x[1]
         }
-        let idxs = new Set(get_passing_idxs())
-        main_plot(idxs)
+        main_plot(new Set(get_passing_idxs()))
         if(!is_fmt_field) {
+           var vmin = ranges[`${prefix}${name}`].min;
+           var vmax = ranges[`${prefix}${name}`].max;
+
+           var marginal_idxs = [];
+           var filters_to_keep = jQuery('.slivar-filters:checked').map(function (v) { return this.name }).toArray();
+           for (var k = 0; k < values.length; k++) {
+               if (!filters_to_keep.includes(filters[k])) { continue; }
+               let v = values[k]
+               if(v >= vmin && v <= vmax) {
+                 marginal_idxs.push(k);
+               }
+           }
+           
            let do_flip = jQuery(`#${prefix}${name}-flip`).is(":checked")
-           roc_trs = roc(values, vios, do_flip, name, filters_to_keep, idxs);
+           roc_trs = roc(values, vios, do_flip, name, filters_to_keep, new Set(marginal_idxs));
            plots.rocs[`${prefix}${name}`] = Plotly.newPlot(`${prefix}${name}-roc-plot`, roc_trs, roc_layout, { displayModeBar: false });
         }
-    })
+    }
+    div.on('plotly_selected', x);
+    div.on('plotly_deselect', x);
     if (!is_fmt_field) {
         plots.rocs[`${prefix}${name}`] = Plotly.newPlot(`${prefix}${name}-roc-plot`, roc_trs, roc_layout, { displayModeBar: false });
     }
@@ -614,9 +631,6 @@ function initialize() {
             `)
         });
         jQuery('#filter-column').append('</div>')
-        jQuery('.slivar-filters').on('change', function () {
-            jQuery('.slivar-checkbox').first().trigger('change');
-        });
     }
 
     trios.forEach(function (trio) {
@@ -624,11 +638,11 @@ function initialize() {
     })
 
     // variants lengths filter
-    add_slider(variant_infos.variant_lengths, "variant-length", "Variant Lengths", false, new Set(), variant_infos.violations)
+    add_slider(variant_infos.variant_lengths, "variant-length", "Variant Lengths", false, variant_infos.violations)
     // variant filters: float
     for (k in variant_infos.float_tbl) {
         var vals = variant_infos.float_tbl[k];
-        add_slider(vals, k, k, false, new Set(), variant_infos.violations)
+        add_slider(vals, k, k, false, variant_infos.violations)
     }
     // variant filters: bool
     for (k in variant_infos.bool_tbl) {
@@ -637,10 +651,10 @@ function initialize() {
     }
 
     for (k in trios[0].tbl) {
-        add_slider(trios[0].tbl[k], k, k, true, new Set(), trios[0].violations)
+        add_slider(trios[0].tbl[k], k, k, true, trios[0].violations)
         for (var i = 1; i < trios.length; i++) {
             var vals = trios[i].tbl[k];
-            plot_field(vals, k, k, true, trios[i].violations, new Set());
+            plot_field(vals, k, k, true, trios[i].violations);
         }
     }
 
@@ -654,7 +668,7 @@ function initialize() {
     })
     // invert y-values in attribute ROC plots
     jQuery(`.slivar-inverter`).on('change', function (e, o) {
-        plot_field(variant_infos.float_tbl[this.name], this.name, this.name, false, variant_infos.violations, new Set());
+        plot_field(variant_infos.float_tbl[this.name], this.name, this.name, false, variant_infos.violations);
     })
 
     main_plot()
