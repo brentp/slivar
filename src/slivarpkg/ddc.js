@@ -1,5 +1,5 @@
 const ROC_VAR = "GQ"
-var sliders = { samples: {} }
+var ranges = { samples: {} }
 var plots = { hists: {}, rocs: {} }
 var stats = {}
 var sorted = {}
@@ -15,8 +15,7 @@ const main_roc_layout = {
 const aux_plot_height = 250
 const histogram_layout = {
     barmode: "overlay",
-    xaxis: { automargin: true, },
-    // xaxis: { automargin: true, rangeslider: {} },
+    xaxis: { automargin: true, fixedrange: true}, //, rangeslider: {} },
     yaxis: { title: { text: "Count", standoff: 20 }, autorange: true, automargin: true, type: "log", fixedrange: true },
     height: aux_plot_height,
     margin: { t: 10, b: 20, r: 0, l: 50, pad: 0 },
@@ -27,7 +26,8 @@ const histogram_layout = {
         x: 1,
         orientation: "h",
     },
-    // dragmode: 'select'
+    dragmode: 'select',
+    selectdirection: "h"
 }
 const roc_layout = {
     xaxis: { automargin: true, title: { text: "Violations", standoff: 20 } },
@@ -248,15 +248,6 @@ function add_slider(values, name, label, is_fmt_field, idxs, violations) {
                 <div class="row border-top">
                     <div class="col-12 p-1" id=${prefix}${name}-hist-plot></div>
                 </div>
-                <!-- Range selection -->
-                <div class="row pb-5 border-bottom">
-                    <div class="col-1 pr-0">
-                        <span class="selection-label">Include:</span>
-                    </div>
-                    <div class="col-11">
-                        <div id=${prefix}${name}-slider name=${prefix}${name}-slider></div>
-                    </div>
-                </div>
             </div>
         `)
     } else {
@@ -272,15 +263,7 @@ function add_slider(values, name, label, is_fmt_field, idxs, violations) {
                     <div class="col-8 p-1" id=${prefix}${name}-hist-plot></div>
                     <div class="col-4 p-1" id=${prefix}${name}-roc-plot></div>
                 </div>
-                <!-- Range selection -->
-                <div class="row pb-5 border-bottom">
-                    <div class="col-1 pr-0">
-                        <span class="selection-label">Include:</span>
-                    </div>
-                    <div class="col-7">
-                        <div id=${prefix}${name}-slider name=${prefix}${name}-slider></div>
-                    </div>
-                    <div class="col-4 text-right">
+                 <div class="col-4 text-right">
                         <div class="btn-group-toggle" data-toggle="buttons">
                             <label class="btn btn-sm btn-outline-primary">
                                 <input type="checkbox" autocomplete="off" class="slivar-inverter" id="${prefix}${name}-flip" name="${prefix}${name}">
@@ -288,52 +271,28 @@ function add_slider(values, name, label, is_fmt_field, idxs, violations) {
                                 </input>
                             </label>
                         </div>
-                    </div>
                 </div>
-
             </div>
         `)
     }
-
-    var [vlmin, vlmax] = arr_min_max(values); // can't use apply or destructring as we run out of stack
-    var fmtF = name == "variant-length" ? iNumb : wNumb
-
-    sliders[`${prefix}${name}`] = noUiSlider.create(document.getElementById(`${prefix}${name}-slider`), {
-        tooltips: [fmtF({ decimals: 3 }), fmtF({ decimals: 3 })],
-        start: [vlmin, vlmax],
-        connect: true,
-        range: { min: vlmin, max: vlmax },
-        pips: {
-            mode: 'range',
-            density: 5,
-        }
-    })
-    // add min and max values to the slider object so we can tell if it has
-    // been modified
-    sliders[`${prefix}${name}`].min = vlmin
-    sliders[`${prefix}${name}`].max = vlmax
-    sliders[`${prefix}${name}`].on('change', function () {
-        let idxs = new Set(get_passing_idxs())
-        main_plot(idxs)
-        update_info_plots(idxs)
-    })
 
     plot_field(values, name, label, is_fmt_field, violations, idxs)
 }
 
 function get_sample_bounds() {
     var sample_bounds = {}
-    for (k in sliders) {
+    for (k in ranges) {
         if (k == "samples") { continue; }
         if (!k.startsWith("sample-")) {
             continue
         }
-        let tmp = sliders[k].get()
-        if (Math.abs(parseFloat(tmp[0]) - sliders[k].min) < 0.005 && Math.abs(parseFloat(tmp[1]) - sliders[k].max) < 0.005) {
-            continue;
+        let tmp = ranges[k]
+        // don't do anything if it's the same ranges as when the plot loaded.
+        if (Math.abs(tmp.min - ranges[k].omin) < 0.005 && Math.abs(tmp.max - ranges[k].omax) < 0.005) {
+                continue
         }
         // remove sample- prefix
-        sample_bounds[k.substring(7)] = [parseFloat(tmp[0]), parseFloat(tmp[1])]
+        sample_bounds[k.substring(7)] = [tmp.min, tmp.max]
     }
     return sample_bounds
 }
@@ -364,16 +323,16 @@ function get_passing_idxs() {
     var info_bools = {}
     let sample_bounds = get_sample_bounds()
 
-    for (k in sliders) {
+    for (k in ranges) {
         if (k == "samples") { continue; }
         if (k.startsWith("sample-")) {
             continue
         } else {
-            var tmp = sliders[k].get()
-            if (Math.abs(parseFloat(tmp[0]) - sliders[k].min) < 0.005 && Math.abs(parseFloat(tmp[1]) - sliders[k].max) < 0.005) {
-                continue
+            var tmp = ranges[k]
+            if (Math.abs(tmp.min - ranges[k].omin) < 0.005 && Math.abs(tmp.max - ranges[k].omax) < 0.005) {
+                    continue
             }
-            info_bounds[k] = [parseFloat(tmp[0]), parseFloat(tmp[1])]
+            info_bounds[k] = [ranges[k].min, ranges[k].max]
         }
     }
 
@@ -479,6 +438,8 @@ function main_plot(idxs) {
     if (idxs == undefined) {
         idxs = new Set(get_passing_idxs())
     }
+    update_stats(idxs)
+
     let sample_bounds = get_sample_bounds()
     trios.forEach(function (trio, index) {
         var tps = 0
@@ -557,6 +518,7 @@ function plot_bool(values, name, vios, idxs) {
     }
 
     let xlabels = ["Unfiltered", "Filtered"]
+    console.log(tra, vio)
     var traces = [
         { x: tra, y: xlabels, name: "Transmitted", type: "bar", orientation: 'h', marker: { color: colors[0] }, },
         { x: vio, y: xlabels, name: "Violations", type: "bar", orientation: 'h', marker: { color: colors[1] }, },
@@ -598,35 +560,29 @@ function plot_field(values, name, label, is_fmt_field, vios, idxs) {
         { type: 'histogram', x: vio_vals, name: "Violations", autobinx: false, xbins: { size: bin_size }, histnorm: "count", marker: { color: colors[1] } }, //, opacity: 0.5 },
     ];
 
-    plots.hists[`${prefix}${name}`] = Plotly.newPlot(`${prefix}${name}-hist-plot`, traces, histogram_layout, { displayModeBar: false });
+    let div = document.getElementById(`${prefix}${name}-hist-plot`)
+    plots.hists[`${prefix}${name}`] = Plotly.newPlot(div, traces, histogram_layout, { displayModeBar: false });
+    ranges[`${prefix}${name}`] = {min: vlmin, max: vlmax, omin: vlmin, omax:vlmax}
+
+    div.on('plotly_selected', function(e) {
+        if(e == undefined || !("range" in e)) { // dbl-click to reset plot doesn't have range attr
+            jQuery(`#${prefix}${name}-hist-plot .select-outline`).remove();
+            ranges[`${prefix}${name}`].min = ranges[`${prefix}${name}`].omin
+            ranges[`${prefix}${name}`].max = ranges[`${prefix}${name}`].omax
+        }  else {
+            ranges[`${prefix}${name}`].min = e.range.x[0]
+            ranges[`${prefix}${name}`].max = e.range.x[1]
+        }
+        let idxs = new Set(get_passing_idxs())
+        main_plot(idxs)
+        if(!is_fmt_field) {
+           let do_flip = jQuery(`#${prefix}${name}-flip`).is(":checked")
+           roc_trs = roc(values, vios, do_flip, name, filters_to_keep, idxs);
+           plots.rocs[`${prefix}${name}`] = Plotly.newPlot(`${prefix}${name}-roc-plot`, roc_trs, roc_layout, { displayModeBar: false });
+        }
+    })
     if (!is_fmt_field) {
         plots.rocs[`${prefix}${name}`] = Plotly.newPlot(`${prefix}${name}-roc-plot`, roc_trs, roc_layout, { displayModeBar: false });
-    }
-}
-
-function update_info_plots(idxs) {
-    if (idxs == undefined) {
-        idxs = new Set(get_passing_idxs())
-    } else {
-        console.log("got idxs", idxs)
-    }
-
-    let prefix = "";
-    update_stats(idxs)
-    plot_field(variant_infos.variant_lengths, "variant-length", "variant-lengths", false, variant_infos.violations, idxs);
-    for (k in variant_infos.float_tbl) {
-        plot_field(variant_infos.float_tbl[k], k, k, false, variant_infos.violations, idxs);
-    }
-    for (k in variant_infos.bool_tbl) {
-        plot_bool(variant_infos.bool_tbl[k], k, variant_infos.violations, idxs);
-    }
-    let sample_bounds = get_sample_bounds()
-
-    for (k in trios[0].tbl) {
-        for (var i = 0; i < trios.length; i++) {
-            var vals = trios[i].tbl[k].slice(0);
-            plot_field(vals, k, k, true, trios[i].violations, idxs);
-        }
     }
 }
 
@@ -695,12 +651,10 @@ function initialize() {
         // console.log("slivar-changer change", this, e, o, e.target);
         let idxs = new Set(get_passing_idxs())
         main_plot(idxs)
-        update_info_plots(idxs)
     })
     // invert y-values in attribute ROC plots
     jQuery(`.slivar-inverter`).on('change', function (e, o) {
-        let idxs = new Set(get_passing_idxs())
-        plot_field(variant_infos.float_tbl[this.name], this.name, this.name, false, variant_infos.violations, idxs);
+        plot_field(variant_infos.float_tbl[this.name], this.name, this.name, false, variant_infos.violations, new Set());
     })
 
     main_plot()
