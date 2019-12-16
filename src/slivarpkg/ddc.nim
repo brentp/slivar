@@ -105,6 +105,9 @@ proc getAB(v:Variant): seq[float32] =
     result = newSeq[float32](v.n_samples)
     for i in 0..<v.n_samples:
       result[i] = ad[2*i+1].float32 / max(1, ad[2*i+1] + ad[2*i]).float32
+  for ab in result.mitems:
+    if ab < 0: ab = 0
+    if ab > 1: ab = 1
 
   # flip so that the alllele balance for hets is always < 0.5
   #for i, ab in result.mpairs:
@@ -135,8 +138,9 @@ proc getf32(v:Variant, f:string): seq[float32] =
   st = v.format.get(f, i)
   if st != Status.OK: return
   result.setLen(i.len)
-  for k, v in i:
-    result[k] = v.float32
+  for k, val in i:
+    # TODO: handle missing
+    result[k] = val.float32
 
 proc violation(kid:Sample, alts: seq[int8]): bool =
   return alts[kid.i] >= 1 and alts[kid.mom.i] == 0 and alts[kid.dad.i] == 0

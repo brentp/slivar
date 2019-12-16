@@ -60,11 +60,16 @@ const box_layout = {
 
 
 function set_stats() {
+    var filters_to_keep = jQuery('.slivar-filters:checked').map(function (v) { return this.name }).toArray();
+    var filters = variant_infos.filters
+
     stats.n_violations = 0
+    stats.n_transmitted = 0
     for (let i = 0; i < variant_infos.violations.length; i++) {
+        if(!filters_to_keep.includes(filters[i])){ continue; }
         stats.n_violations += variant_infos.violations[i];
+        stats.n_transmitted += (1 - Number(variant_infos.violations[i]));
     }
-    stats.n_transmitted = variant_infos.violations.length - stats.n_violations;
 }
 
 function update_stats(idxs) {
@@ -544,6 +549,7 @@ function plot_field(values, name, label, is_fmt_field, vios) {
     // update_only is used only when is_fmt_field to add samples to an existing
     // fmt roc plot
     var [vlmin, vlmax] = arr_min_max(values);
+    console.log("name:", name, [vlmin, vlmax])
     var filters_to_keep = jQuery('.slivar-filters:checked').map(function (v) { return this.name }).toArray();
 
     var inh_vals = []
@@ -614,7 +620,7 @@ function plot_field(values, name, label, is_fmt_field, vios) {
     }
 }
 
-function initialize() {
+function initialize_once() {
     var seen = {}
     for (i = 0; i < variant_infos.filters.length; i++) {
         seen[variant_infos.filters[i]] = true
@@ -622,7 +628,6 @@ function initialize() {
     var nseen = 0;
     var haspass = false
 
-    set_stats()
 
     // build global filters
     for (k in seen) { nseen += 1; if (k == "PASS") { haspass = true; } }
@@ -643,12 +648,21 @@ function initialize() {
         });
         jQuery('#filter-column').append('</div>')
     }
+    jQuery('.slivar-filters').on('change', redraw)
 
     trios.forEach(function (trio) {
         sort_trio(trio)
     })
+}
 
+function redraw() {
     // variants lengths filter
+    set_stats()
+    jQuery('#sample-filter-nav').empty()
+    jQuery('#sample-sliders').empty()
+    jQuery('#variant-filter-nav').empty()
+    jQuery('#variant-sliders').empty()
+
     add_slider(variant_infos.variant_lengths, "variant-length", "Variant Lengths", false, variant_infos.violations)
     // variant filters: float
     for (k in variant_infos.float_tbl) {
@@ -686,8 +700,10 @@ function initialize() {
     update_stats([])
 }
 
+
 $(document).ready(function () {
-    initialize()
+    initialize_once()
+    redraw()
     // refresh scrollspy
     $('body').scrollspy({
         target: '#side-filter-nav',
