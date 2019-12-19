@@ -4,11 +4,13 @@ var ranges = { samples: {} }
 var plots = { hists: {}, rocs: {} }
 var stats = {}
 var sorted = {}
+// track select/de-select events
+var applied_filters = []
 const colors = ["#4e79a7", "#f28e2c", "#e15759", "#76b7b2", "#59a14f", "#edc949", "#af7aa1", "#ff9da7", "#9c755f", "#bab0ab"]
 const primary_color = "#2F3C48"
 const main_roc_layout = {
     height: 400,
-    margin: { t: 10, r: 0, b: 0, l: 60 },
+    margin: { t: 20, r: 0, b: 0, l: 60 },
     xaxis: { automargin: true, title: { text: "Mendelian Violations", standoff: 100 }, rangemode: 'tozero', },
     yaxis: { automargin: true, title: { text: "Transmitted Variants", standoff: 10 }, rangemode: 'tozero', },
     font: { size: 15 }
@@ -16,10 +18,10 @@ const main_roc_layout = {
 const aux_plot_height = 250
 const histogram_layout = {
     barmode: "overlay",
-    xaxis: { automargin: true, fixedrange: true}, //, rangeslider: {} },
+    xaxis: { automargin: true, fixedrange: true }, //, rangeslider: {} },
     yaxis: { title: { text: "Count", standoff: 20 }, autorange: true, automargin: true, type: "log", fixedrange: true },
     height: aux_plot_height,
-    margin: { t: 10, b: 20, r: 0, l: 50, pad: 0 },
+    margin: { t: 10, b: 40, r: 0, l: 50, pad: 0 },
     legend: {
         xanchor: "right",
         yanchor: "top",
@@ -32,7 +34,7 @@ const histogram_layout = {
 }
 const roc_layout = {
     xaxis: { automargin: true, title: { text: "Violations", standoff: 20 } },
-    yaxis: { automargin: true, title: { text: "Transmitted", standoff: 20 } },
+    yaxis: { automargin: true, title: { text: "Transmitted", standoff: 20 }, rangemode: 'tozero' },
     height: aux_plot_height,
     margin: { t: 10, b: 20, r: 10, l: 30, pad: 0 },
     legend: {
@@ -66,7 +68,7 @@ function set_stats() {
     stats.n_violations = 0
     stats.n_transmitted = 0
     for (let i = 0; i < variant_infos.violations.length; i++) {
-        if(!filters_to_keep.includes(filters[i])){ continue; }
+        if (!filters_to_keep.includes(filters[i])) { continue; }
         stats.n_violations += variant_infos.violations[i];
         stats.n_transmitted += (1 - Number(variant_infos.violations[i]));
     }
@@ -86,20 +88,19 @@ function update_stats(idxs) {
     stats.filtered.n_transmitted = idxs.size - stats.filtered.n_violations
     // no filters have been applied
     if (isNaN(stats.filtered.n_transmitted)) {
-        jQuery('#metrics-transmitted').html(`${stats.n_transmitted}`)
-        jQuery('#metrics-violations').html(`${stats.n_violations}`)
-        jQuery('#metrics-fpr').html(fpr)
+        jQuery('#original-variants').html(`${stats.n_transmitted}`)
+        jQuery('#original-violations').html(`${stats.n_violations}`)
+        jQuery('#original-fpr').html(fpr)
     } else {
-        // will need to know when all filters have been removed
         let f_fpr
         if (stats.filtered.n_violations + stats.filtered.n_transmitted > 0) {
             f_fpr = (stats.filtered.n_violations / (stats.filtered.n_violations + stats.filtered.n_transmitted)).toFixed(3)
         } else {
             f_fpr = 0
         }
-        jQuery('#metrics-transmitted').html(`${stats.filtered.n_transmitted} <span class="text-info">out of ${stats.n_transmitted} (${(100 * stats.filtered.n_transmitted / stats.n_transmitted).toFixed(2)}%)</span>`)
-        jQuery('#metrics-violations').html(`${stats.filtered.n_violations} <span class="text-info">out of ${stats.n_violations} (${(100 * stats.filtered.n_violations / stats.n_violations).toFixed(2)}%)</span>`)
-        jQuery('#metrics-fpr').html(`${f_fpr} <span class="text-info">from ${fpr}</span>`)
+        jQuery('#filtered-variants').html(`${stats.filtered.n_transmitted} <span class="text-info">(${(100 * stats.filtered.n_transmitted / stats.n_transmitted).toFixed(2)}%)</span>`)
+        jQuery('#filtered-violations').html(`${stats.filtered.n_violations} <span class="text-info">(${(100 * stats.filtered.n_violations / stats.n_violations).toFixed(2)}%)</span>`)
+        jQuery('#filtered-fpr').html(`${f_fpr}`)
     }
 }
 
@@ -210,22 +211,22 @@ function add_bool(values, name, idxs) {
             <a id=${name}-wrapper></a>
             <label for="${name}-bar-plot"><h3>${name}</h3></label>
             <!-- Plot area -->
-            <div class="row border-top">
+            <div class="row">
                 <div class="col-12 p-1" id=${name}-bar-plot></div>
             </div>
             <!-- Boolean selection -->
-            <div class="row pb-3 border-bottom">
+            <div class="row pb-3">
                 <div class="col-1 pr-0">
                     <span class="selection-label">Include:</span>
                 </div>
                 <div class="col-11">
                     <div class="btn-group-toggle" data-toggle="buttons">
-                        <label class="btn btn-outline-primary m-1 p-1 active">
+                        <label class="btn btn-outline-primary m-1 p-1 active cbtn">
                             <input type="checkbox" autocomplete="off" class="slivar-checkbox slivar-bool-checkbox slivar-changer" checked name=${name}-yes id=${name}-yes>
                                 Yes
                             </input>
                         </label>
-                        <label class="btn btn-outline-primary m-1 p-1 active">
+                        <label class="btn btn-outline-primary m-1 p-1 active cbtn">
                             <input type="checkbox" autocomplete="off" class="slivar-checkbox slivar-bool-checkbox slivar-changer" checked name=${name}-no id=${name}-no>
                                 No
                             </input>
@@ -237,7 +238,7 @@ function add_bool(values, name, idxs) {
     `)
     plot_bool(values, name, variant_infos.violations)
 
-    jQuery(`#${name}-yes,#${name}-no`).change(function() {
+    jQuery(`#${name}-yes,#${name}-no`).change(function () {
         plot_bool(values, name, variant_infos.violations)
     })
 }
@@ -255,7 +256,7 @@ function add_slider(values, name, label, is_fmt_field, violations) {
                 <a id=${prefix}${name}-wrapper></a>
                 <label for="${prefix}${name}-slider"><h3>${label}</h3></label>
                 <!-- Plot area -->
-                <div class="row border-top">
+                <div class="row">
                     <div class="col-12 p-1" id=${prefix}${name}-hist-plot></div>
                 </div>
             </div>
@@ -269,11 +270,13 @@ function add_slider(values, name, label, is_fmt_field, violations) {
                 <a id=${prefix}${name}-wrapper></a>
                 <label for="${prefix}${name}-slider"><h3>${label}</h3></label>
                 <!-- Plot area -->
-                <div class="row border-top">
+                <div class="row">
                     <div class="col-8 p-1" id=${prefix}${name}-hist-plot></div>
                     <div class="col-4 p-1" id=${prefix}${name}-roc-plot></div>
                 </div>
-                 <div class="col-4 text-right">
+                <div class="row">
+                    <div class="col-8"></div>
+                    <div class="col-4 text-right">
                         <div class="btn-group-toggle" data-toggle="buttons">
                             <label class="btn btn-sm btn-outline-primary">
                                 <input type="checkbox" autocomplete="off" class="slivar-inverter" id="${prefix}${name}-flip" name="${prefix}${name}">
@@ -281,6 +284,7 @@ function add_slider(values, name, label, is_fmt_field, violations) {
                                 </input>
                             </label>
                         </div>
+                    </div>
                 </div>
             </div>
         `)
@@ -299,7 +303,7 @@ function get_sample_bounds() {
         let tmp = ranges[k]
         // don't do anything if it's the same ranges as when the plot loaded.
         if (Math.abs(tmp.min - ranges[k].omin) < 0.005 && Math.abs(tmp.max - ranges[k].omax) < 0.005) {
-                continue
+            continue
         }
         // remove sample- prefix
         sample_bounds[k.substring(7)] = [tmp.min, tmp.max]
@@ -340,7 +344,7 @@ function get_passing_idxs() {
         } else {
             var tmp = ranges[k]
             if (Math.abs(tmp.min - ranges[k].omin) < 0.005 && Math.abs(tmp.max - ranges[k].omax) < 0.005) {
-                    continue
+                continue
             }
             info_bounds[k] = [ranges[k].min, ranges[k].max]
         }
@@ -421,9 +425,9 @@ function sort_trio(trio) {
     for (var i = 0; i < trio.violations.length; i++) { order[i] = i; }
 
     var roc_var = trio.tbl[ROC_VAR];
-    if(ROC_VAR == "AB"){
+    if (ROC_VAR == "AB") {
         var rv2 = new Array(roc_var.length)
-        for(var i=0; i < rv2.length; i++) {
+        for (var i = 0; i < rv2.length; i++) {
             rv2[i] = 0.5 - Math.abs(0.5 - roc_var[i])
         }
         roc_var = rv2
@@ -510,7 +514,7 @@ function plot_bool(values, name, vios) {
         } else {
             inh_counts[Number(values[k])]++
         }
-        if(!info_bools[Number(values[k])]) { continue; }
+        if (!info_bools[Number(values[k])]) { continue; }
         //if (idxs.size > 0 && !idxs.has(k)) { continue; }
         if (!filters_to_keep.includes(filters[k])) { continue; }
         if (vios[k]) {
@@ -581,40 +585,83 @@ function plot_field(values, name, label, is_fmt_field, vios) {
 
     let div = document.getElementById(`${prefix}${name}-hist-plot`)
     plots.hists[`${prefix}${name}`] = Plotly.newPlot(div, traces, histogram_layout, { displayModeBar: false });
-    ranges[`${prefix}${name}`] = {min: vlmin, max: vlmax, omin: vlmin, omax:vlmax}
+    ranges[`${prefix}${name}`] = { min: vlmin, max: vlmax, omin: vlmin, omax: vlmax }
 
-    let x = function(e) {
-        if (e === undefined) { return ; }
-        if(e === null || !("range" in e)) { // dbl-click to reset plot doesn't have range attr
-            jQuery(`#${prefix}${name}-hist-plot .select-outline`).remove();
+    let x = function (e) {
+        if (this.id == `${prefix}${name}-btn-close`) {
+            e = null
+            // simulates plotly deselect event when clicking button
+            Plotly.restyle(`${prefix}${name}-hist-plot`, {selectedpoints: [null]});
+        }
+        // single-click
+        if (e === undefined) { return; }
+        // de-select event; dbl-click to reset plot doesn't have range attr
+        if (e === null || !("range" in e)) {
+            // remove button for this filter
+            jQuery(`#${prefix}${name}-btn`).attr('hidden', true)
+            jQuery(`#${prefix}${name}-hist-plot .select-outline`).remove()
+            // pop filter from array
+            applied_filters = applied_filters.filter(i => i !== `${prefix}${name}`)
+            // hide filtering labels if no filters are active
+            if (applied_filters.length == 0) {
+                jQuery('#filtering-on').attr('hidden', true)
+                jQuery('#original-row-label').html('')
+                jQuery('#filtered-row').attr('hidden', true)
+            }
+            // reset the ranges
             ranges[`${prefix}${name}`].min = ranges[`${prefix}${name}`].omin
             ranges[`${prefix}${name}`].max = ranges[`${prefix}${name}`].omax
-        }  else {
+        // (re-)select event
+        } else {
+            // change button label
+            jQuery(`#${prefix}${name}-btn-lbl`).html(`${label} (${e.range.x[0].toFixed(1)} - ${e.range.x[1].toFixed(1)})`)
+            // show filtering label
+            jQuery(`#filtering-on`).attr('hidden', false)
+            jQuery('#original-row-label').html('Original')
+            jQuery('#filtered-row').attr('hidden', false)
+            applied_filters.push(`${prefix}${name}`)
+            // show the button
+            jQuery(`#${prefix}${name}-btn`).attr('hidden', false)
             ranges[`${prefix}${name}`].min = e.range.x[0]
             ranges[`${prefix}${name}`].max = e.range.x[1]
         }
         main_plot(new Set(get_passing_idxs()))
-        if(!is_fmt_field) {
-           var vmin = ranges[`${prefix}${name}`].min;
-           var vmax = ranges[`${prefix}${name}`].max;
+        if (!is_fmt_field) {
+            var vmin = ranges[`${prefix}${name}`].min;
+            var vmax = ranges[`${prefix}${name}`].max;
 
-           var marginal_idxs = [];
-           var filters_to_keep = jQuery('.slivar-filters:checked').map(function (v) { return this.name }).toArray();
-           for (var k = 0; k < values.length; k++) {
-               if (!filters_to_keep.includes(filters[k])) { continue; }
-               let v = values[k]
-               if(v >= vmin && v <= vmax) {
-                 marginal_idxs.push(k);
-               }
-           }
-           
-           let do_flip = jQuery(`#${prefix}${name}-flip`).is(":checked")
-           roc_trs = roc(values, vios, do_flip, name, filters_to_keep, new Set(marginal_idxs));
-           plots.rocs[`${prefix}${name}`] = Plotly.newPlot(`${prefix}${name}-roc-plot`, roc_trs, roc_layout, { displayModeBar: false });
+            var marginal_idxs = [];
+            var filters_to_keep = jQuery('.slivar-filters:checked').map(function (v) { return this.name }).toArray();
+            for (var k = 0; k < values.length; k++) {
+                if (!filters_to_keep.includes(filters[k])) { continue; }
+                let v = values[k]
+                if (v >= vmin && v <= vmax) {
+                    marginal_idxs.push(k);
+                }
+            }
+
+            let do_flip = jQuery(`#${prefix}${name}-flip`).is(":checked")
+            roc_trs = roc(values, vios, do_flip, name, filters_to_keep, new Set(marginal_idxs));
+            plots.rocs[`${prefix}${name}`] = Plotly.newPlot(`${prefix}${name}-roc-plot`, roc_trs, roc_layout, { displayModeBar: false });
         }
     }
+
+    // create filtering button for histogram
+    jQuery('#active-filters').append(`
+        <div class="btn-group mb-1 mr-1" id="${prefix}${name}-btn" hidden>
+            <button type="button" class="btn btn-outline-primary btn-sm cbtn" id="${prefix}${name}-btn-lbl" onclick="window.location.href='#${prefix}${name}-wrapper';">
+                ${label}
+            </button>
+            <button type="button" class="btn btn-primary btn-sm" id="${prefix}${name}-btn-close" data-name="${prefix}${name}" title="Remove ${label} filter">
+                <i class="fas fa-times fa-lg"></i>
+            </button>
+        </div>
+    `)
+    // add click functions
+    jQuery(`#${prefix}${name}-btn-close`).on('click', x)
     div.on('plotly_selected', x);
     div.on('plotly_deselect', x);
+    // plot the roc curve next to histogram
     if (!is_fmt_field) {
         plots.rocs[`${prefix}${name}`] = Plotly.newPlot(`${prefix}${name}-roc-plot`, roc_trs, roc_layout, { displayModeBar: false });
     }
@@ -639,7 +686,7 @@ function initialize_once() {
             let checked = ((!haspass) || (label == "PASS") ? "checked" : "");
             let active = checked == "checked" ? "active" : ""
             jQuery('#global-filters').append(`
-                <label class="btn btn-outline-primary m-1 p-1 ${active}">
+                <label class="btn btn-outline-primary m-1 p-1 ${active} cbtn">
                     <input type="checkbox" autocomplete="off" class="slivar-filters" ${checked} name=${label} value=${label} id=${label}-check>
                         ${label}
                     </input>
@@ -662,6 +709,16 @@ function redraw() {
     jQuery('#sample-sliders').empty()
     jQuery('#variant-filter-nav').empty()
     jQuery('#variant-sliders').empty()
+
+    // rebuild anchors and titles
+    jQuery('#variant-sliders').append(`
+        <a id="variant-filter-label"></a>
+        <h1>Variant Filters</h1>
+    `)
+    jQuery('#sample-sliders').append(`
+        <a id="sample-filter-label"></a>
+        <h1>Sample Filters</h1>
+    `)
 
     add_slider(variant_infos.variant_lengths, "variant-length", "Variant Lengths", false, variant_infos.violations)
     // variant filters: float

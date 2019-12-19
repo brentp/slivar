@@ -5,38 +5,25 @@
     <meta charset="utf-8" />
     <meta name="author" content="Brent Pedersen" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.3.1/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.11.2/css/all.min.css">
     <link rel="stylesheet" href="src/slivarpkg/style.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/14.0.2/nouislider.min.css">
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/plotly.js/1.49.5/plotly.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.3.1/js/bootstrap.bundle.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/14.0.2/nouislider.min.js"></script>
     <style>
         .header-offset {
             top: 500px;
         }
 
         .nav-offset {
-            top: 54px;
+            top: 44px;
         }
 
         .side-nav {
             overflow-y: scroll;
             top: 500;
             bottom: 0;
-        }
-
-        .noUi-tooltip {
-            display: none;
-        }
-
-        .noUi-active .noUi-tooltip {
-            display: block;
-        }
-
-        div.noUi-base div.noUi-connects div.noUi-connect {
-            background: #6F7F8C;
         }
 
         :target {
@@ -51,50 +38,72 @@
         }
 
         .text-info {
-            font-size: 0.9em !important;
-        
+            font-size: 0.7em !important;
+        }
+
+        /* minimum button width */
+        .cbtn {
+            min-width: 3em;
+        }
+
+        .future-space {
+            height: 70px;
+        }
+
+        .active-filters-wrapper {
+            max-height: 113px;
+            overflow: auto;
+        }
     </style>
 </head>
 
 <body>
-    <header class="bg-primary fixed-top pb-4 nav-offset">
+    <header class="bg-light fixed-top pb-3 pt-3 nav-offset">
         <div class="container-fluid">
             <div class="row">
                 <div class="col-7">
                     <div id="main-roc-plot"></div>
                 </div>
                 <div class="col-5 pt-1">
-                    <div class="row">
-                        <div class="col-6">
-                            <h5 class="text-light">Transmitted variants:</h5>
-                        </div>
-                        <div class="col-6">
-                            <h5 class="text-light" id="metrics-transmitted"></h5>
-                        </div>
-                    </div>
-                    <div class="row">
-                        <div class="col-6">
-                            <h5 class="text-light">Mendelian violations:</h5>
-                        </div>
-                        <div class="col-6">
-                            <h5 class="text-light" id="metrics-violations"></h5>
-                        </div>
-                    </div>
-                    <div class="row">
-                        <div class="col-6">
-                            <h5 class="text-light">False positive rate:</h5>
-                        </div>
-                        <div class="col-6">
-                            <h5 class="text-light" id="metrics-fpr"></h5>
-                        </div>
-                    </div>
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th scope="col"></th>
+                                <th scope="col">Transmitted variants</th>
+                                <th scope="col">Mendelian violations</th>
+                                <th scope="col"><abbr title="False positive rate">FPR</abbr></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <th scope="row" id="original-row-label"></th>
+                                <td id="original-variants"></td>
+                                <td id="original-violations"></td>
+                                <td id="original-fpr"></td>
+                            </tr>
+                            <tr id="filtered-row" hidden>
+                                <th scope="row" id="filtered-row-label">Filtered</th>
+                                <td id="filtered-variants"></td>
+                                <td id="filtered-violations"></td>
+                                <td id="filtered-fpr"></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <div class="row future-space"></div>
                     <!-- Button group to de-select active filters -->
+                    <div class="row active-filters-wrapper">
+                        <div class="col-12 flex-column">
+                            <label for="active-filters" id="filtering-on" hidden>Filtering on:</label>
+                            <div class="flex-grow-1" id="active-filters">
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
     </header>
 
-    <nav class="navbar fixed-top navbar-expand-lg navbar-dark bg-primary" id="navbar1">
+    <nav class="navbar fixed-top navbar-expand-lg navbar-dark bg-primary p-0" id="navbar1">
         <div class="container-fluid">
             <a class="navbar-brand mr-1 mb-1 mt-0" href="https://github.com/brentp/slivar">
                 slivar: <i>data-driven cut-offs</i>
@@ -107,7 +116,7 @@
 
     <div class="container-fluid">
         <div class="row">
-            <div class="col-2">
+            <div class="col-2 d-none d-lg-block">
                 <nav id="side-filter-nav" class="navbar-light header-offset side-nav position-fixed">
                     <nav class="nav nav-pills flex-column">
                         <a class="nav-link" href="#global-filter-label">Global Filters</a>
@@ -120,7 +129,7 @@
                     </nav>
                 </nav>
             </div>
-            <div class="col-10 header-offset">
+            <div class="col-lg-10 col-md-12 header-offset">
                 <main>
                     <!-- first row -->
                     <div class="container-fluid" data-spy="scroll" data-target="#side-filter-nav" data-offset="0">
@@ -140,8 +149,6 @@
                         <div class="row pb-4">
                             <!-- FILTER COLUMN -->
                             <div class="col-10" id="variant-sliders">
-                                <a id="variant-filter-label"></a>
-                                <h1>Variant Filters</h1>
                             </div>
 
                             <!-- MESSAGE COLUMN -->
@@ -152,8 +159,6 @@
                         <div class="row pb-4">
                             <!-- FILTER COLUMN -->
                             <div class="col-10" id="sample-sliders">
-                                <a id="sample-filter-label"></a>
-                                <h1>Sample Filters</h1>
                             </div>
 
                             <!-- MESSAGE COLUMN -->
