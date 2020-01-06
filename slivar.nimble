@@ -1,3 +1,4 @@
+
 import ospaths
 template thisModuleFile: string = instantiationInfo(fullPaths = true).filename
 
@@ -18,7 +19,7 @@ license       = "MIT"
 
 # Dependencies
 
-requires "hts >= 0.2.20", "lapper", "nimgen", "https://github.com/brentp/duktape-nim#dev"
+requires "hts >= 0.3.0", "lapper", "nimgen", "https://github.com/brentp/duktape-nim#dev"
 requires "docopt", "https://github.com/brentp/nim-minizip#dev", "argparse >= 0.7.0"
 requires "https://github.com/brentp/zip#dev"
 srcDir = "src"
