@@ -19,7 +19,7 @@ for df in [df_exome, df_genome]:
 
 gqs = [x for x in df_exome.GQ.unique() if x != 1]
 
-fig, axes = plt.subplots(len(gqs), 2, figsize=(12, 7), sharey=True)
+fig, axes = plt.subplots(len(gqs), 2, figsize=(12, 7), sharey=True, sharex=True)
 assert len(df_exome.GQ.unique()) == len(df_genome.GQ.unique())
 
 for ci, df in enumerate((df_exome, df_genome)):
@@ -54,13 +54,15 @@ for ci, df in enumerate((df_exome, df_genome)):
             ax.set_xlim(0.0, 0.0011)
         else:
             ax.set_xlim(0.0, 0.008)
-        """
         ax.set_ylim(0.8, 1)
+        """
 
-        if ci == 1:
-            ax.set_xlim(0, 0.005)
-        else:
-            ax.set_xlim(0, 0.005)
+        #if ci == 1:
+        #    ax.set_xlim(0, 0.005)
+        #else:
+        #    ax.set_xlim(0, 0.005)
+        ax.set_xlim(0, 0.01)
+        #ax.set_xlim(0, 0.004)
 
         sns.despine()
         if i == 1 and ci == 0:
@@ -68,8 +70,8 @@ for ci, df in enumerate((df_exome, df_genome)):
         ax.set_title("Genotype-quality cutoff: %d" % gqs[i])
         ax.set_ylabel("Transmission rate")
 
-        if i != len(gqs) - 1:
-            ax.set_xticklabels([])
+        #if i != len(gqs) - 1:
+        #    ax.set_xticklabels([])
 
 axes[len(axes)-1, 0].set_xlabel("Mendelian-violation rate")
 axes[len(axes)-1, 1].set_xlabel("Mendelian-violation rate")

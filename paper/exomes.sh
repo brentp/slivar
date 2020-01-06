@@ -6,7 +6,7 @@ fasta=/data/human/GRCh38_full_analysis_set_plus_decoy_hla.fa
 LCR=/data/human/LCR-hs38.bed.gz
 mkdir -p vcfs/
 
-cohort=exome-before
+cohort=exome-after
 export SLIVAR_SUMMARY_FILE=$cohort.summary.tsv PATH=.:$PATH
 
 here="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
@@ -47,21 +47,60 @@ DENOVO
 DONE
 export SLIVAR_SUMMARY_FILE=$cohort.summary.tsv
 echo $(which slivar)
+bcf=../tt.bcf
+ped=../t.ped
+
+time ./slivar expr --vcf $bcf \
+    --ped $ped \
+    --pass-only \
+    --js /home/brentp/src/slivar/js/slivar-functions.js \
+    -g /home/brentp/src/slivar/gnomad.hg38.genomes.v3.fix.zip \
+    --info 'INFO.gnomad_popmax_af < 0.01 && variant.FILTER == "PASS" && variant.ALT[0] != "*"' \
+    --trio 'denovo:INFO.gnomad_popmax_af < 0.001 && denovo(kid, mom, dad)' \
+    --trio 'recessive:recessive(kid, mom, dad)' \
+    --trio 'x_denovo:(variant.CHROM == "chrX" || variant.CHROM == "X") && x_denovo(kid, mom, dad)' \
+    --trio 'x_recessive:(variant.CHROM == "chrX" || variant.CHROM == "X") && x_recessive(kid, mom, dad)' \
+    --trio "auto_dom:fake_auto_dom(kid, mom, dad) && variant.CHROM != 'chrX' && variant.CHROM != 'X' && INFO.gnomad_popmax_af < 0.001 && INFO.gnomad_nhomalt < 4" \
+    --trio 'comphet_side:INFO.gnomad_nhomalt < 10 && INFO.gnomad_popmax_af < 0.005 && comphet_side(kid, mom, dad)' \
+    -o vcfs/$cohort.vcf
+    #| bcftools csq -s - --ncsq 40 -g $gff -l -f $fasta - -o vcfs/$cohort.vcf
+exit
+
 # now get plot of total variant counts:
 slivar expr --vcf $bcf --ped $ped \
     --pass-only \
     -g /home/brentp/src/slivar/gnomad.hg38.genomes.v3.fix.zip \
-    --js /home/brentp/src/slivar/js/slivar-functions.js \
     --info "variant.FILTER == 'PASS' && variant.ALT[0] != '*' && INFO.gnomad_popmax_af < 0.01" \
     --trio "denovo:mom.hom_ref && dad.hom_ref && kid.het && kid.GQ >= 5 && mom.GQ >= 5 && dad.GQ >= 5 && kid.AB >= 0.2 && kid.AB <= 0.8 && INFO.gnomad_popmax_af < 0.001" \
     --trio "recessive:recessive(kid, mom, dad)" \
     --trio "x_denovo:x_denovo(kid, mom, dad) && (variant.CHROM == 'chrX' || variant.CHROM == 'X')" \
     --trio "x_recessive:x_recessive(kid, mom, dad) && (variant.CHROM == 'chrX' || variant.CHROM == 'X')" \
-    --trio "auto_dom:fake_auto_dom(kid, mom, dad) && variant.CHROM != 'chrX' && variant.CHROM != 'X' && INFO.gnomad_popmax_af < 0.001 && INFO.gnomad_nhomalt < 4" \
     --trio "comphet_side:comphet_side(kid, mom, dad) && INFO.gnomad_nhomalt < 10 && INFO.gnomad_popmax_af < 0.005" \
     | bcftools csq -s - --ncsq 40 -g $gff -l -f $fasta - -o vcfs/$cohort.vcf
+exit
+<<XX
+XX
+
+<<DONE
+./slivar expr --vcf $bcf \
+    --ped $ped \
+    --pass-only \
+    --js /home/brentp/src/slivar/js/slivar-functions.js \
+    -g /home/brentp/src/slivar/gnomad.hg38.genomes.v3.fix.zip \
+    -g /home/brentp/src/slivar/gnomad.hg38.v2.zip \
+    --info 'INFO.gnomad_popmax_af < 0.01 && variant.FILTER == "PASS" && variant.ALT[0] != "*"' \
+    --family-expr 'denovo:fam.every(segregating_denovo) && INFO.gnomad_popmax_af < 0.001' \
+    --family-expr 'recessive:fam.every(segregating_recessive)' \
+    --family-expr 'x_denovo:(variant.CHROM == "X" || variant.CHROM == "chrX") && fam.every(segregating_denovo_x) && INFO.gnomad_popmax_af < 0.001' \
+    --family-expr 'x_recessive:(variant.CHROM == "X" || variant.CHROM == "chrX") && fam.every(segregating_recessive_x)' \
+    --trio "auto_dom:fake_auto_dom(kid, mom, dad) && variant.CHROM != 'chrX' && variant.CHROM != 'X' && INFO.gnomad_popmax_af < 0.001 && INFO.gnomad_nhomalt < 4" \
+    --trio 'comphet_side:comphet_side(kid, mom, dad) && INFO.gnomad_nhomalt_controls < 10 && INFO.gnomad_popmax_af < 0.005' \
+    | bcftools csq -s - --ncsq 40 -g $gff -l -f $fasta - -o vcfs/$cohort.vcf
+DONE
 
 export SLIVAR_SUMMARY_FILE=$cohort.ch.summary.tsv
-slivar compound-hets --sample-field comphet_side --sample-field denovo -p $ped -v vcfs/$cohort.vcf > vcfs/$cohort.ch.vcf
+#ped=../t.ped
+#echo '!!!!!!!!!!!!!!!! using t.ped'
+./slivar compound-hets --sample-field comphet_side --sample-field denovo -p $ped -v vcfs/$cohort.vcf > vcfs/$cohort.ch.vcf
 
 python plot-final-exome.py $cohort.summary.tsv $cohort.ch.summary.tsv

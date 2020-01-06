@@ -126,6 +126,7 @@ for v in ivcf:
     last_tid = v.rid
     if $v.CHROM in ["X", "chrX"]: break
     stderr.write_line "at:", $v.CHROM, " goodABs[0].len:", goodABs[gq_cutoffs[0]].len
+  if v.FILTER != "PASS": continue
   if exclude != nil and stripChr($v.CHROM) in exclude and exclude[stripChr($v.CHROM)].find(v.start, v.stop, empty):
     continue
 

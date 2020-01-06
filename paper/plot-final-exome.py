@@ -1,4 +1,5 @@
 import pandas as pd
+import numpy as np
 import seaborn as sns
 from matplotlib import pyplot as plt
 
@@ -19,16 +20,19 @@ dfo.drop("auto_dom", inplace=True, axis="columns")
 
 df = dfo.melt(value_name="number_of_variants")
 
+df.number_of_variants += np.random.random(size=df.shape[0]) / 2.5
+size=3
+
 
 fig, axes = plt.subplots(1, 2, figsize=(7, 7), gridspec_kw={'width_ratios': [3, 1]})
 #axes = [axes]
 sns.swarmplot(x="variable", y="number_of_variants",
-       data=df, ax=axes[0], palette=colors)
+       data=df, ax=axes[0], palette=colors, size=size)
 
 print(ad.head())
 
 sns.swarmplot(y="auto_dom", data=ad, ax=axes[1],
-        palette=colors)
+        palette=colors, size=size)
 
 axes[1].set_ylabel("")
 axes[0].set_xlabel("Inheritance mode", horizontalalignment='left')
