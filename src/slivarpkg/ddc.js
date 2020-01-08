@@ -35,8 +35,10 @@ const histogram_layout = {
 const roc_layout = {
     xaxis: { automargin: true, title: { text: "Violations", standoff: 20 } },
     yaxis: { automargin: true, title: { text: "Transmitted", standoff: 20 }, rangemode: 'tozero' },
+    hovermode: "y",
+    hoverinfo:"text",
     height: aux_plot_height,
-    margin: { t: 10, b: 20, r: 10, l: 30, pad: 0 },
+    margin: { t: 10, b: 20, r: 20, l: 30, pad: 0 },
     legend: {
         xanchor: "right",
         yanchor: "top",
@@ -134,19 +136,24 @@ function roc(values, violations, invert, name, filters_to_keep, idxs) {
     if (sorted[key] == undefined) {
         sorted[key] = values.map(function (val, i) {
             if (invert) { val = -val };
-            return [val, violations[i]]
+            return [val, violations[i], i]
         })
         sorted[key].sort(function (a, b) {
             return a[0] - b[0]
         })
     }
     var Aorig = sorted[key];
-    var Afilt = Aorig.filter(function (val, i) {
+    var Afilt = Aorig.filter(function (pair, pi) {
+        let i = pair[2];
+
         return (idxs.size == 0 || idxs.has(i)) && filters_to_keep.includes(filters[i])
     })
     //console.timeEnd("deco-sort " + name)
     let N = Aorig.length
-    var txt = "INFO." + name + (invert ? ">" : "<") + " "
+    var txt = "INFO." + name + " " + (invert ? ">" : "<") + " "
+    if(name == "variant-length") {
+        txt = name + " " + (invert ? ">" : "<") + " "
+    }
     // we can't just iterate over A, we also have to track the change in
     // cutoff so we don't draw a smooth curve when the cutoff value hasn't
     // changed.
@@ -176,11 +183,12 @@ function roc(values, violations, invert, name, filters_to_keep, idxs) {
                 // but might be good to leave as numbers for now.
                 result[Ai].x.push(fps)
                 result[Ai].y.push(tps)
-                result[Ai].text.push(`${txt} ${val}. FDR: ${(fps / (tps + fps)).toFixed(3)}`)
+                result[Ai].text.push(`${txt} ${val}<br>FDR: ${(fps / (tps + fps)).toFixed(3)}`)
             }
         })
         result[Ai].x.push(fps)
         result[Ai].y.push(tps)
+        //console.log((fps / (tps + fps)).toFixed(3), "fps:", fps, " AI:", Ai)
         result[Ai].text.push(`${txt} ${A[A.length - 1][0]} FDR: ${(fps / (tps + fps)).toFixed(3)}`)
     })
     //console.timeEnd("prepare traces " + name)
@@ -259,6 +267,10 @@ function add_slider(values, name, label, is_fmt_field, violations) {
                 <div class="row">
                     <div class="col-12 p-1" id=${prefix}${name}-hist-plot></div>
                 </div>
+                <div class="row">
+                    <div class="col-8 text-monospace" id="${prefix}${name}-code-field"></div>
+                    <div class="col-4 text-right"></div>
+                </div>
             </div>
         `)
     } else {
@@ -275,7 +287,8 @@ function add_slider(values, name, label, is_fmt_field, violations) {
                     <div class="col-4 p-1" id=${prefix}${name}-roc-plot></div>
                 </div>
                 <div class="row">
-                    <div class="col-8"></div>
+                    <div class="col-8 text-monospace" id="${prefix}${name}-code-field">
+                    </div>
                     <div class="col-4 text-right">
                         <div class="btn-group-toggle" data-toggle="buttons">
                             <label class="btn btn-sm btn-outline-primary">
@@ -523,8 +536,8 @@ function plot_bool(values, name, vios) {
             filt_inh_counts[Number(values[k])]++
         }
     }
-    console.log(vio_counts, filt_vio_counts)
-    console.log(Y, N)
+    //console.log(vio_counts, filt_vio_counts)
+    //console.log(Y, N)
 
     // unfilt, filt
     var vio = [0, 0]
@@ -553,7 +566,7 @@ function plot_field(values, name, label, is_fmt_field, vios) {
     // update_only is used only when is_fmt_field to add samples to an existing
     // fmt roc plot
     var [vlmin, vlmax] = arr_min_max(values);
-    console.log("name:", name, [vlmin, vlmax])
+    //console.log("name:", name, [vlmin, vlmax])
     var filters_to_keep = jQuery('.slivar-filters:checked').map(function (v) { return this.name }).toArray();
 
     var inh_vals = []
@@ -599,6 +612,7 @@ function plot_field(values, name, label, is_fmt_field, vios) {
         if (e === null || !("range" in e)) {
             // remove button for this filter
             jQuery(`#${prefix}${name}-btn`).attr('hidden', true)
+            jQuery(`#${prefix}${name}-code-field`).html('')
             jQuery(`#${prefix}${name}-hist-plot .select-outline`).remove()
             // pop filter from array
             applied_filters = applied_filters.filter(i => i !== `${prefix}${name}`)
@@ -614,7 +628,20 @@ function plot_field(values, name, label, is_fmt_field, vios) {
         // (re-)select event
         } else {
             // change button label
-            jQuery(`#${prefix}${name}-btn-lbl`).html(`${label} (${e.range.x[0].toFixed(1)} - ${e.range.x[1].toFixed(1)})`)
+            if(label != "Variant Lengths") {
+                jQuery(`#${prefix}${name}-btn-lbl`).html(`${label} (${e.range.x[0].toFixed(1)} - ${e.range.x[1].toFixed(1)})`)
+                // show select expression
+                jQuery(`#${prefix}${name}-code-field`).html(`
+                    <span class="small" id="${prefix}${name}-expression">INFO.${label} >= ${e.range.x[0].toFixed(3)} && INFO.${label} <= ${e.range.x[1].toFixed(3)}</span>
+                    <button type="button" class="btn btn-sm" id="${prefix}${name}-btn-copy" data-name="${prefix}${name}" data-toggle="tooltip" data-placement="top" title="Copy to clipboard">
+                        <i class="far fa-copy"></i>
+                    </button>
+                `)
+                jQuery(`#${prefix}${name}-btn-copy`).on('click', copy_code_function)
+                jQuery(`#${prefix}${name}-btn-copy`).tooltip('enable')
+            } else {
+                jQuery(`#${prefix}${name}-btn-lbl`).html(`${label} (${e.range.x[0].toFixed(1)} - ${e.range.x[1].toFixed(1)})`)
+            }
             // show filtering label
             jQuery(`#filtering-on`).attr('hidden', false)
             jQuery('#original-row-label').html('Original')
@@ -652,7 +679,7 @@ function plot_field(values, name, label, is_fmt_field, vios) {
             <button type="button" class="btn btn-outline-primary btn-sm cbtn" id="${prefix}${name}-btn-lbl" onclick="window.location.href='#${prefix}${name}-wrapper';">
                 ${label}
             </button>
-            <button type="button" class="btn btn-primary btn-sm" id="${prefix}${name}-btn-close" data-name="${prefix}${name}" title="Remove ${label} filter">
+            <button type="button" class="btn btn-primary btn-sm" id="${prefix}${name}-btn-close" data-name="${prefix}${name}" title="Remove filter">
                 <i class="fas fa-times fa-lg"></i>
             </button>
         </div>
@@ -665,6 +692,17 @@ function plot_field(values, name, label, is_fmt_field, vios) {
     if (!is_fmt_field) {
         plots.rocs[`${prefix}${name}`] = Plotly.newPlot(`${prefix}${name}-roc-plot`, roc_trs, roc_layout, { displayModeBar: false });
     }
+}
+
+function copy_code_function() {
+    let label = this.getAttribute('data-name')
+    let $temp = $("<input>")
+    $("body").append($temp)
+    $temp.val($(`#${label}-expression`).text()).select()
+    document.execCommand("copy")
+    $temp.remove()
+    // notify action
+    jQuery(`#${label}-btn-copy`).attr("title", "Copied!").tooltip("_fixTitle").tooltip("show").attr("title", "Copy to clipboard").tooltip("_fixTitle");
 }
 
 function initialize_once() {
@@ -766,4 +804,6 @@ $(document).ready(function () {
         target: '#side-filter-nav',
         offset: 515,
     })
+    // initialize tooltips
+    $('[data-toggle="tooltip"]').tooltip()
 })
