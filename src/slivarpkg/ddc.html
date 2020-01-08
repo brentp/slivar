@@ -71,7 +71,7 @@
                                 <th scope="col"></th>
                                 <th scope="col">Transmitted variants</th>
                                 <th scope="col">Mendelian violations</th>
-                                <th scope="col"><abbr title="False positive rate">FPR</abbr></th>
+                                <th scope="col"><abbr title="False positive rate" data-toggle="tooltip">FPR</abbr></th>
                             </tr>
                         </thead>
                         <tbody>
@@ -91,11 +91,10 @@
                     </table>
                     <div class="row future-space"></div>
                     <!-- Button group to de-select active filters -->
-                    <div class="row active-filters-wrapper">
+                    <div class="row">
                         <div class="col-12 flex-column">
                             <label for="active-filters" id="filtering-on" hidden>Filtering on:</label>
-                            <div class="flex-grow-1" id="active-filters">
-                            </div>
+                            <div class="flex-grow-1 active-filters-wrapper" id="active-filters"></div>
                         </div>
                     </div>
                 </div>
@@ -132,37 +131,25 @@
             <div class="col-xl-10 col-lg-12 header-offset">
                 <main>
                     <!-- first row -->
-                    <div class="container-fluid" data-spy="scroll" data-target="#side-filter-nav" data-offset="0">
+                    <div class="container-fluid pr-2" data-spy="scroll" data-target="#side-filter-nav" data-offset="0">
                         <!-- <div class="container-fluid"> -->
                         <div class="row pb-4">
                             <!-- FILTER COLUMN -->
-                            <div class="col-10" id="filter-column">
+                            <div class="col-12" id="filter-column">
                                 <a id="global-filter-label"></a>
                                 <h1>Global Filters</h1>
                             </div>
+                        </div>
 
-                            <!-- MESSAGE COLUMN -->
-                            <div class="col-2">
+                        <div class="row pb-4">
+                            <!-- FILTER COLUMN -->
+                            <div class="col-12" id="variant-sliders">
                             </div>
                         </div>
 
                         <div class="row pb-4">
                             <!-- FILTER COLUMN -->
-                            <div class="col-10" id="variant-sliders">
-                            </div>
-
-                            <!-- MESSAGE COLUMN -->
-                            <div class="col-2">
-                            </div>
-                        </div>
-
-                        <div class="row pb-4">
-                            <!-- FILTER COLUMN -->
-                            <div class="col-10" id="sample-sliders">
-                            </div>
-
-                            <!-- MESSAGE COLUMN -->
-                            <div class="col-2">
+                            <div class="col-12" id="sample-sliders">
                             </div>
                         </div>
                     </div>
@@ -170,7 +157,6 @@
             </div>
         </div>
     </div>
-
     <script>
         var nan = NaN; // hack to support json dumped with NaN values.
         var variant_infos = <VARIANT_JSON>;
