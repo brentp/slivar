@@ -155,7 +155,7 @@ proc get_variant_length(v:Variant): int =
     if v.info.get("SVLEN", lengths) == Status.OK:
       length = lengths[0]
     else:
-      length = v.stop - v.start - 1
+      length = int(v.stop - v.start - 1)
       var svt:string
       if v.info.get("SVTYPE", svt) == Status.OK and svt == "DEL":
         length = -length
@@ -199,12 +199,13 @@ proc check*[T: VariantInfo|seq[Trio]](ivcf:VCF, fields: seq[string], ftype:BCF_H
           quit &"requested info field {f} not found in header"
   return fields
 
-proc ddc_main*() =
+proc ddc_main*(dropfirst:bool=false) =
   var p = newParser("slivar ddc"):
     #option("-x", help="haploid (x) chromosome", default="chrX")
     option("--chrom", help="limit to this chromosome only", default="chr15")
     option("--info-fields", help="comma-delimited list of info fields")
     option("--fmt-fields", help="comma-delimited list of sample fields")
+    option("--html", default="slivar-ddc.html", help="path to output file")
     arg("vcf")
     arg("ped")
 
@@ -306,9 +307,10 @@ proc ddc_main*() =
 
 
   var fh:File
-  if not open(fh, "ddc.html", fmWrite):
-    quit "couldn't open output hmlt file"
+  if not open(fh, opts.html, fmWrite):
+    quit "couldn't open output html file:" & opts.html
   fh.write(html)
+  stderr.write_line "[slivar] wrote output to:" & opts.html
   fh.close
 
 

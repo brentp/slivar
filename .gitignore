@@ -5,6 +5,7 @@ src/slivar
 src/slivarpkg/evaluator
 src/slivarpkg/gnotate
 src/slivarpkg/groups
+src/slivarpkg/ddc
 src/slivarpkg/pracode
 src/slivarpkg/sl_gnotate
 __tmp.groups

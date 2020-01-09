@@ -4,6 +4,7 @@ from ./slivarpkg/version import slivarVersion, slivarGitCommit
 import ./slivarpkg/evaluator
 import ./slivarpkg/groups
 import ./slivarpkg/comphet
+import ./slivarpkg/ddc
 import ./slivarpkg/duodel
 import ./slivarpkg/gnotate
 import ./slivarpkg/make_gnotate
@@ -195,6 +196,7 @@ proc main*() =
     "compound-hets": pair(f:comphet.main, description:"find compound hets in a (previously filtered and gene-annotated) VCF"),
     "tsv": pair(f:tsv.main, description:"converted a filtered VCF to a tab-separated-value spreadsheet for final examination"),
     "duo-del": pair(f:duodel.main, description: "find large denovo deletions in parent-child duos using non-transmission from SNP VCF"),
+    "ddc": pair(f:ddc.ddc_main, description: "data-driven cutoffs using mendelian violations and transmissions"),
     }.toOrderedTable
 
   if getEnv("SLIVAR_QUIET") == "":

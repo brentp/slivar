@@ -2,7 +2,7 @@ const ROC_VAR = "GQ"
 var ROC_SIGN = ROC_VAR == "AB" ? "<" : ">"
 var ranges = { samples: {} }
 var plots = { hists: {}, rocs: {} }
-var stats = {}
+var stats = {filtered: {}}
 var sorted = {}
 // track select/de-select events
 var applied_filters = []
@@ -78,9 +78,6 @@ function set_stats() {
 
 function update_stats(idxs) {
     let fpr = (stats.n_violations / (stats.n_violations + stats.n_transmitted)).toFixed(3)
-    if (stats.filtered == undefined) {
-        stats.filtered = {}
-    }
     stats.filtered.n_violations = 0
     stats.filtered.n_variants = idxs.size
     stats.filtered.n_transmitted = 0
@@ -89,21 +86,24 @@ function update_stats(idxs) {
     })
     stats.filtered.n_transmitted = idxs.size - stats.filtered.n_violations
     // no filters have been applied
-    if (isNaN(stats.filtered.n_transmitted)) {
-        jQuery('#original-variants').html(`${stats.n_transmitted}`)
-        jQuery('#original-violations').html(`${stats.n_violations}`)
-        jQuery('#original-fpr').html(fpr)
-    } else {
-        let f_fpr
+    jQuery('#original-variants').html(`${stats.n_transmitted}`)
+    jQuery('#original-violations').html(`${stats.n_violations}`)
+    jQuery('#original-fpr').html(fpr)
+    if(idxs.size != 0){
+        var f_fpr = 0
         if (stats.filtered.n_violations + stats.filtered.n_transmitted > 0) {
             f_fpr = (stats.filtered.n_violations / (stats.filtered.n_violations + stats.filtered.n_transmitted)).toFixed(3)
-        } else {
-            f_fpr = 0
         }
         jQuery('#filtered-variants').html(`${stats.filtered.n_transmitted} <span class="text-info">(${(100 * stats.filtered.n_transmitted / stats.n_transmitted).toFixed(2)}%)</span>`)
         jQuery('#filtered-violations').html(`${stats.filtered.n_violations} <span class="text-info">(${(100 * stats.filtered.n_violations / stats.n_violations).toFixed(2)}%)</span>`)
         jQuery('#filtered-fpr').html(`${f_fpr}`)
     }
+
+    jQuery('#filtering-on').attr('hidden', applied_filters.length == 0)
+    if(applied_filters.length == 0){
+                jQuery('#original-row-label').html('')
+    }
+    jQuery('#filtered-row').attr('hidden', applied_filters.length == 0)
 }
 
 function iNumb(opts) {
@@ -231,12 +231,12 @@ function add_bool(values, name, idxs) {
                     <div class="btn-group-toggle" data-toggle="buttons">
                         <label class="btn btn-outline-primary m-1 p-1 active cbtn">
                             <input type="checkbox" autocomplete="off" class="slivar-checkbox slivar-bool-checkbox slivar-changer" checked name=${name}-yes id=${name}-yes>
-                                Yes
+                                ${name}
                             </input>
                         </label>
                         <label class="btn btn-outline-primary m-1 p-1 active cbtn">
                             <input type="checkbox" autocomplete="off" class="slivar-checkbox slivar-bool-checkbox slivar-changer" checked name=${name}-no id=${name}-no>
-                                No
+                                not ${name}
                             </input>
                         </label>
                     </div>
@@ -467,9 +467,12 @@ function sample_skippable(trio, sample_bounds, i) {
 function main_plot(idxs) {
     // main-roc-plot
     console.time('main-plot')
+    if(idxs != undefined) {
+        console.log("idxs:", idxs.size)
+    }
     var traces = [];
     // we only plot points that pass the INFO filters
-    if (idxs == undefined) {
+    if (idxs == undefined || idxs.size == 0) {
         idxs = new Set(get_passing_idxs())
     }
     update_stats(idxs)
@@ -518,6 +521,15 @@ function plot_bool(values, name, vios) {
     let filters = variant_infos.filters;
     var Y = jQuery(`#${name}-yes`).is(":checked")
     var N = jQuery(`#${name}-no`).is(":checked")
+    applied_filters = applied_filters.filter(i => ((i !== `${name}-yes`) && (i !== `${name}-no`)))
+    // if both are selected it's same as not filtering
+    if(Y && !N){
+       applied_filters.push(`${name}-yes`)
+    }
+    if(N && !Y){
+       applied_filters.push(`${name}-no`)
+    }
+
 
     let info_bools = [N, Y];
 
@@ -600,7 +612,7 @@ function plot_field(values, name, label, is_fmt_field, vios) {
     plots.hists[`${prefix}${name}`] = Plotly.newPlot(div, traces, histogram_layout, { displayModeBar: false });
     ranges[`${prefix}${name}`] = { min: vlmin, max: vlmax, omin: vlmin, omax: vlmax }
 
-    let x = function (e) {
+    let update = function (e) {
         if (this.id == `${prefix}${name}-btn-close`) {
             e = null
             // simulates plotly deselect event when clicking button
@@ -610,10 +622,6 @@ function plot_field(values, name, label, is_fmt_field, vios) {
         if (e === undefined) { return; }
         // de-select event; dbl-click to reset plot doesn't have range attr
         if (e === null || !("range" in e)) {
-            // remove button for this filter
-            jQuery(`#${prefix}${name}-btn`).attr('hidden', true)
-            jQuery(`#${prefix}${name}-code-field`).html('')
-            jQuery(`#${prefix}${name}-hist-plot .select-outline`).remove()
             // pop filter from array
             applied_filters = applied_filters.filter(i => i !== `${prefix}${name}`)
             // hide filtering labels if no filters are active
@@ -685,9 +693,9 @@ function plot_field(values, name, label, is_fmt_field, vios) {
         </div>
     `)
     // add click functions
-    jQuery(`#${prefix}${name}-btn-close`).on('click', x)
-    div.on('plotly_selected', x);
-    div.on('plotly_deselect', x);
+    jQuery(`#${prefix}${name}-btn-close`).on('click', update)
+    div.on('plotly_selected', update);
+    div.on('plotly_deselect', update);
     // plot the roc curve next to histogram
     if (!is_fmt_field) {
         plots.rocs[`${prefix}${name}`] = Plotly.newPlot(`${prefix}${name}-roc-plot`, roc_trs, roc_layout, { displayModeBar: false });
@@ -752,6 +760,7 @@ function redraw() {
     jQuery('#variant-sliders').append(`
         <a id="variant-filter-label"></a>
         <h1>Variant Filters</h1>
+        (drag to select a region in each plot to choose cutoffs)
     `)
     jQuery('#sample-sliders').append(`
         <a id="sample-filter-label"></a>
@@ -792,7 +801,6 @@ function redraw() {
     })
 
     main_plot()
-    update_stats([])
 }
 
 

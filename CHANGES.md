@@ -1,3 +1,11 @@
+v0.1.9
+======
++ new command `slivar ddc`: https://github.com/brentp/slivar/wiki/data-driven-cutoffs
++ fix for slivar compound-hets reporting orphaned variants in some cases (thanks Steve Boyden for reporting)
++ update to htslib >= 1.10
++ change recommended setup for rare disease to use family-based approach, rather than trios as it is more
+  flexible and now well-tested. (https://github.com/brentp/slivar/wiki/rare-disease#full-analysis-for-trios-with-unaffected-parents)
+
 v0.1.8
 ======
 + fix bug when subsetting vcfs (ped file contained subset of samples in vcf). Thanks Matt for reporting.

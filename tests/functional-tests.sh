@@ -47,7 +47,7 @@ assert_equal "0" "$(bcftools view -H -i 'FMT/DP[0] <= 10 || FMT/DP[1] <= 10 || F
 assert_equal 11 $(bcftools view -H xx.bcf | wc -l)
 
 
-run check_denovo_with_filter $exe expr --js js/my.js -v tests/ashk-trio.vcf.gz --pass-only --trio "denovo:variant.FILTER == 'PASS' && kid.alts == 1 && mom.alts == 0 && dad.alts == 0 && (mom.AD[1] + dad.AD[1]) < 2 && kid.GQ > 10 && mom.GQ > 10 && dad.GQ > 10 && kid.DP > 10 && mom.DP > 10 && dad.DP > 10" --ped tests/ashk-trio.ped -o xx.bcf
+run check_denovo_with_filter $exe expr --js js/slivar-functions.js -v tests/ashk-trio.vcf.gz --pass-only --trio "denovo:variant.FILTER == 'PASS' && kid.alts == 1 && mom.alts == 0 && dad.alts == 0 && (mom.AD[1] + dad.AD[1]) < 2 && kid.GQ > 10 && mom.GQ > 10 && dad.GQ > 10 && kid.DP > 10 && mom.DP > 10 && dad.DP > 10" --ped tests/ashk-trio.ped -o xx.bcf
 
 assert_exit_code 0
 assert_equal 4 $(bcftools view -H xx.bcf | wc -l)
