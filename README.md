@@ -217,7 +217,7 @@ More information on `make-gnotate` is [in the wiki](https://github.com/brentp/sl
 This command is used to find compound heterozygous variants (with phasing-by-inheritance) in trios.
 It is used after filtering to rare(-ish) heterozygotes.
 
-See a full description of use [here](https://github.com/brentp/slivar/wiki/rare-disease#compound-heterozygotes)
+See a full description of use [here](https://github.com/brentp/slivar/wiki/compound-heterozygotes)
 
 ### tsv
 
