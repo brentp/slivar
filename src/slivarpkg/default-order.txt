@@ -42,6 +42,8 @@ mature_miRNA
 initiator_codon
 miRNA
 non_coding_transcript_exon
+non_coding_exon
+nc_transcript
 exon_region
 conserved_intron
 intron

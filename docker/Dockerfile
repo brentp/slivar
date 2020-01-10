@@ -16,7 +16,7 @@ RUN yum install -y git libzip-devel curl wget zlib-devel xz-devel bzip2-devel op
     cp libdeflate.a /usr/local/lib && cp libdeflate.h /usr/local/include && \
     cd .. && rm -rf libdeflate && \
     git clone https://github.com/samtools/htslib && \
-    cd htslib && git checkout 1.9 && autoheader && autoconf && \
+    cd htslib && git checkout 1.10 && autoheader && autoconf && \
     ./configure --enable-libcurl --with-libdeflate && \
     cd .. && make -j4 CFLAGS="-fPIC -O3" -C htslib install && \
     echo "/usr/local/lib" >> etc/ld.so.conf && \

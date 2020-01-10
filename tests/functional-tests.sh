@@ -135,6 +135,10 @@ assert_exit_code 0
 assert_in_stderr "sample	dn	dnf
 HG002	3	3"
 
+run check_vcf_CSQ $exe expr --pass-only --info "debug(VCF.CSQ);" -v tests/test.vcf
+assert_exit_code 0
+assert_in_stderr "CONSEQUENCE,CODONS,AMINO_ACIDS,GENE,SYMBOL,FEATURE,EXON,POLYPHEN,SIFT,PROTEIN_POSITION,BIOTYPE"
+
 
 run check_phenotype $exe expr --pass-only -p tests/ashk-trio.ped -v tests/ashk-trio.vcf.gz --trio "dn:INFO.impactful && mom.hom_ref && kid.het && dad.hom_ref" --family-expr 'dnf:INFO.impactful && fam.every(function(s) {var aff=s.phenotype == "2"; return s.het == aff && s.hom_ref == !aff})'
 assert_exit_code 0
@@ -154,4 +158,6 @@ run check_make_gnotate_clinvar $exe make-gnotate -f ALLELEID:clinvar_a tests/cli
 assert_exit_code 0
 run check_make_gnotate_clinvar_annotation $exe expr -g _clinvar.test.zip -v tests/clinvar_20191007.vcf.gz -o _clinvar_self.vcf.gz
 assert_exit_code 0
+
+
 

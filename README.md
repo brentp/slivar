@@ -32,6 +32,7 @@ slivar has sub-commands:
  * [compound-het](#compound-het)
  * [tsv](#tsv)
  * [duo-del](#duo-del)
+ * [ddc](#data-driven-cutoffs)
 * [Attributes](#attributes)
 * [How it works](#how-it-works)
 * [Gnotation Files](#gnotation-files)
@@ -248,6 +249,14 @@ depth-based CNV calling in exomes.
 
 see: https://github.com/brentp/slivar/wiki/finding-deletions-in-parent-child-duos
 
+## Data Driven Cutoffs
+
+`slivar ddc` is a tool to discover data-driven cutoffs from a VCF and pedigree information.
+It generates an interative VCF so a user can see how **mendelian violation and transmissions**
+are effected by varying cutoffs for values in the INFO and FORMAT fields.
+
+See [the wiki](https://github.com/brentp/slivar/wiki/data-driven-cutoffs) for more details.
+
 ## Attributes
 
  + anything in the INFO is available as e.g. INFO.CSQ
@@ -262,6 +271,8 @@ see: https://github.com/brentp/slivar/wiki/finding-deletions-in-parent-child-duo
  + sample attributes from the ped for `affected`, `phenotype`, `sex`, `id` are available as, e.g. kid.sex.
    phenotype is a string taken directly from the pedigree file while affected is a boolean.
  + sample relations are available as `mom`, `dad`, `kids`. `mom` and `dad` will be undefined if not available and kids will be an empty array.
+ + a `VCF` object contains `CSQ`, `BCSQ`, `ANN` if those are present in the header (from VEP, BCFTOOLS, SnpEFF). The content is a list indicating
+   the order of entries in the field e.g. `["CONSEQUENCE", "CODONS","AMINO_ACIDS", "GENE", ...]`
 
 ## How it works
 

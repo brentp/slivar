@@ -80,7 +80,7 @@ type GeneIndexes* = object
 
   columns: OrderedTableRef[string, int]
 
-proc set_csq_fields*(ivcf:VCF, field:string, gene_fields: var GeneIndexes, csq_columns: seq[string]= @[]) =
+proc set_csq_fields*(ivcf:VCF, field:string, gene_fields: var GeneIndexes, csq_columns: seq[string]= @[]): seq[string] {.discardable.} =
   gene_fields.gene = -1
   gene_fields.csq_field = field
   gene_fields.consequence = -1
@@ -96,6 +96,7 @@ proc set_csq_fields*(ivcf:VCF, field:string, gene_fields: var GeneIndexes, csq_c
   var adesc = desc.split(spl)[1].split("'")[0].strip().strip(chars={'"', '\''}).multiReplace(("[", ""), ("]", ""), ("'", ""), ("*", "")).split("|")
 
   for v in adesc.mitems: v = v.toUpperAscii.strip()
+  result = adesc
 
   for cq in csq_columns:
     gene_fields.columns[cq] = adesc.find(cq.toUpperAscii)

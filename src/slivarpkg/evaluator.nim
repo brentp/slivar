@@ -129,6 +129,7 @@ type Evaluator* = ref object
   # samples_ns is a name-space to store the samples.
   samples_ns: Duko
 
+  VCF: Duko
   INFO: Duko
   variant: Duko
   gnos*:seq[Gnotater]
@@ -307,12 +308,14 @@ proc newEvaluator*(ivcf:VCF, samples: seq[Sample], groups: seq[Group], float_exp
 
   result.info_white_list = getEnvNotEmpty("SLIVAR_INFO_WHITELIST")
   result.format_white_list = getEnvNotEmpty("SLIVAR_FORMAT_WHITELIST")
+  result.VCF = result.ctx.newObject("VCF")
 
   for f in ["ANN", "CSQ", "BCSQ"]:
     try:
       var gf:GeneIndexes
-      ivcf.set_csq_fields(f, gf)
+      var fields = ivcf.set_csq_fields(f, gf)
       result.gene_fields.add(gf)
+      result.VCF[f] = fields
       # add this to the field names so we can clear it as needed
     except KeyError:
       continue

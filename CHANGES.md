@@ -5,6 +5,8 @@ v0.1.9
 + update to htslib >= 1.10
 + change recommended setup for rare disease to use family-based approach, rather than trios as it is more
   flexible and now well-tested. (https://github.com/brentp/slivar/wiki/rare-disease#full-analysis-for-trios-with-unaffected-parents)
++ add `VCF` object available in javascript which gets populated with `VCF.CSQ == ["CONSEQUENCE", "CODONS","AMINO_ACIDS", "GENE", ...]` and VCF.ANN, VCF.BCSQ if any
+  or all of those annotations are available in the VCF (see #3)
 
 v0.1.8
 ======
