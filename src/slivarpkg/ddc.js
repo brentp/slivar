@@ -337,7 +337,7 @@ function get_excluded_sample_idxs(sample_bounds) {
             var values = trio.tbl[field]
             for (var i = 0; i < values.length; i++) {
                 if ((values[i] < lo) || (values[i] > hi)) {
-                    result.push(i)
+                    result.push(trio.variant_idxs[i])
                 }
             }
         }

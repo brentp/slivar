@@ -1,6 +1,8 @@
 v0.1.10
 =======
++ [slivar ddc] fix bug when selecting sample filters.
 + [slivar ddc] UI fix: remove button when [x] is clicked.
+
 
 v0.1.9
 ======
