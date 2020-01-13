@@ -615,6 +615,8 @@ function plot_field(values, name, label, is_fmt_field, vios) {
     let update = function (e) {
         if (this.id == `${prefix}${name}-btn-close`) {
             e = null
+            jQuery(`#${prefix}${name}-btn-close`).remove()
+            jQuery(`#${prefix}${name}-btn-lbl`).remove()
             // simulates plotly deselect event when clicking button
             Plotly.restyle(`${prefix}${name}-hist-plot`, {selectedpoints: [null]});
         }

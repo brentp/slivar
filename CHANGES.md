@@ -1,3 +1,7 @@
+v0.1.10
+=======
++ [slivar ddc] UI fix: remove button when [x] is clicked.
+
 v0.1.9
 ======
 + new command `slivar ddc`: https://github.com/brentp/slivar/wiki/data-driven-cutoffs

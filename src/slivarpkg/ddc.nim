@@ -63,11 +63,11 @@ proc tojson(t:Trio): string =
   result.add(&"""{{sample_id: "{t.sample_id}",
 tbl: {t.tbl.tojson},
 violations: {%t.violations},
-dad_tbl: {t.dad_tbl.tojson},
-mom_tbl: {t.mom_tbl.tojson},
 variant_idxs: {%t.variant_idxs}
 }}""")
 
+#dad_tbl: {t.dad_tbl.tojson},
+#mom_tbl: {t.mom_tbl.tojson},
 # kid_alts: {%t.kid_alts},
 # dad_alts: {%t.dad_alts},
 # mom_alts: {%t.mom_alts},
@@ -142,11 +142,19 @@ proc getf32(v:Variant, f:string): seq[float32] =
     # TODO: handle missing
     result[k] = val.float32
 
-proc violation(kid:Sample, alts: seq[int8]): bool =
-  return alts[kid.i] >= 1 and alts[kid.mom.i] == 0 and alts[kid.dad.i] == 0
+proc violation(kid:Sample, alts: seq[int8], allele_balances: seq[float32]): bool =
+  result = alts[kid.i] >= 1 and alts[kid.mom.i] == 0 and alts[kid.dad.i] == 0
+  if allele_balances.len == 0 or result == false: return
+  if allele_balances[kid.mom.i] > 0 or allele_balances[kid.dad.i] > 0:
+    raise newException(ValueError, "non zero allele balance for parents")
 
-proc inherited(kid:Sample, alts: seq[int8]): bool =
-  return alts[kid.i] == 1 and [alts[kid.mom.i], alts[kid.dad.i]] in [[0'i8, 1], [1'i8, 0]]
+proc inherited(kid:Sample, alts: seq[int8], allele_balances: seq[float32]): bool =
+  result = alts[kid.i] == 1 and [alts[kid.mom.i], alts[kid.dad.i]] in [[0'i8, 1], [1'i8, 0]]
+  if result == false or allele_balances.len == 0: return
+  if alts[kid.dad.i] == 0 and allele_balances[kid.dad.i] > 0:
+    raise newException(ValueError, "non zero allele balance for parents")
+  if alts[kid.mom.i] == 0 and allele_balances[kid.mom.i] > 0:
+    raise newException(ValueError, "non zero allele balance for parents")
 
 proc get_variant_length(v:Variant): int =
   var length = int(v.ALT[0].len - v.REF.len)
@@ -254,6 +262,8 @@ proc ddc_main*(dropfirst:bool=false) =
   var f32: seq[float32]
   var i32: seq[int32]
 
+  var ab: seq[float32]
+
   var variant_idx = 0
   for v in ivcf.query(opts.chrom):
 
@@ -261,6 +271,8 @@ proc ddc_main*(dropfirst:bool=false) =
     for i, f in fmt_fields:
       fmts[i] = v.getf32(f)
     shallow(fmts)
+    if "AB" in fmt_fields:
+      ab = fmts[fmt_fields.find("AB")]
 
     var alts = v.format.genotypes(x).alts
     shallow(alts)
@@ -268,8 +280,13 @@ proc ddc_main*(dropfirst:bool=false) =
     var any_violation = false
 
     for i, kid in kids:
-      let vio = kid.violation(alts)
-      let inh = kid.inherited(alts)
+      var vio: bool
+      var inh: bool
+      try:
+        vio = kid.violation(alts, ab)
+        inh = kid.inherited(alts, ab)
+      except:
+        continue
       if not (vio or inh): continue
       any_used = true
       if vio: any_violation = true
@@ -286,9 +303,14 @@ proc ddc_main*(dropfirst:bool=false) =
         let fi = fmt_fields.find(k)
         let fmt = fmts[fi]
 
-        kid_seq.add(fmt[kid.i])
+        if k == "GQ":
+          kid_seq.add(min(min(fmt[kid.i], fmt[kid.dad.i]), fmt[kid.mom.i]))
+        else:
+          kid_seq.add(fmt[kid.i])
+
         tr.dad_tbl[k].add(fmt[kid.dad.i])
         tr.mom_tbl[k].add(fmt[kid.mom.i])
+
       output_trios[i] = tr
 
     if not any_used: continue
