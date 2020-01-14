@@ -9,25 +9,30 @@ colors = sns.color_palette("RdYlBu", 13)
 colors = sns.cubehelix_palette(7, start=2, rot=0, dark=0.05, light=.95, reverse=False)
 colors = sns.color_palette("Set1", 13)
 
-df_exome = pd.read_csv(sys.argv[1], sep="\t")
-df_genome = pd.read_csv(sys.argv[2], sep="\t")
 
-for df in [df_exome, df_genome]:
+
+df_exome = pd.read_csv(sys.argv[1], sep="\t")
+#df_genome = pd.read_csv(sys.argv[2], sep="\t")
+
+for df in [df_exome]:
     cols = list(df.columns)
     cols[0] = cols[0].lstrip('#')
     df.columns = cols
 
 gqs = [x for x in df_exome.GQ.unique() if x != 1]
 
-fig, axes = plt.subplots(len(gqs), 2, figsize=(12, 7), sharey=True, sharex=True)
-assert len(df_exome.GQ.unique()) == len(df_genome.GQ.unique())
+fig, axes = plt.subplots(len(gqs), 1, figsize=(3, 8), sharey=True, sharex=True)
+#assert len(df_exome.GQ.unique()) == len(df_genome.GQ.unique())
 
-for ci, df in enumerate((df_exome, df_genome)):
+for ci, df in enumerate((df_exome, )):
     tmax = float(df.total.max())
 
     for i, gq in enumerate(gqs):
         df_gq = df[df.GQ == gq]
-        ax = axes[i, ci]
+        try:
+            ax = axes[i, ci]
+        except IndexError:
+            ax = axes[i]
         dfs = df_gq
         if len(dfs) == 0: continue
         dfs.tp = dfs.tp * (dfs.total / tmax)
@@ -43,7 +48,7 @@ for ci, df in enumerate((df_exome, df_genome)):
             ax.plot([cut.fp], [cut.tp], color=colors[j+1], ls='none',
                     marker='o', label="%.2g-%.2g" % (cutoff, 1 - cutoff))
 
-            if cutoff == 0.25 and gq == 20:
+            if cutoff == 0.2 and gq == 20:
                 print(sys.argv[ci + 1], cut)
                 ax.plot([cut.fp], [cut.tp], color='gray', ls='none',
                         markersize=12,
@@ -58,10 +63,10 @@ for ci, df in enumerate((df_exome, df_genome)):
         """
 
         #if ci == 1:
-        #    ax.set_xlim(0, 0.005)
+        ax.set_xlim(0, 0.0015)
         #else:
         #    ax.set_xlim(0, 0.005)
-        ax.set_xlim(0, 0.01)
+        #ax.set_xlim(0, 0.01)
         #ax.set_xlim(0, 0.004)
 
         sns.despine()
@@ -73,14 +78,17 @@ for ci, df in enumerate((df_exome, df_genome)):
         #if i != len(gqs) - 1:
         #    ax.set_xticklabels([])
 
-axes[len(axes)-1, 0].set_xlabel("Mendelian-violation rate")
-axes[len(axes)-1, 1].set_xlabel("Mendelian-violation rate")
+try:
+    axes[len(axes)-1, 0].set_xlabel("Mendelian-violation rate")
+    axes[len(axes)-1, 1].set_xlabel("Mendelian-violation rate")
+except IndexError:
+    axes[len(axes)-1].set_xlabel("Mendelian-violation rate")
 
 
 #axes[0, 0].set_title("Exome", fontsize=15)
 #axes[0, 1].set_title("Genome", fontsize=15)
-axes[0, 0].set_title("Deep Variant", fontsize=15)
-axes[0, 1].set_title("GATK", fontsize=15)
+#axes[0, 0].set_title("Deep Variant", fontsize=15)
+#axes[0, 1].set_title("GATK", fontsize=15)
 
 #plt.ylim(0.8, 1)
 sns.despine()

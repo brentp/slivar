@@ -54,8 +54,8 @@ var counts = CountTable[string]()
 for s in samples:
   if s.family_id == "1357": continue
   if s.dad != nil and s.mom != nil:
-    if s.mom.id in counts and counts[s.mom.id] > 2: continue
-    if s.dad.id in counts and counts[s.dad.id] > 2: continue
+    if s.mom.i == -1 or (s.mom.id in counts and counts[s.mom.id] > 2): continue
+    if s.dad.i == -1 or (s.dad.id in counts and counts[s.dad.id] > 2): continue
     counts.inc(s.mom.id)
     counts.inc(s.dad.id)
     kids.add(s)
@@ -127,7 +127,7 @@ for v in ivcf:
     if $v.CHROM in ["X", "chrX"]: break
     stderr.write_line "at:", $v.CHROM, " goodABs[0].len:", goodABs[gq_cutoffs[0]].len
   if v.FILTER != "PASS": continue
-  if exclude != nil and stripChr($v.CHROM) in exclude and exclude[stripChr($v.CHROM)].find(v.start, v.stop, empty):
+  if exclude != nil and stripChr($v.CHROM) in exclude and exclude[stripChr($v.CHROM)].find(v.start.int, v.stop.int, empty):
     continue
 
   if v.format.get("AD", AD) != Status.OK:
