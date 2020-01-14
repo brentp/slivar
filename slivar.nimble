@@ -19,7 +19,7 @@ license       = "MIT"
 
 # Dependencies
 
-requires "hts >= 0.3.0", "lapper", "nimgen", "https://github.com/brentp/duktape-nim#dev"
+requires "hts >= 0.3.2", "lapper", "nimgen", "https://github.com/brentp/duktape-nim#dev"
 requires "docopt", "https://github.com/brentp/nim-minizip#dev", "argparse >= 0.7.0"
 requires "https://github.com/brentp/zip#dev"
 srcDir = "src"

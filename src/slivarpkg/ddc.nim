@@ -210,7 +210,7 @@ proc check*[T: VariantInfo|seq[Trio]](ivcf:VCF, fields: seq[string], ftype:BCF_H
 proc ddc_main*(dropfirst:bool=false) =
   var p = newParser("slivar ddc"):
     #option("-x", help="haploid (x) chromosome", default="chrX")
-    option("--chrom", help="limit to this chromosome only", default="chr15")
+    option("--chrom", help="limit to this chromosome only. use '-3' for all chromosomes (in the case of exome data)", default="chr15")
     option("--info-fields", help="comma-delimited list of info fields")
     option("--fmt-fields", help="comma-delimited list of sample fields")
     option("--html", default="slivar-ddc.html", help="path to output file")
