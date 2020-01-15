@@ -13,6 +13,7 @@ here="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 cd "$here"
 mkdir -p vcfs
 
+<<DONE
 ./dn_roc --gq 1 --gq 5 --gq 10 --gq 20 $ped $bcf > $cohort-roc.txt
 python plot_ab_roc.py $cohort-roc.txt
 
@@ -24,8 +25,9 @@ export SLIVAR_SUMMARY_FILE=$cohort.dn.summary.tsv
     -o vcfs/$cohort.dn.bcf \
     -g /home/brentp/src/slivar/gnomad.hg38.genomes.v3.fix.zip \
     --info "variant.FILTER == 'PASS' && variant.ALT[0] != '*'" \
-    --trio "dn_ab_gq:mom.hom_ref && dad.hom_ref && kid.het && kid.GQ >= 10 && mom.GQ >= 10 && dad.GQ >= 10 && kid.AB >= 0.2 && kid.AB <= 0.8" \
-    --trio "dn:mom.hom_ref && dad.hom_ref && kid.het && kid.GQ >= 10 && mom.GQ >= 10 && dad.GQ >= 10 && kid.AB >= 0.2 && kid.AB <= 0.8 && INFO.gnomad_popmax_af < 0.001 && !('gnomad_popmax_af_filter' in INFO)"  \
+    --trio "dn_ab_gq:mom.hom_ref && dad.hom_ref && kid.het && kid.GQ >= 20 && mom.GQ >= 20 && dad.GQ >= 20 && kid.AB >= 0.2 && kid.AB <= 0.8" \
+    --trio "dn:mom.hom_ref && dad.hom_ref && kid.het && kid.GQ >= 20 && mom.GQ >= 20 && dad.GQ >= 20 && kid.AB >= 0.2 && kid.AB <= 0.8 && INFO.gnomad_popmax_af < 0.001 && !('gnomad_popmax_af_filter' in INFO)"  \
+    --trio "impactful_dn:INFO.impactful && mom.hom_ref && dad.hom_ref && kid.het && kid.GQ >= 20 && mom.GQ >= 20 && dad.GQ >= 20 && kid.AB >= 0.2 && kid.AB <= 0.8 && INFO.gnomad_popmax_af < 0.001 && !('gnomad_popmax_af_filter' in INFO)"  \
 
 python plot-exome-dn-summary.py $cohort.dn.summary.tsv
 
@@ -48,8 +50,8 @@ slivar expr --vcf $bcf \
     | bcftools csq -s - --ncsq 40 -g $gff -l -f $fasta - -o vcfs/$cohort.vcf
 
 
-
 export SLIVAR_SUMMARY_FILE=$cohort.ch.summary.tsv
 slivar compound-hets --sample-field comphet_side --sample-field denovo -p $ped -v vcfs/$cohort.vcf > vcfs/$cohort.ch.vcf
+DONE
 
 python plot-final-exome.py $cohort.summary.tsv $cohort.ch.summary.tsv

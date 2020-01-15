@@ -21,7 +21,7 @@ for df in [df_exome]:
 
 gqs = [x for x in df_exome.GQ.unique() if x != 1]
 
-fig, axes = plt.subplots(len(gqs), 1, figsize=(3, 8), sharey=True, sharex=True)
+fig, axes = plt.subplots(1, len(gqs), figsize=(8, 3), sharey=True, sharex=True)
 #assert len(df_exome.GQ.unique()) == len(df_genome.GQ.unique())
 
 for ci, df in enumerate((df_exome, )):
@@ -79,10 +79,10 @@ for ci, df in enumerate((df_exome, )):
         #    ax.set_xticklabels([])
 
 try:
-    axes[len(axes)-1, 0].set_xlabel("Mendelian-violation rate")
-    axes[len(axes)-1, 1].set_xlabel("Mendelian-violation rate")
+    axes[len(axes)-2, 0].set_xlabel("Mendelian-violation rate")
+    axes[len(axes)-2, 1].set_xlabel("Mendelian-violation rate")
 except IndexError:
-    axes[len(axes)-1].set_xlabel("Mendelian-violation rate")
+    axes[len(axes)-2].set_xlabel("Mendelian-violation rate")
 
 
 #axes[0, 0].set_title("Exome", fontsize=15)
@@ -94,6 +94,7 @@ except IndexError:
 sns.despine()
 ax = axes[0]
 plt.tight_layout(rect=(0, 0.005, 1, 0.995))
+plt.savefig("figure1-exome-GQ-AB-cutoffs.png")
 plt.show()
 
 
