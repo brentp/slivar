@@ -39,8 +39,6 @@ def get_mean_df(df_means, order):
 
 df, ad = read_dfs(1, 2)
 
-
-
 dfi, adi = read_dfs(3, 4)
 
 df["cat"] = "all"
@@ -64,22 +62,22 @@ print(df_means, ad_means)
 
 size = 2
 
-fig, axes = plt.subplots(2, 2, figsize=(8, 5), gridspec_kw={'width_ratios': [5,
-    1], 'height_ratios': [1, 3]})
+fig, axes = plt.subplots(1, 2, figsize=(8, 5), gridspec_kw={'width_ratios': [5,
+    1]})
 
 sns.swarmplot(x="variable", y="number_of_variants", hue="cat", dodge=True,
-       data=df, ax=axes[1,0], palette=colors2, size=size)
+       data=df, ax=axes[0], palette=colors2, size=size, alpha=0.8)
 
-sns.swarmplot(x="variable", y="number_of_variants", data=ad, ax=axes[1,1], hue="cat", dodge=True,
-        palette=colors2, size=size)
+sns.swarmplot(x="variable", y="number_of_variants", data=ad, ax=axes[1], hue="cat", dodge=True,
+        palette=colors2, size=size, alpha=0.8)
 
-axes[1,1].set_ylabel("")
-axes[1,0].set_xlabel("Inheritance mode", horizontalalignment='left')
-axes[1,1].set_xlabel("")
+axes[1].set_ylabel("")
+axes[0].set_xlabel("Inheritance mode", horizontalalignment='left')
+axes[1].set_xlabel("")
 #plt.xlabel("Inheritance mode")
-axes[1,0].set_ylabel("Candidate variants")
+axes[0].set_ylabel("Candidate variants")
 
-ax = axes[1,0]
+ax = axes[0]
 
 labels = ax.get_xticklabels()
 lookups = {"denovo":"de novo", "compound-het":"compound-heterozygote",
@@ -90,35 +88,34 @@ order = [l.get_text() for l in labels]
 labels = [lookups[l.get_text()] for l in labels]
 
 ax.set_xticklabels(labels, rotation=12)
-axes[1,1].set_xticklabels(["autosomal dominant"], rotation=12)
+axes[1].set_xticklabels(["autosomal dominant"], rotation=12)
 
-axes[1,1].get_legend().remove()
-axes[1,0].get_legend().set_title("variant class")
+axes[1].get_legend().remove()
+axes[0].get_legend().set_title("variant class")
 
 
 df_means_bar = get_mean_df(df_means, order)
-
-
-sns.barplot(data=df_means_bar, hue="variant class", x="inheritance mode",
-        y="mean number of variants", ax=axes[0, 0], palette=colors2)
-axes[0, 0].set_ylabel(None)
-axes[0, 0].set_xlabel(None)
-axes[0, 0].set_xticklabels([])
-axes[0, 0].set_title("mean number of candidate variants per trio")
-axes[0, 0].get_legend().remove()
-
-
-order = ["autosomal dominant"]
 ad_means_bar = get_mean_df(ad_means, ["autosomal dominant"])
 
+xs = axes[0].get_xticks()
+for i, y in enumerate(df_means_bar.loc[df_means_bar["variant class"] == "all", "mean number of variants"]):
+   axes[0].plot([xs[i] - 0.4, xs[i] - 0.05], [y, y], ls='-', color="gray", lw=2, zorder=-10)
 
-sns.barplot(data=ad_means_bar, hue="variant class", x="inheritance mode",
-        y="mean number of variants", ax=axes[0, 1], palette=colors2)
-axes[0, 1].set_ylabel(None)
-axes[0, 1].set_xlabel(None)
-axes[0, 1].set_xticklabels([])
-axes[0, 1].get_legend().remove()
+for i, y in enumerate(df_means_bar.loc[df_means_bar["variant class"] == "impactful", "mean number of variants"]):
+   axes[0].plot([xs[i] + 0.05, xs[i] + 0.4], [y, y], ls='-', color="gray", lw=2, zorder=-10)
 
+xs = axes[1].get_xticks()
+for i, y in enumerate(ad_means_bar.loc[ad_means_bar["variant class"] == "all", "mean number of variants"]):
+   axes[1].plot([xs[i] - 0.4, xs[i] - 0.05], [y, y], ls='-', color="gray", lw=2, zorder=-10)
+
+for i, y in enumerate(ad_means_bar.loc[ad_means_bar["variant class"] == "impactful", "mean number of variants"]):
+   axes[1].plot([xs[i] + 0.05, xs[i] + 0.4], [y, y], ls='-', color="gray", lw=2, zorder=-10)
+
+
+print(np.arange(len(labels)))
+
+print(df_means_bar.loc[df_means_bar["variant class"] == "all", "mean number of variants"])
+print(axes[0].get_xticks())
 
 plt.tight_layout()
 sns.despine()

@@ -265,7 +265,11 @@ proc ddc_main*(dropfirst:bool=false) =
   var ab: seq[float32]
 
   var variant_idx = 0
+  var skip_xy = opts.chrom in ["*", "-3"]
   for v in ivcf.query(opts.chrom):
+    if skip_xy:
+      let CHROM = v.CHROM
+      if CHROM[CHROM.high] in "XY": continue
 
     var fmts = newSeq[seq[float32]](fmt_fields.len)
     for i, f in fmt_fields:

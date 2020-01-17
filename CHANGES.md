@@ -1,3 +1,7 @@
+v0.1.11 (dev)
+=============
++ slivar ddc: when looking at all chromosomes, skip X, Y
+
 v0.1.10
 =======
 + [slivar ddc] fix bug when selecting sample filters.
