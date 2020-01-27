@@ -152,6 +152,8 @@ proc relatedness*(a:Sample, b:Sample): float =
   if result == 0.5 and a.is_full_sib_with(b):
     result = 0.49
 
+type PedigreeError* = object of Exception
+
 proc parse_ped*(path: string, verbose:bool=true): seq[Sample] =
   result = new_seq_of_cap[Sample](10)
 
@@ -179,6 +181,8 @@ proc parse_ped*(path: string, verbose:bool=true): seq[Sample] =
     var s = Sample(family_id: toks[0], id: toks[1], kids:new_seq[Sample](), paternal_id: toks[2], maternal_id:toks[3], i: -1)
     s.affected = toks[5].toLowerAscii in  ["2", "affected", "yes"]
     s.phenotype = toks[5]
+    if s.id in [s.paternal_id, s.maternal_id]:
+      raise newException(PedigreeError, &"sample {s.id} has self as parent")
 
     if toks[4].toLowerAscii in ["XXXXXX", "unknown", "male", "female"]:
       s.sex = @["XXXXXX", "unknown", "male", "female"].find(toks[4].toLowerAscii) - 1
@@ -405,3 +409,14 @@ when isMainModule:
       check samples[i].mom != nil
     check samples[0].dad == samples[1].dad
     check samples[0].mom == samples[1].mom
+
+  test "self as parent":
+    var fh:File
+    check open(fh, "__k.ped", fmWrite)
+    fh.write_line("Kindred_Id\tSample_ID\tPaternal_ID\tMaternal_ID\tSex\tPhenotype")
+    fh.write_line("A\tsample1\tdad\tsample1\t1\t1")
+    fh.close()
+
+    expect PedigreeError:
+      var samples = parse_ped("__k.ped", verbose=false)
+
