@@ -19,7 +19,7 @@ for df in [df_exome]:
     cols[0] = cols[0].lstrip('#')
     df.columns = cols
 
-gqs = [x for x in df_exome.GQ.unique() if x != 1]
+gqs = [x for x in df_exome.GQ.unique() if x > 5]
 
 fig, axes = plt.subplots(1, len(gqs), figsize=(8, 4), sharey=True, sharex=True)
 #assert len(df_exome.GQ.unique()) == len(df_genome.GQ.unique())
@@ -49,7 +49,7 @@ for ci, df in enumerate((df_exome, )):
             ax.plot([cut.fp], [cut.tp], color=colors[j+1], ls='none',
                     marker='o', label="%.2g-%.2g" % (cutoff, 1 - cutoff))
 
-            if cutoff == 0.2 and gq == 20 and False:
+            if cutoff == 0.2 and (gq == 20 or gq == 10):
                 print(sys.argv[ci + 1], cut)
                 ax.plot([cut.fp], [cut.tp], color='gray', ls='none',
                         markersize=12,
@@ -81,6 +81,6 @@ sns.despine()
 ax = axes[0]
 #plt.tight_layout(rect=(0, 0.005, 1, 0.995))
 plt.savefig("supp-figure1-" + sys.argv[2].replace(" ", "").lower() + ".png")
-plt.show()
+#plt.show()
 
 

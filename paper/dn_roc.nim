@@ -1,7 +1,7 @@
 import hts/vcf
 import strformat
 import argparse
-import slivarpkg/pedfile
+import pedfile
 import random
 import slivarpkg/utils
 import lapper

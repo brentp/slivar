@@ -1,7 +1,7 @@
 # this just counts the occurrence of sample, expr to output a final table at
 # the of a slivar run.
 import tables
-import ./pedfile
+import pedfile
 import ./evaluator
 import strutils
 

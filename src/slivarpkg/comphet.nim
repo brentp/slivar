@@ -1,5 +1,5 @@
 import hts/vcf
-import ./pedfile
+import pedfile
 import ./counter
 import ./tsv
 import strformat

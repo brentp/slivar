@@ -35,7 +35,7 @@
 #
 ]#
 
-import ./pedfile
+import pedfile
 import strutils
 import strformat
 import tables

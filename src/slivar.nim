@@ -1,4 +1,4 @@
-import ./slivarpkg/pedfile
+import pedfile
 import ./slivarpkg/duko
 from ./slivarpkg/version import slivarVersion, slivarGitCommit
 import ./slivarpkg/evaluator

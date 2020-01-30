@@ -19,7 +19,7 @@ license       = "MIT"
 
 # Dependencies
 
-requires "hts >= 0.3.2", "lapper", "nimgen", "https://github.com/brentp/duktape-nim#dev"
+requires "hts >= 0.3.2", "lapper", "nimgen", "https://github.com/brentp/duktape-nim#dev", "https://github.com/brentp/pedfile"
 requires "docopt", "https://github.com/brentp/nim-minizip#dev", "argparse >= 0.7.0"
 requires "https://github.com/brentp/zip#dev"
 srcDir = "src"
@@ -38,7 +38,6 @@ task test, "run the tests":
   exec "nim c  -d:useSysAssert -d:useGcAssert --lineDir:on --debuginfo --lineDir:on --debuginfo -r --threads:on src/slivarpkg/groups"
   exec "nim c  -d:useSysAssert -d:useGcAssert --lineDir:on --debuginfo --lineDir:on --debuginfo -r --threads:on src/slivarpkg/comphet"
   exec "nim c  -d:useSysAssert -d:useGcAssert --lineDir:on --debuginfo --lineDir:on --debuginfo -r --threads:on src/slivarpkg/fastsets"
-  exec "nim c  -d:useSysAssert -d:useGcAssert --lineDir:on --debuginfo --lineDir:on --debuginfo -r --threads:on src/slivarpkg/pedfile"
 
 task docs, "Builds documentation":
   mkDir("docs"/"slivar")

@@ -7,7 +7,7 @@ import hts/vcf
 import strformat
 import strutils
 import ./gnotate
-import ./pedfile
+import pedfile
 
 type Duo = object
   kid: Sample

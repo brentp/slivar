@@ -2,7 +2,7 @@ import hts/vcf
 import hts/private/hts_concat
 import hts/files
 import math
-import ./pedfile
+import pedfile
 import ./duko
 import os
 import ./fastsets

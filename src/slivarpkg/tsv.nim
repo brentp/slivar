@@ -3,7 +3,7 @@ import strutils
 import os
 import hts/vcf
 import strformat
-import ./pedfile
+import pedfile
 import ./impact_order
 import tables
 

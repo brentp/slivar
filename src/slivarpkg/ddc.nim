@@ -6,7 +6,7 @@ import math
 import json
 import lapper
 import algorithm
-import ./pedfile
+import pedfile
 import tables
 import ./evaluator
 import argparse
@@ -29,9 +29,7 @@ type Trio = object
   sample_id: string
   tbl: Table[string, seq[float32]]
   #kid_alts: seq[int8]
-  dad_tbl: Table[string, seq[float32]]
   #dad_alts: seq[int8]
-  mom_tbl: Table[string, seq[float32]]
   #mom_alts: seq[int8]
   variant_idxs: seq[uint32]
 
@@ -66,12 +64,6 @@ violations: {%t.violations},
 variant_idxs: {%t.variant_idxs}
 }}""")
 
-#dad_tbl: {t.dad_tbl.tojson},
-#mom_tbl: {t.mom_tbl.tojson},
-# kid_alts: {%t.kid_alts},
-# dad_alts: {%t.dad_alts},
-# mom_alts: {%t.mom_alts},
-#
 proc tojson(ts:seq[Trio]): string =
   result = newStringOfCap(16384*128)
   result.add('[')
@@ -189,8 +181,6 @@ proc check*[T: VariantInfo|seq[Trio]](ivcf:VCF, fields: seq[string], ftype:BCF_H
         of "Float", "Integer":
           for s in infos.mitems:
             s.tbl[f] = newSeqOfCap[float32](65536)
-            s.mom_tbl[f] = newSeqOfCap[float32](65536)
-            s.dad_tbl[f] = newSeqOfCap[float32](65536)
         else:
           quit "only float and integer types for supported for format fields. got:" & $hr
 
@@ -201,8 +191,6 @@ proc check*[T: VariantInfo|seq[Trio]](ivcf:VCF, fields: seq[string], ftype:BCF_H
         if f == "AB":
           for s in infos.mitems:
             s.tbl[f] = newSeqOfCap[float32](65536)
-            s.mom_tbl[f] = newSeqOfCap[float32](65536)
-            s.dad_tbl[f] = newSeqOfCap[float32](65536)
         else:
           quit &"requested info field {f} not found in header"
   return fields
@@ -252,8 +240,6 @@ proc ddc_main*(dropfirst:bool=false) =
   for i, o in output_trios.mpairs:
     o.sample_id = kids[i].id
     o.tbl = initTable[string, seq[float32]]()
-    o.dad_tbl = initTable[string, seq[float32]]()
-    o.mom_tbl = initTable[string, seq[float32]]()
 
   var info_fields = ivcf.check(opts.info_fields.split(','), BCF_HEADER_TYPE.BCF_HL_INFO, output_infos)
   var fmt_fields = ivcf.check(opts.fmt_fields.split(','), BCF_HEADER_TYPE.BCF_HL_FMT, output_trios)
@@ -311,9 +297,6 @@ proc ddc_main*(dropfirst:bool=false) =
           kid_seq.add(min(min(fmt[kid.i], fmt[kid.dad.i]), fmt[kid.mom.i]))
         else:
           kid_seq.add(fmt[kid.i])
-
-        tr.dad_tbl[k].add(fmt[kid.dad.i])
-        tr.mom_tbl[k].add(fmt[kid.mom.i])
 
       output_trios[i] = tr
 
