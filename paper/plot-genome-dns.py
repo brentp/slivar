@@ -1,5 +1,11 @@
 import pandas as pd
 import seaborn as sns
+
+from matplotlib import rc
+
+rc('font',**{'family':'sans-serif','sans-serif':['Arial']})
+
+
 from matplotlib import pyplot as plt
 
 import sys
@@ -53,7 +59,7 @@ axes[1,1].set_ylabel(None)
 
 xlabels = ["AB in 0.2..0.8\nGQ >= {cutoff}\nAF < 0.01",
            "AF < 0.001",
-           "absent/PASS\nin gnomAD"]
+           "Absent/PASS\nin gnomAD"]
 
 axes[0, 0].set_xticklabels([])
 
@@ -74,7 +80,7 @@ axes[0, 1].set_xticklabels([])
 #print(axes[0].get_xlim())
 
 ax = axes[0, 0]
-ax.set_ylim(-0.5, 2000)
+#ax.set_ylim(-0.5, 2000)
 #ax.axhline(o, 0.1, 0.4, lw=4)
 #ax.axhline(f, 1-0.4, 1 - 0.1, lw=4)
 
