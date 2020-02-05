@@ -1,6 +1,7 @@
 v0.1.11 (dev)
 =============
 + slivar ddc: when looking at all chromosomes, skip X, Y
++ gnotate: ~10-20% speed improvement by inlining cmp in binarysearch
 
 v0.1.10
 =======

@@ -82,9 +82,24 @@ proc decode*(e:uint64): pfra {.inline.} =
     e = e shr 2
     result.reference[result.reference.high - i] = rlookup[index]
 
+
+proc ilowerBound*(a: seq[uint64], key:uint64): int =
+  # the lower bound in stdlib uses a closure for cmp. this uses < directly
+  result = a.low
+  var count = a.high - a.low + 1
+  var step, pos: int
+  while count != 0:
+    step = count shr 1
+    pos = result + step
+    if a[pos] < key:
+      result = pos + 1
+      count -= step + 1
+    else:
+      count = step
+
 proc find*(coded:seq[uint64], q:pfra): int {.inline.} =
   var e = encode(q)
-  var i = lowerBound[uint64](coded, e)
+  var i = ilowerBound(coded, e)
   if i == -1: return -1
   if i > coded.high:
     i = coded.high
