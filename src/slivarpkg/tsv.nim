@@ -13,21 +13,21 @@ proc toIndexLookup(samples:seq[Sample]): TableRef[string,Sample] =
     result[s.id] = s
 
 proc getDP(ads:var seq[int32], sample:Sample): array[3, string] =
-  result = [".", "", ""]
+  result = [".", ".", "."]
   if ads.len == 0: return
   result[0] = &"{ads[2*sample.i] + ads[2*sample.i+1]}"
-  if sample.dad != nil:
+  if sample.dad != nil and sample.dad.i > 0:
     result[1] = &"{ads[2*sample.dad.i] + ads[2*sample.dad.i+1]}"
-  if sample.mom != nil:
+  if sample.mom != nil and sample.mom.i > 0:
     result[2] = &"{ads[2*sample.mom.i] + ads[2*sample.mom.i+1]}"
 
 proc getAB(ads:var seq[int32], sample:Sample): array[3, string] =
-  result = [".", "", ""]
+  result = [".", ".", "."]
   if ads.len == 0: return
   result[0] = &"{ads[2*sample.i+1].float32 / max(1, ads[2*sample.i] + ads[2*sample.i+1]).float32:g}"
-  if sample.dad != nil:
+  if sample.dad != nil and sample.dad.i > 0:
     result[1] = &"{ads[2*sample.dad.i+1].float32 / max(1, ads[2*sample.dad.i] + ads[2*sample.dad.i+1]).float32:g}"
-  if sample.mom != nil:
+  if sample.mom != nil and sample.mom.i > 0:
     result[2] = &"{ads[2*sample.mom.i+1].float32 / max(1, ads[2*sample.mom.i] + ads[2*sample.mom.i+1]).float32:g}"
 
 template lookup(a:int8): string =
@@ -37,11 +37,11 @@ template lookup(a:int8): string =
   #return lookup[a]
 
 proc getGenotype(alts:seq[int8], sample:Sample): array[3, string] =
-  result = [".", "", ""]
+  result = [".", ".", "."]
   result[0] = lookup(alts[sample.i])
-  if sample.dad != nil:
+  if sample.dad != nil and sample.dad.i > 0:
     result[1] = lookup(alts[sample.dad.i])
-  if sample.mom != nil:
+  if sample.mom != nil and sample.mom.i > 0:
     result[2] = lookup(alts[sample.mom.i])
 
 proc getField(v:Variant, field:string, ivcf:VCF): string =
@@ -282,11 +282,16 @@ or gene->pLI with:
   var xg:seq[int32]
   var ad:seq[int32]
   for v in ivcf:
+    var alts: seq[int8]
+    var ki = 0
     for f in opts.sample_field:
       if v.info.get(f, str) != Status.OK: continue
-      if v.format.get("AD", ad) != Status.OK:
-        ad.setLen(0)
-      var alts = v.format.genotypes(xg).alts
+      # get AD an alts in first loop only
+      if ki == 0:
+        ki.inc
+        if v.format.get("AD", ad) != Status.OK:
+          ad.setLen(0)
+        alts = v.format.genotypes(xg).alts
       for osample_id in str.split(seps={','}):
         var sample_id = osample_id
         if has_comphet and f == "slivar_comphet":
@@ -294,7 +299,8 @@ or gene->pLI with:
           sample_id = tmp[0]
         if sample_id notin sampleId2Obj: continue
         var sample = sampleId2Obj[sample_id]
-        var line = @[f,sample.family_id, sample.id, &"""{v.CHROM}:{v.start+1}:{v.REF}:{join(v.ALT, ",")}"""]
+        doAssert sample.id == sample_id
+        var line = @[f, sample.family_id, sample.id, &"""{v.CHROM}:{v.start+1}:{v.REF}:{join(v.ALT, ",")}"""]
         line.add(join(getGenotype(alts, sample), ",").replace(",,", ""))
 
         for f in opts.info_field:

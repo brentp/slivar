@@ -685,23 +685,26 @@ proc write_warning(variant:Variant, nerrors: var int) {.inline.} =
 iterator evaluate_families(ev:Evaluator, nerrors: var int, variant:Variant): exResult =
   for i, namedexpr in ev.family_expressions:
     var matching = newSeq[string]()
+    var fam_matching = newSeq[string]()
     var val = -1'f32
     for fam in ev.families:
+      fam_matching.setLen(0)
       # TODO: write alias family.
       ev.ctx.alias_objects(fam, "fam")
       try:
         if namedexpr.expr.check:
           for s in fam:
             if s.ped_sample.affected:
-              matching.add(s.ped_sample.id)
-          if matching.len == 0:
-            matching.add(fam[0].ped_sample.family_id)
-            val = float32.low
+              fam_matching.add(s.ped_sample.id)
+          if fam_matching.len == 0:
+            yield ($namedexpr.name, @[fam[0].ped_sample.family_id], float32.low)
             if nerrors < 10:
               stderr.write_line &"[slivar] WARNING !!! using --family-expr without any affected samples. Adding family_id: '{fam[0].ped_sample.family_id}' to the INFO list for '{namedexpr.name}'"
               nerrors.inc
               if nerrors == 10:
                 stderr.write_line &"[slivar] not reporting futher warnings"
+          else:
+            matching.add(fam_matching)
 
       except ValueError:
         variant.write_warning(nerrors)
@@ -779,7 +782,7 @@ proc set_format_fields*(ev:var Evaluator, v:Variant, alts: var seq[int8], ints: 
   ev.clear_unused_formats()
 
 proc has_sample_expressions*(ev: Evaluator): bool {.inline.} =
-  return ev.trio_expressions.len > 0 or ev.group_expressions.len > 0 or ev.family_expressions.len > 0
+  return ev.trio_expressions.len > 0 or ev.group_expressions.len > 0 or ev.family_expressions.len > 0 or ev.sample_expressions.len > 0
 
 proc try_info_check(ev: var Evaluator): bool {.inline.} =
   try:

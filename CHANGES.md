@@ -2,6 +2,8 @@ v0.1.11 (dev)
 =============
 + slivar ddc: when looking at all chromosomes, skip X, Y
 + gnotate: ~10-20% speed improvement by inlining cmp in binarysearch
++ slivar expr: fix counts in summary table when some families in the cohort have no affected samples
++ slivar tsv: improve readability when 1 or both parents are missing
 
 v0.1.10
 =======

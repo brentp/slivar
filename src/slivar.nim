@@ -117,7 +117,7 @@ proc expr_main*(dropfirst:bool=false) =
   ovcf.copy_header(ivcf.header)
 
   doAssert ovcf.write_header
-  if trioExprs.len != 0 and groupExprs.len == 0 and sampleExprs.len == 0:
+  if trioExprs.len != 0 and groupExprs.len == 0 and sampleExprs.len == 0 and familyExprs.len == 0:
     for kid in samples.trio_kids(nil):
       out_samples.add(kid.id)
 

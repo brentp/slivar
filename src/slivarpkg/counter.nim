@@ -48,10 +48,10 @@ proc initCounter*(kids: seq[Sample]): Counter =
 
 
 proc inc*(c:var Counter, samples:seq[string], e:string) {.inline.} =
-  var jexpr = c.exprIndexes[e]
+  let jexpr = c.exprIndexes[e]
   for s in samples:
-      var isample = c.sampleIndexes[s]
-      c.counts[isample][jexpr].inc
+    let isample = c.sampleIndexes[s]
+    c.counts[isample][jexpr].inc
 
 proc `$`*(c:Counter): string =
   var header = "sample\t" & join(c.exprs, "\t")
@@ -68,7 +68,8 @@ proc tostring*(c:Counter, samples: seq[string]): string =
   var res = newSeq[string]()
   for i, s in c.samples:
     if samples.len > 0 and s notin samples: continue
-    var line:string = s
+    var line = newStringOfCap(32)
+    line.add(s)
     for j, e in c.exprs:
       line &= '\t' & $c.counts[i][j]
     res.add(line)
