@@ -64,7 +64,7 @@ proc expr_main*(dropfirst:bool=false) =
     gnos:seq[Gnotater]
     samples:seq[Sample]
 
-  if not open(ivcf, opts.vcf, threads=if opts.region == "": 2 else: 0):
+  if not open(ivcf, opts.vcf, threads=2):
     quit "couldn't open:" & opts.vcf
 
   let verbose=getEnv("SLIVAR_QUIET") == ""
@@ -78,7 +78,7 @@ proc expr_main*(dropfirst:bool=false) =
   if getEnv("SLIVAR_QUIET") == "":
     stderr.write_line &"[slivar] {samples.len} samples matched in VCF and PED to be evaluated"
 
-  if not open(ovcf, opts.out_vcf, mode="w"):
+  if not open(ovcf, opts.out_vcf, mode="w", threads=2):
     quit "couldn't open:" & opts.out_vcf
 
   if opts.alias != "":
