@@ -4,6 +4,7 @@ v0.1.11 (dev)
 + gnotate: ~10-20% speed improvement by inlining cmp in binarysearch
 + slivar expr: fix counts in summary table when some families in the cohort have no affected samples
 + slivar tsv: improve readability when 1 or both parents are missing
++ slivar tsv: fix comma separation with 1 or both parents missing (thanks @brwnj for reporting)
 
 v0.1.10
 =======

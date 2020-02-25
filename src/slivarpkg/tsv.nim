@@ -301,7 +301,7 @@ or gene->pLI with:
         var sample = sampleId2Obj[sample_id]
         doAssert sample.id == sample_id
         var line = @[f, sample.family_id, sample.id, &"""{v.CHROM}:{v.start+1}:{v.REF}:{join(v.ALT, ",")}"""]
-        line.add(join(getGenotype(alts, sample), ",").replace(",,", ""))
+        line.add(join(getGenotype(alts, sample), ",").strip(chars={','}))
 
         for f in opts.info_field:
           line.add(v.getField(f, ivcf))
@@ -320,8 +320,8 @@ or gene->pLI with:
           # travel together in the spreadsheet.
           line[0] &= "_" & osample_id.split("/")[2]
 
-        line.add(join(getDP(ad, sample), ",").replace(",,", ""))
-        line.add(join(getAB(ad, sample), ",").replace(",,", ""))
+        line.add(join(getDP(ad, sample), ",").strip(chars={','}))
+        line.add(join(getAB(ad, sample), ",").strip(chars={','}))
 
         if gene_fields.gene != -1:
           # get all the csq fields.
