@@ -136,8 +136,8 @@ proc get_gene_info(v:Variant, csq_field_name:string, gene_fields:GeneIndexes, ju
     if key.strip().len == 0 or key in result: continue
     result.add(key)
 
-proc get_highest_impact*(csqs: string, gene_fields:GeneIndexes, impact_order: TableRef[string, int]): tuple[impact: string, order: int, impactful: bool] =
-  result = ("unknown", 99, false)
+proc get_highest_impact*(csqs: string, gene_fields:GeneIndexes, impact_order: TableRef[string, int]): tuple[impact: string, order: int, impactful: bool, genic:bool] =
+  result = ("unknown", 99, false, false)
   for tr in csqs.split(','):
     var toks = tr.split('|')
     for impact in toks[gene_fields.consequence].split('&'):
@@ -149,12 +149,13 @@ proc get_highest_impact*(csqs: string, gene_fields:GeneIndexes, impact_order: Ta
         val = impact_order[impact]
       except:
         stderr.write_line &"\nerror: unknown impact \"{impact}\" from csq \"{tr}\" please report the variant at https://github.com/brentp/slivar/issues"
-        val = impact_order.getOrDefault("IMPACT_CUTOFF", 1)
+        val = impact_order.getOrDefault("IMPACTFUL_CUTOFF", 1)
       if val < result.order:
         result.order = val
         result.impact = impact
 
-  result.impactful = (result.order < impact_order.getOrDefault("IMPACT_CUTOFF", 0))
+  result.impactful = (result.order < impact_order.getOrDefault("IMPACTFUL_CUTOFF", 0))
+  result.genic = (result.order < impact_order.getOrDefault("GENIC_CUTOFF", 0))
 
 
 proc get_highest_impact(v:Variant, csq_field_name:string, gene_fields:GeneIndexes, impact_order: TableRef[string, int]): string =

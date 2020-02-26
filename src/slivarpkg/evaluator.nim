@@ -320,16 +320,17 @@ proc newEvaluator*(ivcf:VCF, samples: seq[Sample], groups: seq[Group], float_exp
     except KeyError:
       continue
   if result.gene_fields.len > 0:
-    if ivcf.header.add_info("impactful", "0", "Flag", "variant is impactful according to slivar and impacts added by VEP/snpEff/bcftools (https://github.com/brentp/slivar/wiki/impactful)") != Status.OK:
-      var ok = false
-      try:
-        var hi = ivcf.header.get("impactful", BCF_HL_INFO)
-        if hi["Type"] == "Flag": ok = true
-      except KeyError:
-        discard
+    for k in ["impactful", "genic"]:
+      if ivcf.header.add_info(k, "0", "Flag", &"variant is {k} according to slivar and impacts added by VEP/snpEff/bcftools (https://github.com/brentp/slivar/wiki/impactful)") != Status.OK:
+        var ok = false
+        try:
+          var hi = ivcf.header.get(k, BCF_HL_INFO)
+          if hi["Type"] == "Flag": ok = true
+        except KeyError:
+          discard
 
-      if not ok:
-        stderr.write_line "[slivar] couldn't add 'impactful' to header as it already existed"
+        if not ok:
+          stderr.write_line &"[slivar] couldn't add '{k}' to header as it already existed"
 
 
   # when a column is empty, we use this empty object as a place-holder.
@@ -558,9 +559,11 @@ proc set_infos*(ev:var Evaluator, variant:Variant, ints: var seq[int32], floats:
   # we found an impactful variant, e.g. in CSQ, and dont' want to overwrite it
   # with non-impactful in ANN
   var impactful_found = false
+  var genic_found = false
 
   for field in info.fields:
     if field.name == "impactful": continue
+    if field.name == "genic": continue
     if ev.info_white_list.len > 0 and field.name notin ev.info_white_list:
       continue
     if field.vtype == BCF_TYPE.FLOAT:
@@ -580,13 +583,13 @@ proc set_infos*(ev:var Evaluator, variant:Variant, ints: var seq[int32], floats:
       if field.name in ["CSQ", "BCSQ", "ANN"] and ev.gene_fields.len > 0:
         for g in ev.gene_fields:
           if g.csq_field != field.name: continue
-          var imp = istr.get_highest_impact(g, default_order) #: tuple[impact: string, order: int, impactful: bool]
+          var imp = istr.get_highest_impact(g, default_order) #: tuple[impact: string, order: int, impactful: bool, genic: bool]
           impact_found = true
           if imp.impactful:
             impactful_found = true
-          elif impactful_found:
-            continue
-          ev.INFO["impactful"] = imp.impactful
+          if imp.genic:
+            genic_found = true
+          break
 
     elif field.vtype in {BCF_TYPE.INT32, BCF_TYPE.INT16, BCF_TYPE.INT8}:
       if info.get(field.name, ints) != Status.OK:
@@ -606,16 +609,14 @@ proc set_infos*(ev:var Evaluator, variant:Variant, ints: var seq[int32], floats:
     elif field.vtype == BCF_TYPE.NULL:
       ev.INFO[field.name] = info.has_flag(field.name)
     ev.info_field_sets.curr.incl(field.i.uint8)
+
+  if ev.gene_fields.len > 0:
+    ev.INFO["impactful"] = impactful_found
+    ev.INFO["genic"] = genic_found
+
   # clear any field in last variant but not in this one.
   ev.clear_unused_infos(ev.info_field_sets)
   ev.variant.alias(ev.INFO, "INFO")
-  # we didn't find a CSQ, but there are CSQs in the VCF
-  if not impact_found and ev.gene_fields.len > 0:
-    ev.INFO["impactful"] = false
-    discard variant.info.set("impactful", false)
-  elif impactful_found:
-    discard variant.info.set("impactful", true)
-
 
 type exResult* = tuple[name:string, sampleList:seq[string], val:float32]
 

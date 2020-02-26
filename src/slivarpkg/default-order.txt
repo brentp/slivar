@@ -31,7 +31,7 @@ rare_amino_acid
 3_prime_utr_truncation
 # `IMPACT_CUTOFF` is a special value that slivar uses to set INFO.impactful for any variant with
 # any CSQ that has an impact that falls above this sentinel
-IMPACT_CUTOFF
+IMPACTFUL_CUTOFF
 synonymous
 gene
 coding_sequence
@@ -47,6 +47,7 @@ nc_transcript
 exon_region
 conserved_intron
 intron
+GENIC_CUTOFF
 NMD_transcript
 non_coding_transcript
 non_coding
