@@ -45,13 +45,13 @@ func makeCommands(fasta *faidx.Faidx, args []string, directory string) chan stri
 				if k == 0 && i == 0 {
 					Lh := L / 2
 					var region = strconv.Quote(fmt.Sprintf("%s:%d-%d", rec.Name, i+1, min(i+Lh, rec.Length)))
-					ch <- fmt.Sprintf("SLIVAR_QUIET= SLIVAR_SUMMARY_FILE=%s/%d-%d slivar expr %s --region %s", directory, k, i, strings.Join(args, " "), region)
+					ch <- fmt.Sprintf("SLIVAR_QUIET= SLIVAR_SUMMARY_FILE=%s/%d-%da.summary.tsv slivar expr %s --region %s", directory, k, i, strings.Join(args, " "), region)
 					time.Sleep(400 * time.Millisecond)
 					region = strconv.Quote(fmt.Sprintf("%s:%d-%d", rec.Name, i+1+Lh, min(i+L, rec.Length)))
-					ch <- fmt.Sprintf("SLIVAR_QUIET=yes SLIVAR_SUMMARY_FILE=%s/%d-%d slivar expr %s --region %s", directory, k, i, strings.Join(args, " "), region)
+					ch <- fmt.Sprintf("SLIVAR_QUIET=yes SLIVAR_SUMMARY_FILE=%s/%d-%db.summary.tsv slivar expr %s --region %s", directory, k, i, strings.Join(args, " "), region)
 				} else {
 					var region = strconv.Quote(fmt.Sprintf("%s:%d-%d", rec.Name, i+1, min(i+L, rec.Length)))
-					var scmd = fmt.Sprintf("SLIVAR_QUIET=yes SLIVAR_SUMMARY_FILE=%s/%d-%d slivar expr %s --region %s", directory, k, i, strings.Join(args, " "), region)
+					var scmd = fmt.Sprintf("SLIVAR_QUIET=yes SLIVAR_SUMMARY_FILE=%s/%d-%d.summary.tsv slivar expr %s --region %s", directory, k, i, strings.Join(args, " "), region)
 					ch <- scmd
 				}
 			}
@@ -156,7 +156,7 @@ func writeSummaryCommands(tempDir string) {
 	if path == "" {
 		path = "slivar_summary.tsv"
 	}
-	fmt.Fprintf(os.Stderr, "writing summary final summary file to %s", path)
+	fmt.Fprintf(os.Stderr, "writing final summary file to %s\n", path)
 
 	out, err := os.Create(path)
 	if err != nil {
@@ -204,7 +204,7 @@ func main() {
 			continue
 		}
 		if arg == "-o" || arg == "--out-vcf" {
-			log.Println("[pslivar] ignoring '%s' argument as pslivar always sends VCF output to stdout")
+			log.Printf("[pslivar] ignoring '%s' argument as pslivar always sends VCF output to stdout", arg)
 			skipNext = true
 			continue
 		}

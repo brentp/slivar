@@ -137,12 +137,15 @@ proc expr_main*(dropfirst:bool=false) =
     i = 0
     nerrors = 0
     written = 0
+
+  let quiet = getEnv("SLIVAR_QUIET") != ""
   for variant in ivcf.variants(opts.region):
     i += 1
     if i mod n == 0:
       var secs = cpuTime() - t
       var persec = n.float64 / secs.float64
-      stderr.write_line &"[slivar] {i} {variant.CHROM}:{variant.start} evaluated {n} variants in {secs:.1f} seconds ({persec:.1f}/second)"
+      if not quiet:
+        stderr.write_line &"[slivar] {i} {variant.CHROM}:{variant.start} evaluated {n} variants in {secs:.1f} seconds ({persec:.1f}/second)"
       t = cpuTime()
       if i >= 20000:
         n = 100000
