@@ -155,7 +155,7 @@ proc get_highest_impact*(csqs: string, gene_fields:GeneIndexes, impact_order: Ta
         result.impact = impact
 
   result.impactful = (result.order < impact_order.getOrDefault("IMPACTFUL_CUTOFF", 0))
-  result.genic = (result.order < impact_order.getOrDefault("GENIC_CUTOFF", 0))
+  result.genic = (result.order < impact_order.getOrDefault("genic_cutoff", 0))
 
 
 proc get_highest_impact(v:Variant, csq_field_name:string, gene_fields:GeneIndexes, impact_order: TableRef[string, int]): string =

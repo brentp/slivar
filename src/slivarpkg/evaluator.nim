@@ -589,7 +589,6 @@ proc set_infos*(ev:var Evaluator, variant:Variant, ints: var seq[int32], floats:
             impactful_found = true
           if imp.genic:
             genic_found = true
-          break
 
     elif field.vtype in {BCF_TYPE.INT32, BCF_TYPE.INT16, BCF_TYPE.INT8}:
       if info.get(field.name, ints) != Status.OK:
@@ -610,13 +609,15 @@ proc set_infos*(ev:var Evaluator, variant:Variant, ints: var seq[int32], floats:
       ev.INFO[field.name] = info.has_flag(field.name)
     ev.info_field_sets.curr.incl(field.i.uint8)
 
-  if ev.gene_fields.len > 0:
-    ev.INFO["impactful"] = impactful_found
-    ev.INFO["genic"] = genic_found
-
   # clear any field in last variant but not in this one.
   ev.clear_unused_infos(ev.info_field_sets)
   ev.variant.alias(ev.INFO, "INFO")
+
+  if ev.gene_fields.len > 0:
+    ev.INFO["impactful"] = impactful_found
+    ev.INFO["genic"] = genic_found
+    discard variant.info.set("impactful", impactful_found)
+    discard variant.info.set("genic", genic_found)
 
 type exResult* = tuple[name:string, sampleList:seq[string], val:float32]
 

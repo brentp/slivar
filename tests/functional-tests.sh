@@ -24,9 +24,9 @@ assert_exit_code 0
 # in groups, dad is empty in 2nd row, so we skip in the first column, but mom can have variants
 # in the 2nd case
 assert_in_stderr "sample	missing_dad	ok_mom
-HG002	4295	4552
+HG002	4301	4560
 HG003	0	0
-HG004	0	4552"
+HG004	0	4560"
 
 run check_error_repeated_name $exe expr -v tests/ashk-trio.vcf.gz --sample-expr "high_depth:sample.DP > 800" --trio "high_depth:kid.DP > 800" --ped tests/ashk-trio.ped -o xx.bcf
 assert_exit_code 1
@@ -59,12 +59,12 @@ assert_equal 4 $(bcftools view -H xx.bcf | wc -l)
 
 run check_denovo_with_info_filter_include_all $exe expr -v tests/ashk-trio.vcf.gz --info "variant.FILTER == 'PASS'" --trio "denovo:kid.alts == 1 && mom.alts == 0 && dad.alts == 0 && (mom.AD[1] + dad.AD[1]) < 2 && kid.GQ > 10 && mom.GQ > 10 && dad.GQ > 10 && kid.DP > 10 && mom.DP > 10 && dad.DP > 10" --ped tests/ashk-trio.ped -o xx.bcf
 assert_exit_code 0
-assert_equal 9870 $(bcftools view -H xx.bcf | wc -l)
+assert_equal 9940 $(bcftools view -H xx.bcf | wc -l)
 
 
 run check_aliased_info $exe expr -v tests/ashk-trio.vcf.gz --info "variant.FILTER == 'PASS' && variant.INFO.DP > 10" --pass-only --trio "denovo:kid.alts == 1 && mom.alts == 0 && dad.alts == 0" --ped tests/ashk-trio.ped -o xx.bcf
-assert_in_stderr "HG002	12"
-assert_equal 12 $(bcftools view -H xx.bcf | wc -l)
+assert_in_stderr "HG002	17"
+assert_equal 17 $(bcftools view -H xx.bcf | wc -l)
 assert_exit_code 0
 
 run check_missing_zip $exe expr -g XXXXXXXXXX.zip -v tests/ashk-trio.vcf.gz
@@ -94,7 +94,7 @@ assert_equal $(bcftools view -H tests/ashk-trio.vcf.gz | wc -l) $(bcftools view 
 
 rm -f xx.bcf
 run check_slivar_gnotate_load $exe expr --js tests/test-functions.js --info "call_rate(variant)" -o xx.bcf -v tests/ashk-trio.vcf.gz
-assert_equal 9834 $(bcftools view -H xx.bcf | wc -l)
+assert_equal 9933 $(bcftools view -H xx.bcf | wc -l)
 rm -f xx.bcf
 
 run check_compound_hets $exe compound-hets -v tests/comphet.vcf --ped tests/ashk-trio.ped -o ixx.vcf
@@ -128,12 +128,12 @@ assert_equal 4 $(grep -c ^denovo xx.tsv)
 run check_family_expr $exe expr --pass-only -p tests/ashk-trio.ped -v tests/ashk-trio.vcf.gz --trio "dn:mom.hom_ref && kid.het && dad.hom_ref" --family-expr 'dnf:fam.every(function(s) {return s.het == s.affected && s.hom_ref == !s.affected})' -o /dev/null
 assert_exit_code 0
 assert_in_stderr "sample	dn	dnf
-HG002	26	26"
+HG002	31	31"
 
 run check_functional $exe expr --pass-only -p tests/ashk-trio.ped -v tests/ashk-trio.vcf.gz --trio "dn:INFO.impactful && mom.hom_ref && kid.het && dad.hom_ref" --family-expr 'dnf:INFO.impactful && fam.every(function(s) {return s.het == s.affected && s.hom_ref == !s.affected})'
 assert_exit_code 0
 assert_in_stderr "sample	dn	dnf
-HG002	3	3"
+HG002	4	4"
 
 run check_vcf_CSQ $exe expr --pass-only --info "debug(VCF.CSQ);" -v tests/test.vcf
 assert_exit_code 0
@@ -143,8 +143,12 @@ assert_in_stderr "CONSEQUENCE,CODONS,AMINO_ACIDS,GENE,SYMBOL,FEATURE,EXON,POLYPH
 run check_phenotype $exe expr --pass-only -p tests/ashk-trio.ped -v tests/ashk-trio.vcf.gz --trio "dn:INFO.impactful && mom.hom_ref && kid.het && dad.hom_ref" --family-expr 'dnf:INFO.impactful && fam.every(function(s) {var aff=s.phenotype == "2"; return s.het == aff && s.hom_ref == !aff})'
 assert_exit_code 0
 assert_in_stderr "sample	dn	dnf
-HG002	3	3"
+HG002	4	4"
 
+run check_impactful_genic $exe expr --pass-only -p tests/ashk-trio.ped -v tests/ashk-trio.vcf.gz --trio "imp:INFO.impactful" --trio "gen:INFO.genic"
+assert_exit_code 0
+assert_in_stderr "sample	imp	gen
+HG002	2070	9397"
 
 rm xx.tsv
 
