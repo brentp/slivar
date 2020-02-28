@@ -148,7 +148,7 @@ HG002	4	4"
 run check_impactful_genic $exe expr --pass-only -p tests/ashk-trio.ped -v tests/ashk-trio.vcf.gz --trio "imp:INFO.impactful" --trio "gen:INFO.genic"
 assert_exit_code 0
 assert_in_stderr "sample	imp	gen
-HG002	2070	9397"
+HG002	2070	4381"
 
 rm xx.tsv
 

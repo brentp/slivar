@@ -5,6 +5,8 @@ v0.1.11 (dev)
 + slivar expr: fix counts in summary table when some families in the cohort have no affected samples
 + slivar tsv: improve readability when 1 or both parents are missing
 + slivar tsv: fix comma separation with 1 or both parents missing (thanks @brwnj for reporting)
++ slivar expr: add --exclude option which takes a bed file of exclude regions
++ slivar compound-hets: default will now output compound-het pairs that include synonymous variants 
 
 v0.1.10
 =======

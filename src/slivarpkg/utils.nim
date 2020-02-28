@@ -3,6 +3,7 @@ import tables
 import algorithm
 import strutils
 import lapper
+export lapper
 
 type
   region* = object
@@ -23,9 +24,9 @@ proc bed_line_to_region(line: string): region =
   if len(cse) < 3:
     stderr.write_line("[slivar] skipping bad bed line:", line.strip())
     return
+  result.chrom = stripChr(cse[0])
   result.start = parse_int(cse[1])
   result.stop = parse_int(cse[2])
-  result.chrom = stripChr(cse[0])
    #if len(cse) > 3:
    #  reg.name = cse[3]
 

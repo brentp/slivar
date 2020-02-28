@@ -4,6 +4,7 @@ from ./slivarpkg/version import slivarVersion, slivarGitCommit
 import ./slivarpkg/evaluator
 import ./slivarpkg/groups
 import ./slivarpkg/comphet
+import ./slivarpkg/utils
 import ./slivarpkg/ddc
 import ./slivarpkg/duodel
 import ./slivarpkg/gnotate
@@ -23,6 +24,7 @@ proc expr_main*(dropfirst:bool=false) =
   var p = newParser("slivar expr"):
     option("-v", "--vcf", help="path to VCF/BCF")
     option("--region", help="optional region to limit evaluation. e.g. chr1 or 1:222-333 (or a BED file of regions)")
+    option("-x", "--exclude", help="BED file of exclude regions (will never output excluded variants regardless of pass-only flag)")
     option("-j", "--js", help="path to javascript functions to expose to user")
     option("-p", "--ped", help="pedigree file with family relations, sex, and affected status")
     option("-a", "--alias", help="path to file of group aliases")
@@ -64,10 +66,15 @@ proc expr_main*(dropfirst:bool=false) =
     gnos:seq[Gnotater]
     samples:seq[Sample]
 
+    exclude_regions: TableRef[string, Lapper[utils.region]]
+
   if not open(ivcf, opts.vcf, threads=2):
     quit "couldn't open:" & opts.vcf
 
   let verbose=getEnv("SLIVAR_QUIET") == ""
+
+  if opts.exclude != "":
+    exclude_regions = utils.read_bed(opts.exclude)
 
   if opts.ped != "":
     samples = parse_ped(opts.ped, verbose=verbose)
@@ -139,7 +146,23 @@ proc expr_main*(dropfirst:bool=false) =
     written = 0
 
   let quiet = getEnv("SLIVAR_QUIET") != ""
+  var last_rid = -1
+  var exclude : Lapper[utils.region]
   for variant in ivcf.variants(opts.region):
+
+    if exclude_regions != nil:
+      if last_rid != variant.rid:
+        last_rid = variant.rid
+        try:
+          exclude = exclude_regions[utils.stripChr(variant.CHROM)]
+        except KeyError:
+          var x:seq[utils.region]
+          exclude = lapify(x)
+
+      if (not exclude.empty) and exclude.count(variant.start.int, variant.stop.int) > 0:
+        continue
+
+
     i += 1
     if i mod n == 0:
       var secs = cpuTime() - t
