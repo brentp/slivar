@@ -7,9 +7,9 @@ v0.1.11 (dev)
 + slivar tsv: fix comma separation with 1 or both parents missing (thanks @brwnj for reporting)
 + slivar expr: add --exclude option which takes a bed file of exclude regions
 + slivar compound-hets: default will now output compound-het pairs that include synonymous variants 
-+ fix tsv output from pslivar (which allows running slivar in parallel)
++ fix tsv output from pslivar (which allows running slivar in parallel). more info [here](https://github.com/brentp/slivar/wiki/parallel-slivar)
 + add `INFO.genic` boolean to complement `INFO.impactful`. By default this includes all impacts included by `impactful` along with
-  synonymous and other exonic, but non-protein-altering variants (but does not include `intronic`.
+  synonymous and other exonic, but non-protein-altering variants (but does not include `intronic`. (more info [here](https://github.com/brentp/slivar/wiki/impactful)
 
 v0.1.10
 =======

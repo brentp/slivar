@@ -66,6 +66,8 @@ extracts.
 any sample filtering. See [the wiki](https://github.com/brentp/slivar/wiki/gnotate) for more detail and [the gnotate](#gnotation-files)
 section for gnotation files that we distribute for `slivar`.
 
+`expr` commands are quite fast, but can be parallelized using [pslivar](https://github.com/brentp/slivar/wiki/parallel-slivar).
+
 #### trio
 
 when --trio is used, `slivar` finds all trios in a VCF, PED pair and let's the user specify an expression with indentifiers
@@ -260,7 +262,7 @@ See [the wiki](https://github.com/brentp/slivar/wiki/data-driven-cutoffs) for mo
 ## Attributes
 
  + anything in the INFO is available as e.g. INFO.CSQ
- + INFO.impactful which, if CSQ (VEP), BCSQ (bcftools), or ANN (snpEff) is present indicates if the highest impact is "impactful". see [wiki](https://github.com/brentp/slivar/wiki/impactful)
+ + INFO.impactful which, if CSQ (VEP), BCSQ (bcftools), or ANN (snpEff) is present indicates if the highest impact is "impactful". see [wiki](https://github.com/brentp/slivar/wiki/impactful) and `INFO.genic` which includes other gene impacts like `synonymous`.
  + if FORMAT.AB is not present, it is added so one can filter with kid.AB > 0.25 && kid.AB < 0.75
  + variant attributes are: `CHROM`, `POS`, `start`, `end`, `ID`, `REF`, `ALT`, `QUAL`, `FILTER`,
                            `is_multiallelic`
