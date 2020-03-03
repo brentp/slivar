@@ -1,13 +1,13 @@
-v0.1.11 (dev)
-=============
-+ slivar ddc: when looking at all chromosomes, skip X, Y
+v0.1.11
+=======
 + gnotate: ~10-20% speed improvement by inlining cmp in binarysearch
 + slivar expr: fix counts in summary table when some families in the cohort have no affected samples
 + slivar tsv: improve readability when 1 or both parents are missing
 + slivar tsv: fix comma separation with 1 or both parents missing (thanks @brwnj for reporting)
++ slivar ddc: when looking at all chromosomes, skip X, Y
 + slivar expr: add --exclude option which takes a bed file of exclude regions
 + slivar compound-hets: default will now output compound-het pairs that include synonymous variants 
-+ fix tsv output from pslivar (which allows running slivar in parallel). more info [here](https://github.com/brentp/slivar/wiki/parallel-slivar)
++ pslivar: fix tsv output from pslivar (which allows running slivar in parallel). more info [here](https://github.com/brentp/slivar/wiki/parallel-slivar)
 + add `INFO.genic` boolean to complement `INFO.impactful`. By default this includes all impacts included by `impactful` along with
   synonymous and other exonic, but non-protein-altering variants (but does not include `intronic`. (more info [here](https://github.com/brentp/slivar/wiki/impactful)
 

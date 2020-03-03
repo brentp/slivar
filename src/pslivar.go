@@ -15,7 +15,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/biogo/biogo/io/seqio/fai"
+	"github.com/biogo/hts/fai"
 	"github.com/brentp/faidx"
 	"github.com/brentp/gargs/process"
 )
