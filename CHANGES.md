@@ -1,3 +1,7 @@
+v0.1.12 (dev)
+=======
++ slivar expr: handle ploidy > 2 (updated hts-nim) (#55 thanks to @markw3lsh for reporting and providing a test-case)
+
 v0.1.11
 =======
 + gnotate: ~10-20% speed improvement by inlining cmp in binarysearch
