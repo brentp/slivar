@@ -120,5 +120,5 @@ print(axes[0].get_xticks())
 
 plt.tight_layout()
 sns.despine()
-plt.savefig("figure3-exome-counts.png")
+plt.savefig("figure5-genome-counts.png")
 plt.show()

@@ -15,6 +15,7 @@ import os
 var p = newParser("dn_roc"):
   option("-x", "--exclude", help="BED file of exclude regions (e.g. LCRs)")
   option("--gq", help="integer genotype quality cutoff between 0 and 99 inclusive", multiple=true)
+  option("-d", "--min-depth", help="minimum depth", default="0")
   option("-q", "--min-variant-quality", help="variants with a quality lower than this are excluded", default="0")
   arg("ped")
   arg("vcf")
@@ -35,6 +36,7 @@ if not open(ivcf, opts.vcf, threads=3):
 var mvq = parseFloat(opts.min_variant_quality)
 
 var gq_cutoffs = newSeq[int](opts.gq.len)
+var depth_cutoff = parseInt(opts.min_depth)
 for i, gq in opts.gq:
   var v = parseInt(gq)
   if v < 0 or v > 99:
@@ -141,10 +143,16 @@ for v in ivcf:
 
   for i, kid in kids:
     var lowest_gq = 99
+    var lowest_d = int32.high
     #var skip = false
     for s in [kid, kid.mom, kid.dad]:
       if GQ[s.i] < lowest_gq:
         lowest_gq = GQ[s.i]
+      if AD[2*s.i] + AD[2*s.i+1] < lowest_d:
+        lowest_d = AD[2*s.i] + AD[2*s.i+1]
+    if lowest_d < depth_cutoff:
+      continue
+
     #  if AD[2*s.i] + AD[2*s.i+1] < 6:
     #    skip = true
     #if skip: continue
