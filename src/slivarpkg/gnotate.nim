@@ -242,12 +242,39 @@ proc annotate_missing(g:Gnotater, v:Variant): bool {.inline.} =
     return true
   return false
 
+proc contains*(g: var Gnotater, v:Variant): bool =
+  ## fast-past to check presence variant in set
+  if g.chrom != v.CHROM:
+    discard g.load(v.CHROM)
+  let alt = if likely(len(v.ALT) > 0): v.ALT[0] else: "."
+  let q = if unlikely(v.REF.len + alt.len > MaxCombinedLen):
+    pfra(position:v.start.uint32)
+  else:
+    pfra(position:v.start.uint32, reference:v.REF, alternate:alt)
+  var i = g.encs.find(q)
+  if i == -1: return false
+  let match = g.encs[i].decode
+
+  if match.reference.len != 0:
+    # found short allele
+    return true
+
+  # should find this position in the longs
+  let l = Long(position:v.start.uint32, reference:v.REF, alternate:alt)
+  i = lowerBound(g.longs, l, cmp_long)
+  # since these can be ordered differently, we have to check until we get to a different position or a match.
+  while i < g.longs.len:
+    if i > g.longs.high or g.longs[i].position != q.position:
+      return g.annotate_missing(v)
+    if g.longs[i].reference == l.reference and g.longs[i].alternate == l.alternate:
+      break
+    i += 1
+  return i < g.longs.len
+
 proc annotate*(g:var Gnotater, v:Variant): bool {.inline.} =
   ## annotate the variant INFO field with the allele frequencies and flags in g
   ## if include_missing is true. the allele frequency will be set to -1 if the variant
   ## is not found.
-  #if len(v.ALT) > 1:
-    #echo "only annotating a single allele for the multiallelic variants"
   if g.chrom != v.CHROM:
     discard g.load(v.CHROM)
 
