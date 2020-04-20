@@ -8,26 +8,11 @@ import strformat
 #import zip/zipfiles
 import minizip
 import ./pracode
-import docopt
 import os
 import strutils
 import streams
-
-let doc = """
-
-Usage: slivar make-gnotate [options --field <string>...] <vcfs>...
-
-Options:
-
-  --prefix <string>          prefix for output [default: gno]
-  -f --field <string>...     field(s) to pull from VCF. format is source:dest. e.g. AF_popmax:gnomad_popmax_af [default: AF_popmax]
-  -m --message <string>      optional usage message (or license) to associate with the gnotate file.
-
-Arguments:
-
-  <vcfs>...    paths like: /path/to/gnomad.exomes.r2.1.sites.vcf.bgz /other/to/gnomad.genomes.r2.1.sites.vcf.bgz
-
-"""
+import tables
+import argparse
 
 type field = object
   field: string ## info field name
@@ -215,18 +200,24 @@ proc encode_and_update(v: Variant, fields: var seq[field], kvs: var seq[evalue],
   v.update(e, vals, kvs, longs)
 
 proc main*(dropfirst:bool=false) =
-  var args = if dropfirst:
-    var argv = commandLineParams()
-    echo "drop"
-    echo argv
-    docopt(doc, argv=argv[1..argv.high])
-  else:
-    echo commandLineParams()
-    var argv = commandLineParams()
-    docopt(doc, argv=argv)
-    #docopt(doc)
+  var argv = commandLineParams()
 
-  var prefix = $args["--prefix"]
+  if dropfirst or (len(argv) > 0 and argv[0] == "make-gnotate"):
+    argv = argv[1..argv.high]
+  if argv.len == 0: argv.add("--help")
+
+  var p = newParser("slivar make-gnotate"):
+    option("--prefix", default="gno", help="prefix for output")
+    option("-f", "--field", help="field(s) to pull from VCF. format is source:dest. e.g. AF_popmax:gnomad_popmax_af", multiple=true)
+    option("-m", "--message", help="optional usage message (or license) to associate with the gnotate file.")
+    arg("vcfs", nargs= -1, help="paths to vcf files")
+
+  var opts = p.parse(argv)
+  if opts.help:
+    echo p.help
+    quit 0
+
+  var prefix = opts.prefix
   if prefix[prefix.high] == '/':
     prefix &= "gnotate"
   if prefix[prefix.high] != '.':
@@ -237,18 +228,18 @@ proc main*(dropfirst:bool=false) =
   defer: cleanup()
 
   let
-    vcf_paths = @(args["<vcfs>"])
+    vcf_paths = opts.vcfs
 
   if vcf_paths.len == 0:
-    echo doc
+    echo p.help
     quit "vcf(s) required"
 
   var
     longs = newSeqOfCap[PosValue](65536)
     kvs = newSeqOfCap[evalue](65536)
     imod = 500_000
-    fields = parse_fields(@(args["--field"]))
-    message = $args["--message"]
+    fields = parse_fields(opts.field)
+    message = opts.message
 
   var vcfs = newSeq[VCF](vcf_paths.len)
 
@@ -321,7 +312,7 @@ proc main*(dropfirst:bool=false) =
   var fh:File
   doAssert open(fh, prefix & "args.txt", fmWrite)
   fh.write("version:" & slivarVersion & "\n")
-  fh.write($args & "\n")
+  fh.write(join(argv, " ") & "\n")
   fh.close()
   zip.addFile(prefix & "args.txt", "sli.var/args.txt")
   removeFile(prefix & "args.txt")
