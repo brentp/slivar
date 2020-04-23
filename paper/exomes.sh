@@ -36,7 +36,8 @@ DONE
 export SLIVAR_SUMMARY_FILE=$cohort.summary.tsv
 echo $(which slivar)
 
-slivar expr --vcf $bcf \
+pslivar expr --vcf $bcf \
+    --fasta $fasta \
     --ped $ped \
     --pass-only \
     --js /home/brentp/src/slivar/js/slivar-functions.js \
@@ -44,14 +45,15 @@ slivar expr --vcf $bcf \
     --info 'INFO.gnomad_popmax_af < 0.01 && variant.FILTER == "PASS" && variant.ALT[0] != "*"' \
     --family-expr 'denovo:fam.every(segregating_denovo) && INFO.gnomad_popmax_af < 0.001' \
     --family-expr 'recessive:fam.every(segregating_recessive)' \
-    --family-expr 'x_denovo:(variant.CHROM == "X" || variant.CHROM == "chrX") && fam.every(segregating_denovo_x) && INFO.gnomad_popmax_af < 0.001' \
-    --family-expr 'x_recessive:(variant.CHROM == "X" || variant.CHROM == "chrX") && fam.every(segregating_recessive_x)' \
+    --family-expr 'x_denovo:fam.every(segregating_denovo_x) && INFO.gnomad_popmax_af < 0.001' \
+    --family-expr 'x_recessive:fam.every(segregating_recessive_x) && variant.CHROM == "chrX"' \
     --trio "auto_dom:fake_auto_dom(kid, mom, dad) && variant.CHROM != 'chrX' && variant.CHROM != 'X' && INFO.gnomad_popmax_af < 0.001 && INFO.gnomad_nhomalt < 4" \
     --trio 'comphet_side:comphet_side(kid, mom, dad) && INFO.gnomad_nhomalt < 10 && INFO.gnomad_popmax_af < 0.005' \
     | bcftools csq -s - --ncsq 40 -g $gff -l -f $fasta - -o vcfs/$cohort.vcf
 
 export SLIVAR_SUMMARY_FILE=$cohort.ch.summary.tsv
 slivar compound-hets --sample-field comphet_side --sample-field denovo -p $ped -v vcfs/$cohort.vcf > vcfs/$cohort.ch.vcf
+exit
 
 export SLIVAR_SUMMARY_FILE=$cohort.impactful.summary.tsv
 
