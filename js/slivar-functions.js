@@ -1,4 +1,4 @@
-var config = {min_GQ: 20, min_AB: 0.22}
+var config = {min_GQ: 20, min_AB: 0.20}
 // hi quality variants
 function hq(kid, mom, dad) {
   return hq1(kid) && hq1(mom) && hq1(dad)
@@ -7,12 +7,12 @@ function hq(kid, mom, dad) {
 function hq1(sample) {
   if (sample.unknown || sample.GQ < config.min_GQ) { return false; }
   if (sample.hom_ref){
-      return sample.AB <= 0.02
+      return sample.AB < 0.02
   }
   if(sample.het) {
       return sample.AB >= config.min_AB && sample.AB <= (1 - config.min_AB)
   }
-  return sample.AB >= 0.98
+  return sample.AB > 0.98
 }
 
 function hqrv(variant, INFO, af_cutoff) {

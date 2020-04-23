@@ -243,7 +243,7 @@ proc annotate_missing(g:Gnotater, v:Variant): bool {.inline.} =
   return false
 
 proc contains*(g: var Gnotater, v:Variant): bool =
-  ## fast-past to check presence variant in set
+  ## fast-path to check presence variant in set
   if g.chrom != v.CHROM:
     discard g.load(v.CHROM)
   let alt = if likely(len(v.ALT) > 0): v.ALT[0] else: "."
