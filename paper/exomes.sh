@@ -6,7 +6,7 @@ fasta=/data/human/GRCh38_full_analysis_set_plus_decoy_hla.fa
 LCR=/data/human/LCR-hs38.bed.gz
 mkdir -p vcfs/
 
-cohort=exome-after
+cohort=exome
 export SLIVAR_SUMMARY_FILE=$cohort.summary.tsv PATH=.:$PATH
 
 here="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
@@ -37,7 +37,6 @@ DONE
 export SLIVAR_SUMMARY_FILE=$cohort.summary.tsv
 echo $(which slivar)
 
-<<DONE
 pslivar expr --vcf $bcf \
     --fasta $fasta \
     --ped $ped \
@@ -55,7 +54,6 @@ pslivar expr --vcf $bcf \
 
 export SLIVAR_SUMMARY_FILE=$cohort.ch.summary.tsv
 slivar compound-hets --sample-field comphet_side --sample-field denovo -p $ped -v vcfs/$cohort.vcf > vcfs/$cohort.ch.vcf
-exit
 
 export SLIVAR_SUMMARY_FILE=$cohort.impactful.summary.tsv
 pslivar expr --vcf $bcf \
@@ -71,10 +69,9 @@ pslivar expr --vcf $bcf \
     --family-expr 'x_recessive:fam.every(segregating_recessive_x) && variant.CHROM == "chrX"' \
     --trio "auto_dom:fake_auto_dom(kid, mom, dad) && variant.CHROM != 'chrX' && variant.CHROM != 'X' && INFO.gnomad_popmax_af < 0.001 && INFO.gnomad_nhomalt < 4" \
     --trio 'comphet_side:comphet_side(kid, mom, dad) && INFO.gnomad_nhomalt < 10 && INFO.gnomad_popmax_af < 0.005' \
-    | bcftools csq -s - --ncsq 40 -g $gff -l -f $fasta - -o vcfs/$cohort.vcf
+    | bcftools csq -s - --ncsq 40 -g $gff -l -f $fasta - -o vcfs/$cohort.impactful.vcf
 
 export SLIVAR_SUMMARY_FILE=$cohort.impactful.ch.summary.tsv
 slivar compound-hets --sample-field comphet_side --sample-field denovo -p $ped -v vcfs/$cohort.impactful.vcf > vcfs/$cohort.impactful.ch.vcf
-DONE
 
 python plot-final-exome.py $cohort.summary.tsv $cohort.ch.summary.tsv $cohort.impactful.summary.tsv $cohort.impactful.ch.summary.tsv $ped

@@ -10,11 +10,14 @@ colors2 = sns.color_palette("Set1", 12)[3:]
 colors = [(0.6, 0.6, 0.6)] * 12
 
 
-def read_dfs(i, j):
+def read_dfs(i, j, sample_set):
 
     df = pd.read_csv(sys.argv[i], sep="\t", index_col=0)
     dfo = df.join(pd.read_csv(sys.argv[j], sep="\t", index_col=0))
     dfo.drop("comphet_side", inplace=True, axis="columns")
+    dfo = dfo.loc[dfo.index.intersection(sample_set)]
+    print(dfo[dfo.auto_dom == 0])
+
     ad = dfo.auto_dom
     ad = pd.DataFrame({"number_of_variants": ad})
     dfo.drop("auto_dom", inplace=True, axis="columns")
@@ -37,9 +40,14 @@ def get_mean_df(df_means, order):
     return df_means_bar
 
 
-df, ad = read_dfs(1, 2)
+ped = sys.argv[5]
+# some affected parents
+affected_kids = {l.split("\t")[1] for l in open(ped) if l.split("\t")[5] == "2" and l.split("\t")[3] not in "0."}
+df, ad = read_dfs(1, 2, affected_kids)
 
-dfi, adi = read_dfs(3, 4)
+dfi, adi = read_dfs(3, 4, affected_kids)
+
+
 
 df["cat"] = "all"
 dfi["cat"] = "impactful"
@@ -50,10 +58,6 @@ adi["cat"] = "impactful"
 df = pd.concat((df, dfi))
 ad = pd.concat((ad, adi), ignore_index=True)
 ad["variable"] = "autosomal dominant"
-
-print(df.head())
-#print(ad.head())
-
 
 df_means = df.groupby(["variable", "cat"]).mean()
 ad_means = ad.groupby(["variable", "cat"]).mean()
@@ -112,10 +116,8 @@ for i, y in enumerate(ad_means_bar.loc[ad_means_bar["variant class"] == "impactf
    axes[1].plot([xs[i] + 0.05, xs[i] + 0.4], [y, y], ls='-', color="gray", lw=2, zorder=-10)
 
 
-print(np.arange(len(labels)))
-
 print(df_means_bar.loc[df_means_bar["variant class"] == "all", "mean number of variants"])
-print(axes[0].get_xticks())
+axes[0].set_ylim(0, 15)
 
 plt.tight_layout()
 sns.despine()
