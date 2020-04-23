@@ -55,6 +55,7 @@ pslivar expr --vcf $bcf \
 
 export SLIVAR_SUMMARY_FILE=$cohort.ch.summary.tsv
 slivar compound-hets --sample-field comphet_side --sample-field denovo -p $ped -v vcfs/$cohort.vcf > vcfs/$cohort.ch.vcf
+exit
 
 export SLIVAR_SUMMARY_FILE=$cohort.impactful.summary.tsv
 pslivar expr --vcf $bcf \
