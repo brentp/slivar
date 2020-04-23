@@ -23,7 +23,7 @@ sns.swarmplot(x="variable", y="number_of_variants",
 axes[0].set_xlabel("Filtering strategy", size=15)
 axes[0].set_ylabel("Candidate $\it{de novo}$ variants")
 axes[0].set_xticklabels(["0.2 <= AB < 0.8\n& GQ >= 20",
-                         "gnomAD popmax AF < 0.001\n& not non-PASS in gnomAD",
+                         "gnomAD popmax AF < 0.001",
                          "impactful"])
 
 axes[0].set_yticks(range(11))
