@@ -1,5 +1,7 @@
 import sys
 import re
+import matplotlib
+matplotlib.use("Agg")
 
 from matplotlib import pyplot as plt
 import seaborn as sns
@@ -51,7 +53,7 @@ for ci, df in enumerate(df_genomes):
                     marker='o', label="%.2g-%.2g" % (cutoff, 1 - cutoff))
             if cutoff == 0.2:
                 ax.text(0.15, 0.1, "FP: %d TP: %d" % (cut.n_fps, cut.n_tps),
-                        transform=ax.transAxes, 
+                        transform=ax.transAxes,
                         color=colors[j+1])
 
             if cutoff == 0.2:
