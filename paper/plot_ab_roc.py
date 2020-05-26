@@ -87,6 +87,7 @@ except IndexError:
 sns.despine()
 ax = axes[0]
 plt.tight_layout(rect=(0, 0.005, 1, 0.995))
+plt.savefig("figure1-exome-GQ-AB-cutoffs.eps")
 plt.savefig("figure1-exome-GQ-AB-cutoffs.png")
 plt.show()
 

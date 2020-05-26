@@ -94,6 +94,7 @@ sns.despine()
 ax = axes[0]
 #plt.tight_layout(rect=(0, 0.005, 1, 0.995))
 plt.savefig("supp-figure1-%s.png" % title.lower().replace(" ", "-"))
+plt.savefig("supp-figure1-%s.eps" % title.lower().replace(" ", "-"))
 #plt.show()
 
 
