@@ -73,7 +73,7 @@ axes[1].set_title("DeepVariant", size=15)
 axes[0].set_xlabel(None, size=15)
 axes[1].set_xlabel(None, size=15)
 
-axes[0].set_ylabel("Candidate $\it{de novo}$ variants")
+axes[0].set_ylabel("Candidate $\it{de}$ $\it{novo}$ variants")
 axes[1].set_ylabel(None)
 
 xlabels = ["AB in 0.2..0.8\nGQ >= 20\nDP >= 10",
