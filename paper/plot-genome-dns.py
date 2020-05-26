@@ -93,7 +93,14 @@ ax.set_ylim(ymin=-0.5)
 #ax.axhline(o, 0.1, 0.4, lw=4)
 #ax.axhline(f, 1-0.4, 1 - 0.1, lw=4)
 
+for ax in axes:
+    ax.annotate("additive filtering", [3, 1600], [1.4, 1600],
+        ha="center", va="center",
+        arrowprops=dict(arrowstyle="simple"))
+
+
 sns.despine()
 plt.tight_layout()
 plt.savefig("figure4-genome-denovos.png")
+plt.savefig("figure4-genome-denovos.eps")
 plt.show()

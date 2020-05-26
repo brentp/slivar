@@ -120,6 +120,12 @@ for cohort in genome genome-dv; do
     done
 done
 
-# figure 4
-python ~/Projects/src/slivar/paper/plot-final-genome.py dev.genome.impactful.summary.tsv dev.genome.impactful.ch.summary.tsv dev.genome-dv.impactful.summary.tsv dev.genome-dv.impactful.ch.summary.tsv
+# figure 5a
+python plot-final-genome.py dev.genome.impactful.summary.tsv dev.genome.impactful.ch.summary.tsv dev.genome-dv.impactful.summary.tsv dev.genome-dv.impactful.ch.summary.tsv
+mv figure5-genome-counts.png figure5-genome-counts.impactful.png
+mv figure5-genome-counts.eps figure5-genome-counts.impactful.eps
+# figure 5b
+python plot-final-genome.py dev.genome.genic.summary.tsv dev.genome.genic.ch.summary.tsv dev.genome-dv.genic.summary.tsv dev.genome-dv.genic.ch.summary.tsv
+mv figure5-genome-counts.png figure5-genome-counts.genic.png
+mv figure5-genome-counts.eps figure5-genome-counts.genic.eps
 
