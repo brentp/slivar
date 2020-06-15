@@ -123,6 +123,7 @@ type Evaluator* = ref object
 
   info_field_sets: FieldSets[uint16]
   fmt_field_sets: FieldSets[uint8]
+  allow_fmt_strings: bool
 
   empty: Duko
 
@@ -153,10 +154,13 @@ type Evaluator* = ref object
   format_white_list: seq[string]
 
 template fill[T: int8 | int32 | float32 | string](sample:ISample, name:string, values:var seq[T], nper:int) =
-  if nper == 1:
-    sample.duk[name] = values[sample.ped_sample.i]
-  elif nper >= 2:
-    sample.duk[name] = values[(nper*sample.ped_sample.i)..<(nper*(sample.ped_sample.i+1))]
+  when T is string:
+      sample.duk[name] = values[sample.ped_sample.i]
+  else:
+    if nper == 1:
+      sample.duk[name] = values[sample.ped_sample.i]
+    elif nper >= 2:
+      sample.duk[name] = values[(nper*sample.ped_sample.i)..<(nper*(sample.ped_sample.i+1))]
 
 
 template set_with_obj*(ctx:DTContext, idx: int, key:string, value: bool) =
@@ -308,6 +312,7 @@ proc newEvaluator*(ivcf:VCF, samples: seq[Sample], groups: seq[Group], float_exp
 
   result.info_white_list = getEnvNotEmpty("SLIVAR_INFO_WHITELIST")
   result.format_white_list = getEnvNotEmpty("SLIVAR_FORMAT_WHITELIST")
+  result.allow_fmt_strings = getEnv("SLIVAR_FORMAT_STRINGS") != ""
   result.VCF = result.ctx.newObject("VCF")
 
   for f in ["ANN", "CSQ", "BCSQ"]:
@@ -461,7 +466,7 @@ proc load_js*(ev:Evaluator, code:string) =
 
 
 
-proc set_format_field(ctx: Evaluator, f:FormatField, fmt:FORMAT, ints: var seq[int32], floats: var seq[float32]) =
+proc set_format_field(ctx: Evaluator, f:FormatField, fmt:FORMAT, ints: var seq[int32], floats: var seq[float32], strs: var seq[string]) =
 
   case f.vtype:
     of BCF_TYPE.INT32, BCF_TYPE.INT16, BCF_TYPE.INT8:
@@ -475,7 +480,11 @@ proc set_format_field(ctx: Evaluator, f:FormatField, fmt:FORMAT, ints: var seq[i
       for sample in ctx.samples.mitems:
         sample.fill(f.name, floats, f.n_per_sample)
     of BCF_TYPE.CHAR:
-      discard
+      if ctx.allow_fmt_strings:
+        if fmt.get(f.name, strs) != Status.OK:
+          quit "couldn't get format field:" & f.name
+        for sample in ctx.samples.mitems:
+          sample.fill(f.name, strs, f.n_per_sample)
     else:
       quit "Unknown field type:" & $f.vtype & " in field:" & f.name
 
@@ -751,7 +760,7 @@ template clear_unused_formats(ev:Evaluator) =
     for sample in ev.samples:
       sample.duk.del(ev.field_names[idx].name)
 
-proc set_format_fields*(ev:var Evaluator, v:Variant, alts: var seq[int8], ints: var seq[int32], floats: var seq[float32]) =
+proc set_format_fields*(ev:var Evaluator, v:Variant, alts: var seq[int8], ints: var seq[int32], floats: var seq[float32], strs: var seq[string]) =
   # fill the format fields
   swap(ev.fmt_field_sets.last, ev.fmt_field_sets.curr)
   ev.fmt_field_sets.curr = {}
@@ -767,7 +776,7 @@ proc set_format_fields*(ev:var Evaluator, v:Variant, alts: var seq[int8], ints: 
     ev.fmt_field_sets.curr.incl(f.i.uint8)
     if f.name == "GT": continue
     if has_ab and f.name == "AB": continue
-    ev.set_format_field(f, fmt, ints, floats)
+    ev.set_format_field(f, fmt, ints, floats, strs)
     if f.name == "AD":
       has_ad = true
       if ev.samples.len * (1 + v.ALT.len) != ints.len:
@@ -807,6 +816,7 @@ iterator evaluate*(ev:var Evaluator, variant:Variant, nerrors:var int): exResult
 
     var ints = newSeq[int32](2 * variant.n_samples)
     var floats = newSeq[float32](2 * variant.n_samples)
+    var strs = newSeq[string]()
 
     ## the most expensive part is pulling out the format fields so we pull all fields
     ## and set values for all samples.
@@ -826,7 +836,7 @@ iterator evaluate*(ev:var Evaluator, variant:Variant, nerrors:var int): exResult
         yield ("", @[], 0.0'f32)
 
       elif ev.trios.len > 0 or ev.groups.len > 0 or ev.families.len > 0:
-        ev.set_format_fields(variant, alts, ints, floats)
+        ev.set_format_fields(variant, alts, ints, floats, strs)
         for r in ev.evaluate_trios(nerrors, variant): yield r
         for r in ev.evaluate_groups(nerrors, variant): yield r
         for r in ev.evaluate_families(nerrors, variant): yield r

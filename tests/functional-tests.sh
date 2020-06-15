@@ -164,4 +164,18 @@ run check_make_gnotate_clinvar_annotation $exe expr -g _clinvar.test.zip -v test
 assert_exit_code 0
 
 
+export SLIVAR_FORMAT_STRINGS=1
+run check_slivar_format_strings $exe expr --pass-only --sample-expr 'pid:"PID" in sample && sample.PID == "866319_G_A"' -v tests/ashk-trio.vcf.gz --ped tests/ashk-trio.ped
+assert_exit_code 0
+assert_in_stderr "sample	pid
+HG002	0
+HG003	1
+HG004	0"
+unset SLIVAR_FORMAT_STRINGS
 
+run check_slivar_no_format_strings $exe expr --pass-only --sample-expr 'pid:"PID" in sample && sample.PID == "866319_G_A"' -v tests/ashk-trio.vcf.gz --ped tests/ashk-trio.ped
+assert_exit_code 0
+assert_in_stderr "sample	pid
+HG002	0
+HG003	0
+HG004	0"
