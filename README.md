@@ -268,7 +268,9 @@ See [the wiki](https://github.com/brentp/slivar/wiki/data-driven-cutoffs) for mo
                            `is_multiallelic`
  + calculated variant attributes include: `aaf`, `hwe_score`, `call_rate`, `num_hom_ref`, `num_het`, `num_hom_alt`, `num_unknown`
 
- + sample attributes (via `kid`, `mom`, `dad`) included in the FORMAT. available as e.g. `kid.AD[1]`, `mom.DP`, etc.
+ + numeric and flag sample attributes (via `kid`, `mom`, `dad`) included in the FORMAT. available as e.g. `kid.AD[1]`, `mom.DP`, etc.
+ + if the environment variable `SLIVAR_FORMAT_STRINGS` is not empty, then string sample fields will be available. these are not populated
+   by default as they are used less often and impact performance.
  + sample attributes for `hom_ref`, `het`, `hom_alt`, `unknown` which are synonums for `sample.alts` of 0, 1, 2, -1 respectively.
  + sample attributes from the ped for `affected`, `phenotype`, `sex`, `id` are available as, e.g. kid.sex.
    phenotype is a string taken directly from the pedigree file while affected is a boolean.
