@@ -14,6 +14,7 @@ It facilitates operations on trios and [groups](#groups) and allows arbitrary ex
   `variant.call_rate > 0.9 && variant.FILTER == "PASS" && INFO.AC < 22 && variant.num_hom_alt == 0`
 + see [using slivar for rare disease research](https://github.com/brentp/slivar/wiki/rare-disease)
 
+![slivar logo](https://user-images.githubusercontent.com/1739/85797163-55738480-b6f8-11ea-8486-389de3e492e6.png)
 
 slivar has sub-commands:
 + [expr](#expr): filter and/or annotate with INFO, trio, sample, group expressions
