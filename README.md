@@ -122,7 +122,8 @@ Note that `slivar` does not give direct access to the genotypes, instead exposin
 homozygous alternate and -1 when the genotype is unknown. It is recommended to **decompose** a VCF before sending to `slivar`
 
 Here it is assumed that `trio_autosomal_recessive` is defined in `slivar-functions.js`; an example implementation of that
-and other useful functions is provided [here](https://github.com/brentp/slivar/blob/master/js/slivar-functions.js)
+and other useful functions is provided [here](https://github.com/brentp/slivar/blob/4856c503a15f2647270a2ac24e4e1b1455208e34/js/slivar-functions.js).
+Note that it's often better to use --family-expr instead as it's more flexible than trio expressions.
 
 
 #### Family Expressions
