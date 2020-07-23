@@ -69,8 +69,8 @@ wget https://slivar.s3.amazonaws.com/gnomad.hg38.genomes.v3.fix.zip
 ./slivar expr --js slivar-functions.js -g gnomad.hg38.genomes.v3.fix.zip \
 	--vcf $vcf --ped $ped \
 	--info "INFO.gnomad_popmax_af < 0.01 && variant.FILTER == 'PASS'" \
-	--trio "example_denovo:trio_denovo(kid, dad, mom)"
-	--family-expr "denovo:denovo(fam)"
+	--trio "example_denovo:trio_denovo(kid, dad, mom)" \
+	--family-expr "denovo:denovo(fam)" \
 	--pass-only
 ```
 
