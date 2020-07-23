@@ -72,8 +72,7 @@ wget https://slivar.s3.amazonaws.com/gnomad.hg38.genomes.v3.fix.zip
 	--trio "example_denovo:trio_denovo(kid, dad, mom)"
 	--family-expr "denovo:denovo(fam)"
 	--pass-only
-
-``
+```
 
 ## Commands
 
