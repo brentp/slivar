@@ -55,6 +55,26 @@ or use via docker from: [brentp/slivar:latest](https://hub.docker.com/r/brentp/s
 To get started quickly, grab a static binary [for the latest release](https://github.com/brentp/slivar/releases/latest) and
 then follow [this example](https://github.com/brentp/slivar/wiki/rare-disease#full-analysis-for-trios-with-unaffected-parents)
 
+So for hg38:
+
+```
+vcf=/path/to/your/vcf.vcf.gz
+ped=/path/to/your/pedigree.ped
+wget `https://github.com/brentp/slivar/releases/download/v0.1.11/slivar`
+chmod +x ./slivar
+wget https://raw.githubusercontent.com/brentp/slivar/master/js/slivar-functions.js
+wget https://slivar.s3.amazonaws.com/gnomad.hg38.genomes.v3.fix.zip
+
+# example command
+./slivar expr --js slivar-functions.js -g gnomad.hg38.genomes.v3.fix.zip \
+	--vcf $vcf --ped $ped \
+	--info "INFO.gnomad_popmax_af < 0.01 && variant.FILTER == 'PASS'" \
+	--trio "example_denovo:trio_denovo(kid, dad, mom)"
+	--family-expr "denovo:denovo(fam)"
+	--pass-only
+
+``
+
 ## Commands
 
 ### expr
