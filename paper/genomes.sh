@@ -5,7 +5,7 @@ LCR=/uufs/chpc.utah.edu/common/HIPAA/u6000771/Data/LCR-hs38.bed.gz
 zip=/uufs/chpc.utah.edu/common/HIPAA/u6000771/Data/gnomad.hg38.genomes.v3.fix.zip
 
 SRC=~/Projects/src/slivar/paper/
-js=~/Projects/src/slivar/paper/paper.js
+js=~/Projects/src/slivar/js/slivar-functions.js
 
 here="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 cd "$here"
@@ -128,4 +128,11 @@ mv figure5-genome-counts.eps figure5-genome-counts.impactful.eps
 python plot-final-genome.py dev.genome.genic.summary.tsv dev.genome.genic.ch.summary.tsv dev.genome-dv.genic.summary.tsv dev.genome-dv.genic.ch.summary.tsv
 mv figure5-genome-counts.png figure5-genome-counts.genic.png
 mv figure5-genome-counts.eps figure5-genome-counts.genic.eps
+
+
+## for checking that we don't remove "true" positives:
+slivar tsv --sample-field denovo --sample-field recessive --sample-field x_denovo --sample-field x_recessive -o genomes.tsv -p data-links/geno me.ped --csq-column CSQ vcfs/genome.vcf
+slivar tsv --sample-field slivar_comphet -p data-links/genome.ped --csq-column CSQ vcfs/genome.ch.vcf | grep -v ^# >> genomes.tsv
+
+# solved cases are from: https://app.terra.bio/#workspaces/broad-genomics-delivery/RGP_Rehm_RareDisease_WGS/data downloaed 8/15/2020
 
