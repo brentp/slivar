@@ -61,6 +61,11 @@ for ci, df in enumerate(df_genomes):
                         markersize=12,
                         marker='o', zorder=-1)
 
+                ax.annotate(("FNR:%.4f" % (1 - float(cut.tp))),
+                            [cut.fp, cut.tp], [cut.fp-0.0002, cut.tp-0.25],
+                            arrowprops=dict(arrowstyle="simple", facecolor='black'))
+
+
         sns.despine()
         if i == 1 and ci == 0:
             ax.legend(title="Allele-balance cut-offs", fontsize=9)
@@ -89,6 +94,7 @@ sns.despine()
 ax = axes[0]
 #plt.tight_layout(rect=(0, 0.005, 1, 0.995))
 plt.savefig("supp-figure1-%s.png" % title.lower().replace(" ", "-"))
+plt.savefig("supp-figure1-%s.eps" % title.lower().replace(" ", "-"))
 #plt.show()
 
 

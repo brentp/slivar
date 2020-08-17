@@ -54,20 +54,13 @@ for ci, df in enumerate((df_exome, )):
                         markersize=12,
                         marker='o', zorder=-1)
 
-        """
-        if ci == 0:
-            ax.set_xlim(0.0, 0.0011)
-        else:
-            ax.set_xlim(0.0, 0.008)
-        ax.set_ylim(0.8, 1)
-        """
+            if cutoff == 0.2:
+                ax.annotate(("FNR:%.4f" % (1 - float(cut.tp))),
+                            [cut.fp, cut.tp], [cut.fp-0.0002, cut.tp-0.25],
+                            arrowprops=dict(arrowstyle="simple", facecolor='black'),
+                            )
 
-        #if ci == 1:
         ax.set_xlim(0, 0.0015)
-        #else:
-        #    ax.set_xlim(0, 0.005)
-        #ax.set_xlim(0, 0.01)
-        #ax.set_xlim(0, 0.004)
 
         sns.despine()
         if i == 1 and ci == 0:
@@ -94,6 +87,7 @@ except IndexError:
 sns.despine()
 ax = axes[0]
 plt.tight_layout(rect=(0, 0.005, 1, 0.995))
+plt.savefig("figure1-exome-GQ-AB-cutoffs.eps")
 plt.savefig("figure1-exome-GQ-AB-cutoffs.png")
 plt.show()
 

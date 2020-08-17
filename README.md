@@ -14,6 +14,7 @@ It facilitates operations on trios and [groups](#groups) and allows arbitrary ex
   `variant.call_rate > 0.9 && variant.FILTER == "PASS" && INFO.AC < 22 && variant.num_hom_alt == 0`
 + see [using slivar for rare disease research](https://github.com/brentp/slivar/wiki/rare-disease)
 
+![slivar logo](https://user-images.githubusercontent.com/1739/85797163-55738480-b6f8-11ea-8486-389de3e492e6.png)
 
 slivar has sub-commands:
 + [expr](#expr): filter and/or annotate with INFO, trio, sample, group expressions
@@ -53,6 +54,26 @@ or use via docker from: [brentp/slivar:latest](https://hub.docker.com/r/brentp/s
 
 To get started quickly, grab a static binary [for the latest release](https://github.com/brentp/slivar/releases/latest) and
 then follow [this example](https://github.com/brentp/slivar/wiki/rare-disease#full-analysis-for-trios-with-unaffected-parents)
+
+So for hg38:
+
+```
+vcf=/path/to/your/vcf.vcf.gz
+ped=/path/to/your/pedigree.ped
+wget https://github.com/brentp/slivar/releases/download/v0.1.11/slivar
+chmod +x ./slivar
+wget https://raw.githubusercontent.com/brentp/slivar/master/js/slivar-functions.js
+wget https://slivar.s3.amazonaws.com/gnomad.hg38.genomes.v3.fix.zip
+
+# example command
+./slivar expr --js slivar-functions.js -g gnomad.hg38.genomes.v3.fix.zip \
+	--vcf $vcf --ped $ped \
+	--info "INFO.gnomad_popmax_af < 0.01 && variant.FILTER == 'PASS'" \
+	--trio "example_denovo:denovo(kid, dad, mom)" \
+	--family-expr "denovo:fam.every(segregating_denovo)" \
+	--trio "custom:kid.het && mom.het && dad.het && kid.GQ > 20 && mom.GQ > 20 && dad.GQ > 20" \
+	--pass-only
+```
 
 ## Commands
 
@@ -121,7 +142,8 @@ Note that `slivar` does not give direct access to the genotypes, instead exposin
 homozygous alternate and -1 when the genotype is unknown. It is recommended to **decompose** a VCF before sending to `slivar`
 
 Here it is assumed that `trio_autosomal_recessive` is defined in `slivar-functions.js`; an example implementation of that
-and other useful functions is provided [here](https://github.com/brentp/slivar/blob/master/js/slivar-functions.js)
+and other useful functions is provided [here](https://github.com/brentp/slivar/blob/4856c503a15f2647270a2ac24e4e1b1455208e34/js/slivar-functions.js).
+Note that it's often better to use --family-expr instead as it's more flexible than trio expressions.
 
 
 #### Family Expressions
@@ -268,7 +290,9 @@ See [the wiki](https://github.com/brentp/slivar/wiki/data-driven-cutoffs) for mo
                            `is_multiallelic`
  + calculated variant attributes include: `aaf`, `hwe_score`, `call_rate`, `num_hom_ref`, `num_het`, `num_hom_alt`, `num_unknown`
 
- + sample attributes (via `kid`, `mom`, `dad`) included in the FORMAT. available as e.g. `kid.AD[1]`, `mom.DP`, etc.
+ + numeric and flag sample attributes (via `kid`, `mom`, `dad`) included in the FORMAT. available as e.g. `kid.AD[1]`, `mom.DP`, etc.
+ + if the environment variable `SLIVAR_FORMAT_STRINGS` is not empty, then string sample fields will be available. these are not populated
+   by default as they are used less often and impact performance.
  + sample attributes for `hom_ref`, `het`, `hom_alt`, `unknown` which are synonums for `sample.alts` of 0, 1, 2, -1 respectively.
  + sample attributes from the ped for `affected`, `phenotype`, `sex`, `id` are available as, e.g. kid.sex.
    phenotype is a string taken directly from the pedigree file while affected is a boolean.

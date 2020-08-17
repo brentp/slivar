@@ -66,7 +66,6 @@ for i in range(0, 2):
     sns.boxplot(x="variable", y="number_of_variants",
              data=df, ax=axes[i], palette=colors) #, s=3)
 
-
 axes[0].set_title("GATK", size=15)
 axes[1].set_title("DeepVariant", size=15)
 
@@ -74,6 +73,12 @@ axes[0].set_xlabel(None, size=15)
 axes[1].set_xlabel(None, size=15)
 
 axes[0].set_ylabel("Candidate $\it{de novo}$ variants")
+axes[1].set_ylabel(None)
+
+axes[0].set_xlabel(None, size=15)
+axes[1].set_xlabel(None, size=15)
+
+axes[0].set_ylabel("Candidate $\it{de}$ $\it{novo}$ variants")
 axes[1].set_ylabel(None)
 
 xlabels = ["AB in 0.2..0.8\nGQ >= 20\nDP >= 10",
@@ -93,7 +98,14 @@ ax.set_ylim(ymin=-0.5)
 #ax.axhline(o, 0.1, 0.4, lw=4)
 #ax.axhline(f, 1-0.4, 1 - 0.1, lw=4)
 
+for ax in axes:
+    ax.annotate("additive filtering", [3, 1600], [1.4, 1600],
+        ha="center", va="center",
+        arrowprops=dict(arrowstyle="simple"))
+
+
 sns.despine()
 plt.tight_layout()
 plt.savefig("figure4-genome-denovos.png")
+plt.savefig("figure4-genome-denovos.eps")
 plt.show()
