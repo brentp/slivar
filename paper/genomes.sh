@@ -131,7 +131,7 @@ mv figure5-genome-counts.eps figure5-genome-counts.genic.eps
 
 
 ## for checking that we don't remove "true" positives:
-slivar tsv --sample-field denovo --sample-field recessive --sample-field x_denovo --sample-field x_recessive -o genomes.tsv -p data-links/geno me.ped --csq-column CSQ vcfs/genome.vcf
+slivar tsv --sample-field denovo --sample-field recessive --sample-field x_denovo --sample-field x_recessive -o genomes.tsv -p data-links/genome.ped --csq-column CSQ vcfs/genome.vcf
 slivar tsv --sample-field slivar_comphet -p data-links/genome.ped --csq-column CSQ vcfs/genome.ch.vcf | grep -v ^# >> genomes.tsv
 
 # solved cases are from: https://app.terra.bio/#workspaces/broad-genomics-delivery/RGP_Rehm_RareDisease_WGS/data downloaed 8/15/2020
