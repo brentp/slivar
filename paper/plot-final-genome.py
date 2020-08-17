@@ -120,8 +120,8 @@ print(np.arange(len(labels)))
 print(df_means_bar.loc[df_means_bar["caller"] == "all", "mean number of variants"])
 print(axes[0].get_xticks())
 
-+axes[0].set_title("Impactful Candidate Variants")
-+axes[1].set_title("Genic Candidate Variants")
+axes[0].set_title("Impactful Candidate Variants")
+axes[1].set_title("Genic Candidate Variants")
 
 plt.tight_layout()
 sns.despine()
