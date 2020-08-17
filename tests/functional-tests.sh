@@ -179,3 +179,10 @@ assert_in_stderr "sample	pid
 HG002	0
 HG003	0
 HG004	0"
+
+run check_sibs_with_shared_compound_het $exe compound-hets -v tests/comphet-test-case.vcf -p tests/comphet-test-case.ped
+assert_in_stderr "sample	compound-het
+SID_3	2
+SID_4	2"
+
+

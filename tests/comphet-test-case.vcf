@@ -1,0 +1,73 @@
+##fileformat=VCFv4.2
+##FILTER=<ID=PASS,Description="All filters passed">
+##hailversion=0.2.11-fea176012ee0
+##FORMAT=<ID=AD,Number=R,Type=Integer,Description="">
+##FORMAT=<ID=DP,Number=1,Type=Integer,Description="">
+##FORMAT=<ID=GQ,Number=1,Type=Integer,Description="">
+##FORMAT=<ID=GT,Number=1,Type=String,Description="">
+##FORMAT=<ID=MIN_DP,Number=1,Type=Integer,Description="">
+##FORMAT=<ID=PL,Number=.,Type=Integer,Description="">
+##FORMAT=<ID=RGQ,Number=1,Type=Integer,Description="">
+##FORMAT=<ID=SB,Number=.,Type=Integer,Description="">
+##INFO=<ID=AC,Number=A,Type=Integer,Description="">
+##INFO=<ID=AF,Number=A,Type=Float,Description="">
+##INFO=<ID=AN,Number=1,Type=Integer,Description="">
+##INFO=<ID=BaseQRankSum,Number=1,Type=Float,Description="">
+##INFO=<ID=ClippingRankSum,Number=1,Type=Float,Description="">
+##INFO=<ID=DB,Number=0,Type=Flag,Description="">
+##INFO=<ID=DP,Number=1,Type=Integer,Description="">
+##INFO=<ID=DS,Number=0,Type=Flag,Description="">
+##INFO=<ID=END,Number=1,Type=Integer,Description="">
+##INFO=<ID=ExcessHet,Number=1,Type=Float,Description="">
+##INFO=<ID=FS,Number=1,Type=Float,Description="">
+##INFO=<ID=HaplotypeScore,Number=1,Type=Float,Description="">
+##INFO=<ID=InbreedingCoeff,Number=1,Type=Float,Description="">
+##INFO=<ID=MLEAC,Number=.,Type=Integer,Description="">
+##INFO=<ID=MLEAF,Number=.,Type=Float,Description="">
+##INFO=<ID=MQ,Number=1,Type=Float,Description="">
+##INFO=<ID=MQRankSum,Number=1,Type=Float,Description="">
+##INFO=<ID=NEGATIVE_TRAIN_SITE,Number=0,Type=Flag,Description="">
+##INFO=<ID=POSITIVE_TRAIN_SITE,Number=0,Type=Flag,Description="">
+##INFO=<ID=QD,Number=1,Type=Float,Description="">
+##INFO=<ID=RAW_MQ,Number=1,Type=Float,Description="">
+##INFO=<ID=ReadPosRankSum,Number=1,Type=Float,Description="">
+##INFO=<ID=SOR,Number=1,Type=Float,Description="">
+##INFO=<ID=VQSLOD,Number=1,Type=Float,Description="">
+##INFO=<ID=culprit,Number=1,Type=String,Description="">
+##contig=<ID=chr1,length=248956422,assembly=GRCh38>
+##contig=<ID=chr2,length=242193529,assembly=GRCh38>
+##contig=<ID=chr3,length=198295559,assembly=GRCh38>
+##contig=<ID=chr4,length=190214555,assembly=GRCh38>
+##contig=<ID=chr5,length=181538259,assembly=GRCh38>
+##contig=<ID=chr6,length=170805979,assembly=GRCh38>
+##contig=<ID=chr7,length=159345973,assembly=GRCh38>
+##bcftools_viewVersion=1.9-114-gd9f1262+htslib-1.9-130-gf5a6a87
+##bcftools_viewCommand=view -f PASS,. --threads 4 -O b /uufs/chpc.utah.edu/common/HIPAA/u6022494/work/RGP/RGP_Mar2019.vcf.bgz; Date=Mon Aug 26 10:25:14 2019
+##bcftools_annotateVersion=1.9-114-gd9f1262+htslib-1.9-130-gf5a6a87
+##bcftools_annotateCommand=annotate -x FMT/PID,FMT/PGT --threads 8; Date=Mon Aug 26 10:25:14 2019
+##bcftools_normVersion=1.9-114-gd9f1262+htslib-1.9-130-gf5a6a87
+##bcftools_normCommand=norm -m- -f /scratch/ucgd/lustre/common/data/Reference/GRCh38/human_g1k_v38_decoy_phix.fasta; Date=Mon Aug 26 10:25:14 2019
+##VEP="v92" time="2019-08-26 10:25:21" cache="/uufs/chpc.utah.edu/common/PE/proj_UCGD/apps/redwood.bridges/vep/release-92/vep_cache/homo_sapiens_merged/92_GRCh38" ensembl-funcgen=92.cd2ca86 ensembl-variation=92.77a06cf ensembl=92.98e8548 ensembl-io=92.39280bd 1000genomes="phase3" COSMIC="83" ClinVar="201802" ESP="V2-SSA137" HGMD-PUBLIC="20174" assembly="GRCh38.p12" dbSNP="150" gencode="GENCODE 28" genebuild="2014-07" gnomAD="170228" polyphen="2.2.2" refseq="2018-02-20 13:24:28 - GCF_000001405.37_GRCh38.p11_genomic.gff" regbuild="16" sift="sift5.2.2"
+##INFO=<ID=CSQ,Number=.,Type=String,Description="Consequence annotations from Ensembl VEP. Format: Consequence|Codons|Amino_acids|Gene|SYMBOL|Feature|EXON|PolyPhen|SIFT|Protein_position|BIOTYPE|ALLELE_NUM">
+##bcftools_viewCommand=view -O u --threads 3; Date=Mon Aug 26 10:25:34 2019
+##bcftools/csqVersion=1.9-114-gd9f1262+htslib-1.9-130-gf5a6a87
+##bcftools/csqCommand=csq -s - --ncsq 32 -g /uufs/chpc.utah.edu/common/HIPAA/u6000771/Data/Homo_sapiens.GRCh38.95.chr.prefix.gff3.gz -l -f /scratch/ucgd/lustre/common/data/Reference/GRCh38/human_g1k_v38_decoy_phix.fasta -O b -o RGP.norm.vep.bcf; Date=Mon Aug 26 10:26:05 2019
+##INFO=<ID=BCSQ,Number=.,Type=String,Description="Local consequence annotation from BCFtools/csq. Format: '[*]consequence|gene|transcript|biotype[|strand|amino_acid_change|dna_change]' or, for consequences of variants split across multiple sites, a pointer to the record storing the consequences '@position'. '*' prefix indicates a consequence downstream from a stop">
+##INFO=<ID=gnomad_popmax_af,Number=1,Type=Float,Description="field from from gnotate VCF">
+##INFO=<ID=gnomad_popmax_af_filter,Number=0,Type=Flag,Description="non-passing flag in gnotate source VCF">
+##INFO=<ID=gnomad_nhomalt,Number=1,Type=Float,Description="field from from gnotate VCF">
+##INFO=<ID=gnomad_nhomalt_filter,Number=0,Type=Flag,Description="non-passing flag in gnotate source VCF">
+##INFO=<ID=denovo,Number=.,Type=String,Description="added by slivar with expression: 'denovo(kid, mom, dad) && INFO.gnomad_popmax_af < 0.001' from data-links/genome.bcf">
+##INFO=<ID=recessive,Number=.,Type=String,Description="added by slivar with expression: 'recessive(kid, mom, dad)' from data-links/genome.bcf">
+##INFO=<ID=x_denovo,Number=.,Type=String,Description="added by slivar with expression: 'x_denovo(kid, mom, dad) && (variant.CHROM == chrX || variant.CHROM == X)' from data-links/genome.bcf">
+##INFO=<ID=x_recessive,Number=.,Type=String,Description="added by slivar with expression: 'x_recessive(kid, mom, dad) && (variant.CHROM == chrX || variant.CHROM == X)' from data-links/genome.bcf">
+##INFO=<ID=auto_dom,Number=.,Type=String,Description="added by slivar with expression: 'fake_auto_dom(kid, mom, dad) && variant.CHROM != chrX && variant.CHROM != X && INFO.gnomad_popmax_af < 0.001 && INFO.gnomad_nhomalt < 10' from data-links/genome.bcf">
+##INFO=<ID=comphet_side,Number=.,Type=String,Description="added by slivar with expression: 'comphet_side(kid, mom, dad)' from data-links/genome.bcf">
+##INFO=<ID=impactful,Number=0,Type=Flag,Description="variant is impactful according to slivar and impacts added by VEP/snpEff/bcftools (https://github.com/brentp/slivar/wiki/impactful)">
+##INFO=<ID=genic,Number=0,Type=Flag,Description="variant is genic according to slivar and impacts added by VEP/snpEff/bcftools (https://github.com/brentp/slivar/wiki/impactful)">
+##INFO=<ID=slivar_comphet,Number=.,Type=String,Description="compound hets called by slivar. format is sample/gene/id/chrom/pos/ref/alt where id is a unique integer indicating the compound-het pair.">
+##bcftools_viewVersion=1.7-401-gecfe4e3+htslib-1.7-571-gd807564
+##bcftools_viewCommand=view -s RGP_434_1,RGP_434_2,RGP_434_3,RGP_434_4 vcfs/genome.ch.vcf; Date=Mon Aug 17 15:41:17 2020
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	SID_1	SID_2	SID_3	SID_4
+chr4	68559353	.	T	C	983.65	PASS	AC=3;AF=0.001324;AN=8;BaseQRankSum=-0.892;ClippingRankSum=-0.386;DP=37323;ExcessHet=3.0161;FS=7.935;InbreedingCoeff=-0.0013;MLEAC=3;MLEAF=0.001324;MQ=60;MQRankSum=1.05;QD=9.94;ReadPosRankSum=0.386;SOR=0.914;VQSLOD=14.13;culprit=MQ;CSQ=missense_variant|Acc/Gcc|T/A|ENSG00000137168|PPIL1|ENST00000373699|4/4|benign(0.024)|tolerated(0.06)|127/166|protein_coding|1,non_coding_transcript_exon_variant|||ENSG00000137168|PPIL1|ENST00000483552|3/3||||processed_transcript|1,missense_variant|Acc/Gcc|T/A|51645|PPIL1|NM_016059.4|4/4|benign(0.024)|tolerated(0.06)|127/166|protein_coding|1,intron_variant|||221477|C6orf89|XM_017010434.1|||||protein_coding|1;BCSQ=missense|PPIL1|ENST00000373699|protein_coding|-|127T>127A|36855935T>C;gnomad_popmax_af=1.54938e-05;gnomad_nhomalt=0;impactful;genic;comphet_side=SID_3,SID_4	GT:AD:DP:GQ:MIN_DP:PL:RGQ:SB	0/0:35,0:35:99:.:0,99,1126:.:.	0/1:12,14:26:99:.:333,0,339:.:.	0/1:19,20:39:99:.:448,0,533:.:.	0/1:20,14:34:99:.:280,0,523:.:.
+chr4	68717963	.	G	A	1297.67	PASS	AC=3;AF=0.001324;AN=8;BaseQRankSum=0.513;ClippingRankSum=0.594;DP=37616;ExcessHet=3.0218;FS=1.677;InbreedingCoeff=-0.0015;MLEAC=3;MLEAF=0.001324;MQ=60;MQRankSum=0;QD=13.11;ReadPosRankSum=0.459;SOR=0.487;VQSLOD=15.34;culprit=MQ;CSQ=upstream_gene_variant|||ENSG00000198663|C6orf89|ENST00000359359|||||protein_coding|1,stop_gained|Cga/Tga|R/*|ENSG00000137168|PPIL1|ENST00000373699|2/4|||45/166|protein_coding|1,upstream_gene_variant|||221477|C6orf89|NM_001286636.1|||||protein_coding|1,stop_gained|Cga/Tga|R/*|51645|PPIL1|NM_016059.4|2/4|||45/166|protein_coding|1,upstream_gene_variant|||221477|C6orf89|XM_011514377.2|||||protein_coding|1,upstream_gene_variant|||221477|C6orf89|XM_017010432.1|||||protein_coding|1,upstream_gene_variant|||221477|C6orf89|XM_017010433.1|||||protein_coding|1,intron_variant|||221477|C6orf89|XM_017010434.1|||||protein_coding|1;BCSQ=stop_gained|PPIL1|ENST00000373699|protein_coding|-|45R>45*|36871796G>A;gnomad_popmax_af=7.32708e-05;gnomad_nhomalt=0;impactful;genic;auto_dom=SID_3,SID_4;comphet_side=SID_3,SID_4	GT:AD:DP:GQ:MIN_DP:PL:RGQ:SB	0/1:13,13:26:99:.:354,0,344:.:.	0/0:34,0:34:99:.:0,99,1485:.:.	0/1:17,20:37:99:.:534,0,380:.:.	0/1:18,18:36:99:.:487,0,473:.:.

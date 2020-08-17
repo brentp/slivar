@@ -146,8 +146,9 @@ proc write_compound_hets(ovcf:VCF, kids:seq[Sample], tbl:TableRef[string, seq[Va
             found.add(variants[bi])
             foundKeys.incl(variants[bi].key)
 
-          var ab_key = variants[ai].key & "||" & variants[bi].key
-          if ab_key in foundKeys: continue
+          var ab_key = variants[ai].key & "||" & variants[bi].key & "||" & kid.id
+          if ab_key in foundKeys:
+            continue
           foundKeys.incl(ab_key)
 
           cnt.inc(@[kid.id, kid.id], "compound-het")
