@@ -1,5 +1,7 @@
 import pandas as pd
 import numpy as np
+import matplotlib
+matplotlib.use("Agg")
 import seaborn as sns
 from matplotlib import pyplot as plt
 
@@ -117,6 +119,9 @@ print(np.arange(len(labels)))
 
 print(df_means_bar.loc[df_means_bar["caller"] == "all", "mean number of variants"])
 print(axes[0].get_xticks())
+
++axes[0].set_title("Impactful Candidate Variants")
++axes[1].set_title("Genic Candidate Variants")
 
 plt.tight_layout()
 sns.despine()
