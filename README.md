@@ -319,6 +319,9 @@ instead.
 Users can create their own gnotation files with `slivar make-gnotate`, but we provide:
 
 + gnomad for hg37 with AF popmax, numhomalts (total and controls only) [here](https://s3.amazonaws.com/slivar/gnomad.hg37.zip)
++ gnomad for hg38 (v3) genomes [here](https://slivar.s3.amazonaws.com/gnomad.hg38.genomes.v3.fix.zip)
+
+
 + **lifted** gnomad exomes+genomes for hg38 with AF popmax, numhomalts (updated in release v0.1.2) [here](https://s3.amazonaws.com/slivar/gnomad.hg38.v2.zip)
 <!--
 + gnomad genomes (71,702 samples) for hg38 with AF popmax, numhomalts (updated in release v0.1.7) [here](https://slivar.s3.amazonaws.com/gnomad.hg38.genomes.v3.zip)

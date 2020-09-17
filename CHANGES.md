@@ -1,4 +1,4 @@
-v0.1.12 (dev)
+v0.1.12
 =======
 + slivar expr: handle ploidy > 2 (updated hts-nim) (#55 thanks to @markw3lsh for reporting and providing a test-case)
 + slivar: optionally support strings in format (sample) fields. default is to ignore these for performance reasons, but users can set the environment variable `SLIVAR_FORMAT_STRINGS` to anything to force `slivar` to populate the javascript objects with any strings in the VCF. e.g. `SLIVAR_FORMAT_STRINGS=1 slivar expr ...` and use `unset SLIVAR_FORMAT_STRINGS` to remove. (#37)
