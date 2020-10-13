@@ -1,3 +1,7 @@
+v0.1.13 (dev)
+=============
++ fix bug with VCFs with >256 info fields (#74). Thanks @liserjrqlxue for making a great test-case.
+
 v0.1.12
 =======
 + slivar expr: handle ploidy > 2 (updated hts-nim) (#55 thanks to @markw3lsh for reporting and providing a test-case)

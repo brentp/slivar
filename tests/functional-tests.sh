@@ -32,6 +32,13 @@ run check_error_repeated_name $exe expr -v tests/ashk-trio.vcf.gz --sample-expr 
 assert_exit_code 1
 assert_in_stderr "duplicate label"
 
+
+rm -f xx.vcf
+run check_many_infos $exe expr --info "('AF_popmax' in INFO) && INFO.AF_popmax>=0.9" --pass-only -v tests/h1000.vcf.gz -o xx.vcf
+assert_exit_code 0 
+assert_equal 0 $(grep -c rs371756291 xx.vcf)
+rm -f xx.vcf
+
 ## sample expressions
 run check_sample_expressions $exe expr -v tests/ashk-trio.vcf.gz --pass-only --sample-expr "high_depth:sample.DP > 800" --ped tests/ashk-trio.ped -o xx.bcf
 assert_in_stderr "sample	high_depth

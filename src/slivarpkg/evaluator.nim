@@ -548,9 +548,7 @@ proc set_calculated_variant_fields*(ctx:Evaluator, alts: var seq[int8]) =
 
 proc clear_unused_infos(ev: Evaluator, f:FieldSets) {.inline.} =
 
-  #for idx in f.last - f.curr:
   for idx in f.last.sub(f.curr):
-    #if idx in f.curr: continue
     ev.INFO.del(ev.field_names[idx].name)
 
 var info_warn = 0
@@ -616,7 +614,7 @@ proc set_infos*(ev:var Evaluator, variant:Variant, ints: var seq[int32], floats:
         ev.INFO[field.name] = ints
     elif field.vtype == BCF_TYPE.NULL:
       ev.INFO[field.name] = info.has_flag(field.name)
-    ev.info_field_sets.curr.incl(field.i.uint8)
+    ev.info_field_sets.curr.incl(field.i.uint16)
 
   # clear any field in last variant but not in this one.
   ev.clear_unused_infos(ev.info_field_sets)
