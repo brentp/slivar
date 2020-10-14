@@ -1,5 +1,5 @@
-v0.1.13 (dev)
-=============
+v0.1.13
+=======
 + fix bug with VCFs with >256 info fields (#74). Thanks @liserjrqlxue for making a great test-case.
 
 v0.1.12
