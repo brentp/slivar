@@ -400,12 +400,12 @@ when isMainModule:
     test "strict object":
       var ctx = duk_create_heap(nil, nil, nil, nil, my_fatal)
       if ctx.duk_peval_string_no_result(strictO):
-        var err = $ctx.duk_safe_to_string(-1)
+        let err = $ctx.duk_safe_to_string(-1)
         raise newException(ValueError, err)
       doAssert ctx.duk_get_top == 0
       var o = ctx.newStrictObject("st")
       if ctx.duk_peval_string("st.a"):
-        var err = $ctx.duk_safe_to_string(-1)
+        let err = $ctx.duk_safe_to_string(-1)
         doAssert ("unknown attribute" in $err)
       else:
         doAssert false
@@ -513,7 +513,7 @@ when isMainModule:
       var ctx = duk_create_heap(nil, nil, nil, nil, nil)
       ctx.duk_require_stack_top(10)
       if ctx.duk_peval_string(strictO):
-        var err = $ctx.duk_safe_to_string(-1)
+        let err = $ctx.duk_safe_to_string(-1)
         raise newException(ValueError, err)
 
       #echo ctx.duk_get_top
@@ -535,7 +535,7 @@ when isMainModule:
     test "hasKey":
       var ctx = duk_create_heap(nil, nil, nil, nil, nil)
       if ctx.duk_peval_string(strictO):
-        var err = $ctx.duk_safe_to_string(-1)
+        let err = $ctx.duk_safe_to_string(-1)
         raise newException(ValueError, err)
       var o = ctx.newStrictObject("st")
       check not o.hasKey("asdf")
