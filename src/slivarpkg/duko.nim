@@ -143,7 +143,7 @@ proc newStrictObject*(d: Duko, name: string): Duko =
 
 proc del*(o: var Duko, keys: varargs[string]) {.inline.} =
   ## delete the value at key from the object.
-  var idx = o.ctx.duk_push_heapptr(o.vptr)
+  let idx = o.ctx.duk_push_heapptr(o.vptr)
   for key in keys:
     discard o.ctx.duk_del_prop_lstring(idx, key, key.len.duk_size_t)
   o.ctx.pop()
@@ -177,7 +177,7 @@ proc alias*(o: Duko, copyname:string): Duko {.inline, discardable.} =
   doAssert 1 == result.ctx.duk_put_global_lstring(copyname, copyname.len.duk_size_t)
 
 proc newObject*(d:Duko, name: string): Duko =
-  var idx = d.ctx.duk_push_heapptr(d.vptr)
+  let idx = d.ctx.duk_push_heapptr(d.vptr)
   result = Duko(ctx: d.ctx, name: name)
   discard d.ctx.duk_push_bare_object()
   result.vptr = d.ctx.duk_get_heapptr(-1)
@@ -219,7 +219,7 @@ template `[]=`*(o:Duko, key:string, value: SomeInteger) =
 
 template `[]=`*(o:Duko, key:string, value: string) =
     ## set the property at key to a value
-    var idx = o.ctx.duk_push_heapptr(o.vptr)
+    let idx = o.ctx.duk_push_heapptr(o.vptr)
     discard o.ctx.duk_push_lstring(value, value.len.duk_size_t)
     #stderr.write_line "[]= key:", key, " values:", $value, " ", $o.ctx.len
     if 1 != o.ctx.duk_put_prop_lstring(idx, key, key.len.duk_size_t):
@@ -229,8 +229,8 @@ template `[]=`*(o:Duko, key:string, value: string) =
 
 proc `[]=`*(o: Duko, key: string, values: seq[SomeNumber]) {.inline.} =
   #stderr.write_line "[]= key:", key, " values:", $values, " ", $o.ctx.len
-  var idx = o.ctx.duk_push_heapptr(o.vptr)
-  var arr_idx = o.ctx.duk_push_array()
+  let idx = o.ctx.duk_push_heapptr(o.vptr)
+  let arr_idx = o.ctx.duk_push_array()
 
   for i, v in values:
     o.ctx.duk_push_number(v.duk_double_t)
@@ -242,8 +242,8 @@ proc `[]=`*(o: Duko, key: string, values: seq[SomeNumber]) {.inline.} =
   o.ctx.pop()
 
 proc `[]=`*(o: Duko, key: string, values: seq[string]) {.inline.} =
-  var idx = o.ctx.duk_push_heapptr(o.vptr)
-  var arr_idx = o.ctx.duk_push_array()
+  let idx = o.ctx.duk_push_heapptr(o.vptr)
+  let arr_idx = o.ctx.duk_push_array()
   #stderr.write_line "[]= key:", key, " values:", $values, " ", $o.ctx.len
   for i, v in values:
     discard o.ctx.duk_push_lstring(v, v.len.duk_size_t)
@@ -253,11 +253,17 @@ proc `[]=`*(o: Duko, key: string, values: seq[string]) {.inline.} =
   o.ctx.pop()
 
 proc `[]`*(o: Duko, key:string): float {.inline.} =
-    var idx = o.ctx.duk_push_heapptr(o.vptr)
+    let idx = o.ctx.duk_push_heapptr(o.vptr)
     discard o.ctx.duk_push_lstring(key, key.len.duk_size_t)
     doAssert o.ctx.duk_get_prop(idx) == 1
     result = o.ctx.duk_get_number(-1).float
     o.ctx.duk_pop_n(2)
+
+proc hasKey*(o: Duko, key:string): bool {.inline.} =
+  let idx = o.ctx.duk_push_heapptr(o.vptr)
+  discard o.ctx.duk_push_lstring(key, key.len.duk_size_t)
+  result = o.ctx.duk_has_prop(idx)
+  o.ctx.duk_pop_n(1)
 
 when isMainModule:
   import unittest
@@ -379,6 +385,9 @@ when isMainModule:
       ctx.duk_eval_string("obj.ab")
       check ctx.duk_get_number(-1) == 123.0
       obj.del("ab", "abc") # or obj.del(@["ab", "abc"])
+      ctx.duk_eval_string("'ab' in obj ? 'YES' : 'NO'")
+      check ctx.duk_get_string(-1) == "NO"
+
 
       ctx.duk_eval_string("obj.ab == undefined ? 'YES' : 'NO'")
       check ctx.duk_get_string(-1) == "YES"
@@ -401,6 +410,14 @@ when isMainModule:
       else:
         doAssert false
 
+
+      o["ab"] = true
+      ctx.duk_eval_string("'ab' in st ? 'YES' : 'NO'")
+      check ctx.duk_get_string(-1) == "YES"
+      o.del("ab")
+      ctx.duk_eval_string("'ab' in st ? 'YES' : 'NO'")
+      check ctx.duk_get_string(-1) == "NO"
+
       ctx.duk_destroy_heap()
 
 
@@ -412,7 +429,7 @@ when isMainModule:
       when defined(release):
         var tries = 500_000
       else:
-        var tries = 50_000
+        var tries = 5_000
 
       var success = 0
       for i in 0..tries:
@@ -443,7 +460,7 @@ when isMainModule:
       when defined(release):
         var tries = 5_000_000
       else:
-        var tries = 1_000_000
+        var tries = 200_000
 
       var success = 0
       for i in 0..tries:
@@ -514,3 +531,18 @@ when isMainModule:
           obj.addo
           obj.alias("kid")
           obj.del
+
+    test "hasKey":
+      var ctx = duk_create_heap(nil, nil, nil, nil, nil)
+      if ctx.duk_peval_string(strictO):
+        var err = $ctx.duk_safe_to_string(-1)
+        raise newException(ValueError, err)
+      var o = ctx.newStrictObject("st")
+      check not o.hasKey("asdf")
+
+      o["asdf"] = 23.3
+      check o.hasKey("asdf")
+      o.del("asdf")
+      check not o.hasKey("asdf")
+
+

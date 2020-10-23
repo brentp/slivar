@@ -668,7 +668,7 @@ iterator evaluate_trios(ctx:Evaluator, nerrors: var int, variant:Variant): exRes
         # set INFO of this result so subsequent expressions can use it.
         ctx.INFO[namedexpr.name] = join(matching_samples, ",")
         yield (namedexpr.name, matching_samples, -1'f32)
-      else:
+      elif ctx.INFO.hasKey(namedexpr.name):
         ctx.INFO.del(namedexpr.name)
 
 proc alias_objects*(ctx:DTContext, os: seq[ISample], copyname:string) {.inline.} =
@@ -721,6 +721,8 @@ iterator evaluate_families(ev:Evaluator, nerrors: var int, variant:Variant): exR
     if len(matching) > 0:
       ev.INFO[namedexpr.name] = join(matching, ",")
       yield ($namedexpr.name, matching, val)
+    elif ev.INFO.hasKey(namedexpr.name):
+      ev.INFO.del(namedexpr.name)
 
 iterator evaluate_groups(ev:Evaluator, nerrors: var int, variant:Variant): exResult =
     ## note that every group expression is currently applied to every group.
@@ -750,6 +752,8 @@ iterator evaluate_groups(ev:Evaluator, nerrors: var int, variant:Variant): exRes
         # set INFO of this result so subsequent expressions can use it.
         ev.INFO[namedexpr.name] = join(matching_groups, ",")
         yield ($namedexpr.name, matching_groups, -1'f32)
+      elif ev.INFO.hasKey(namedexpr.name):
+        ev.INFO.del(namedexpr.name)
 
 template clear_unused_formats(ev:Evaluator) =
   #for idx in ev.fmt_field_sets.last - ev.fmt_field_sets.curr:

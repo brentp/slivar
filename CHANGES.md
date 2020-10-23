@@ -1,3 +1,15 @@
+v0.2.0
+======
++ clear values from expressions for family, group, and sample. was previously only done for
+  trios. so if you relied on something like:
+  ```
+  --group-expr "expr1: ..." \
+  --group-expr "expr2:('expr1' in INFO) && ..."\
+  ```
+  then the expr2 would still see expr1 in INFO even if the preceding expression did not pass but it
+  has passed for a previous variant. Thanks Amelia Wallace for finding and reporting a simple test-case.
+
+
 v0.1.13
 =======
 + fix bug with VCFs with >256 info fields (#74). Thanks @liserjrqlxue for making a great test-case.
