@@ -8,6 +8,7 @@ v0.2.0
   ```
   then the expr2 would still see expr1 in INFO even if the preceding expression did not pass but it
   has passed for a previous variant. Thanks Amelia Wallace for finding and reporting a simple test-case.
++ add /opt/slivar/slivar-functions.js to docker image (#75)
 
 
 v0.1.13

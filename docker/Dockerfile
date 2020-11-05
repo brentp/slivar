@@ -32,7 +32,7 @@ RUN cd / &&     \
     echo 'PATH=/nim/bin:/root/.nimble/bin:$PATH' >> ~/.bashrc && \
     echo 'PATH=/nim/bin:/root/.nimble/bin:$PATH' >> ~/.bash_profile
 
-RUN cd / &&        \
+RUN cd /   &&             \
     export PATH=/nim/bin:/root/.nimble/bin:$PATH && \
     source scl_source enable devtoolset-2  && \
     git clone --depth 1 git://github.com/brentp/slivar.git && \
@@ -40,4 +40,5 @@ RUN cd / &&        \
     sed -i 's/-no-pie//' nim.cfg && \
     nimble install --verbose -y && \
     nim c -d:danger -o:/usr/bin/slivar src/slivar && \
+    mkdir -p /opt/slivar/ && cp js/slivar-functions.js /opt/slivar/ && \
     rm -rf /slivar /duktape-nim && slivar expr -h
