@@ -286,7 +286,7 @@ See [the wiki](https://github.com/brentp/slivar/wiki/data-driven-cutoffs) for mo
 ## Attributes
 
  + anything in the INFO is available as e.g. INFO.CSQ
- + INFO.impactful which, if CSQ (VEP), BCSQ (bcftools), or ANN (snpEff) is present indicates if the highest impact is "impactful". see [wiki](https://github.com/brentp/slivar/wiki/impactful) and `INFO.genic` which includes other gene impacts like `synonymous`.
+ + INFO.impactful which, if CSQ (VEP), BCSQ (bcftools), or ANN (snpEff) is present indicates if the highest impact is "impactful". see [wiki](https://github.com/brentp/slivar/wiki/impactful) and `INFO.genic` which includes other gene impacts like `synonymous`. Also `INFO.highest_impact_order` explained in the wiki
  + if FORMAT.AB is not present, it is added so one can filter with kid.AB > 0.25 && kid.AB < 0.75
  + variant attributes are: `CHROM`, `POS`, `start`, `end`, `ID`, `REF`, `ALT`, `QUAL`, `FILTER`,
                            `is_multiallelic`

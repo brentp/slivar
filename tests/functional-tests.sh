@@ -157,8 +157,12 @@ assert_exit_code 0
 assert_in_stderr "sample	imp	gen
 HG002	2070	4381"
 
-rm xx.tsv
+run check_impact_order $exe expr --info "INFO.highest_impact_order == ImpactOrder.missense" --trio "kh:kid.het" -v tests/ashk-trio.vcf.gz -p tests/ashk-trio.ped -o t --pass-only
+assert_exit_code 0
+assert_in_stderr "sample	kh
+HG002	779"
 
+rm xx.tsv
 run check_bad_field_type_fails_in_make_gnotate $exe make-gnotate -f culprit --prefix xx tests/ashk-trio.vcf.gz
 assert_exit_code 1
 assert_in_stderr "only Integer and Float are supported"

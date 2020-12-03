@@ -1,3 +1,17 @@
+v0.2.1
+======
++ add `INFO.highest_impact_order` so user can do things like:
+  ```
+  --info "INFO.highest_impact_order == ImpactOrder.missense"
+  ```
+  to get only missense mutations. or
+
+  ```
+  --info "INFO.highest_impact_order <= ImpactOrder.missense"
+  ```
+  to get variants with an impact of missense or higher. (note that lower values have higher impact)
+
+
 v0.2.0
 ======
 + clear values from expressions for family, group, and sample. was previously only done for

@@ -2,18 +2,14 @@
 import times
 import random
 import hts/vcf
-import math
 import json
 import lapper
 import algorithm
 import pedfile
 import tables
-import ./evaluator
 import argparse
-import ./utils
 import strutils
 import strformat
-import regex
 import os
 
 proc `$$`(k:float32): string {.inline.} =
@@ -241,12 +237,10 @@ proc ddc_main*(dropfirst:bool=false) =
     o.sample_id = kids[i].id
     o.tbl = initTable[string, seq[float32]]()
 
-  var info_fields = ivcf.check(opts.info_fields.split(','), BCF_HEADER_TYPE.BCF_HL_INFO, output_infos)
+  discard ivcf.check(opts.info_fields.split(','), BCF_HEADER_TYPE.BCF_HL_INFO, output_infos)
   var fmt_fields = ivcf.check(opts.fmt_fields.split(','), BCF_HEADER_TYPE.BCF_HL_FMT, output_trios)
 
   var x: seq[int32]
-  var f32: seq[float32]
-  var i32: seq[int32]
 
   var ab: seq[float32]
 

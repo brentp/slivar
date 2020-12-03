@@ -131,6 +131,7 @@ type Evaluator* = ref object
   samples_ns: Duko
 
   VCF: Duko
+  ImpactOrder: Duko
   INFO: Duko
   variant: Duko
   gnos*:seq[Gnotater]
@@ -315,6 +316,7 @@ proc newEvaluator*(ivcf:VCF, samples: seq[Sample], groups: seq[Group], float_exp
   result.allow_fmt_strings = getEnv("SLIVAR_FORMAT_STRINGS") != ""
   result.VCF = result.ctx.newObject("VCF")
 
+
   for f in ["ANN", "CSQ", "BCSQ"]:
     try:
       var gf:GeneIndexes
@@ -336,6 +338,7 @@ proc newEvaluator*(ivcf:VCF, samples: seq[Sample], groups: seq[Group], float_exp
 
         if not ok:
           stderr.write_line &"[slivar] couldn't add '{k}' to header as it already existed"
+    discard ivcf.header.add_info("highest_impact_order", "1", "Integer", "impact order (lower is higher) of this variant across all genes and transcripts it overlaps. this integer can be used as a look into the order list to get the actual impact")
 
 
   # when a column is empty, we use this empty object as a place-holder.
@@ -357,6 +360,8 @@ proc newEvaluator*(ivcf:VCF, samples: seq[Sample], groups: seq[Group], float_exp
     var err = $result.ctx.duk_safe_to_string(-1)
     raise newException(ValueError, err)
 
+  result.ImpactOrder = result.ctx.newStrictObject("ImpactOrder")
+  for imp, idx in defaultOrder: result.ImpactOrder[imp] = idx
 
   if strict:
     result.samples_ns = result.ctx.newStrictObject(samples_name)
@@ -438,7 +443,7 @@ proc id2names*(h:Header): seq[idpair] =
     result[idp.val.id] = ($name, idp.val.hrec[1] != nil, idp.val.hrec[2] != nil)
 
 
-proc c_memset*(p: pointer, value: cint, size: csize): pointer {.
+proc c_memset*(p: pointer, value: cint, size: csize_t): pointer {.
   importc: "memset", header: "<string.h>", discardable.}
 
 
@@ -567,6 +572,8 @@ proc set_infos*(ev:var Evaluator, variant:Variant, ints: var seq[int32], floats:
   # with non-impactful in ANN
   var impactful_found = false
   var genic_found = false
+  var highest_impact = int32.high.int
+  let default_order = default_order
 
   for field in info.fields:
     if field.name == "impactful": continue
@@ -592,6 +599,7 @@ proc set_infos*(ev:var Evaluator, variant:Variant, ints: var seq[int32], floats:
           if g.csq_field != field.name: continue
           var imp = istr.get_highest_impact(g, default_order) #: tuple[impact: string, order: int, impactful: bool, genic: bool]
           impact_found = true
+          highest_impact = min(highest_impact, imp.order)
           if imp.impactful:
             impactful_found = true
           if imp.genic:
@@ -622,9 +630,11 @@ proc set_infos*(ev:var Evaluator, variant:Variant, ints: var seq[int32], floats:
 
   if ev.gene_fields.len > 0:
     ev.INFO["impactful"] = impactful_found
+    ev.INFO["highest_impact_order"] = highest_impact
     ev.INFO["genic"] = genic_found
     discard variant.info.set("impactful", impactful_found)
     discard variant.info.set("genic", genic_found)
+    discard variant.info.set("highest_impact_order", highest_impact)
 
 type exResult* = tuple[name:string, sampleList:seq[string], val:float32]
 
