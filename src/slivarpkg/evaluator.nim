@@ -133,6 +133,7 @@ type Evaluator* = ref object
   VCF: Duko
   ImpactOrder: Duko
   INFO: Duko
+  #info_impact_set : Duko # set of impacts seen in this variant
   variant: Duko
   gnos*:seq[Gnotater]
 
@@ -424,9 +425,13 @@ proc newEvaluator*(ivcf:VCF, samples: seq[Sample], groups: seq[Group], float_exp
   if strict:
     result.INFO = result.ctx.newStrictObject("INFO")
     result.variant = result.ctx.newStrictObject("variant")
+    #if getEnv("SLIVAR_IMPACT_SET") != "":
+    #  result.info_impact_set = result.INFO.newStrictObject("info_impact_set")
   else:
     result.INFO = result.ctx.newObject("INFO")
     result.variant = result.ctx.newObject("variant")
+    #if getEnv("SLIVAR_IMPACT_SET") != "":
+    #  result.info_impact_set = result.INFO.newStrictObject("info_impact_set")
   result.set_sample_attributes(by_name)
 
 proc id2names*(h:Header): seq[idpair] =
