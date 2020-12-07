@@ -14,15 +14,19 @@ colors = sns.color_palette("Set1", 13)
 
 title = sys.argv[1]
 
-df_genomes = [pd.read_csv(f, sep="\t") for f in sys.argv[2:]]
+args = sys.argv[2:]
+args.sort(key=lambda f: int(re.search("-d(\d+)-", f).groups()[0]))
+
+df_genomes = [pd.read_csv(f, sep="\t") for f in args]
 #df_genome = pd.read_csv(sys.argv[2], sep="\t")
+
 
 for df in df_genomes:
     cols = list(df.columns)
     cols[0] = cols[0].lstrip('#')
     df.columns = cols
 
-gqs = [x for x in df_genomes[0].GQ.unique() if x > 5]
+gqs = list(sorted([x for x in df_genomes[0].GQ.unique() if x > 5]))
 
 fig, axes = plt.subplots(len(df_genomes), len(gqs), figsize=(12, 8), sharey=True, sharex=True)
 #assert len(df_genome.GQ.unique()) == len(df_genome.GQ.unique())
@@ -30,7 +34,7 @@ fig, axes = plt.subplots(len(df_genomes), len(gqs), figsize=(12, 8), sharey=True
 for ci, df in enumerate(df_genomes):
     tmax = float(df.total.max())
 
-    depth = int(re.search("-d(\d+)-", sys.argv[ci + 2]).groups()[0])
+    depth = int(re.search("-d(\d+)-", args[ci]).groups()[0])
 
     for i, gq in enumerate(gqs):
         df_gq = df[df.GQ == gq]
