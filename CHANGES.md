@@ -10,6 +10,9 @@ v0.2.1
   --info "INFO.highest_impact_order <= ImpactOrder.missense"
   ```
   to get variants with an impact of missense or higher. (note that lower values have higher impact)
++ `tsv`: bugfix!! previously, `slivar tsv` used a `< 0` check where it should hvae used `<= 0` so
+   candidates with a parental sample at index 0 in the samples of the vcf would have missing information
+   for depth, GQ, and AB. (#78 . Thanks @amwenger for finding the problem and its source).
 
 
 v0.2.0

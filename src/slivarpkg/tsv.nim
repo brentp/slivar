@@ -16,18 +16,18 @@ proc getDP(ads:var seq[int32], sample:Sample): array[3, string] =
   result = [".", ".", "."]
   if ads.len == 0: return
   result[0] = &"{ads[2*sample.i] + ads[2*sample.i+1]}"
-  if sample.dad != nil and sample.dad.i > 0:
+  if sample.dad != nil and sample.dad.i >= 0:
     result[1] = &"{ads[2*sample.dad.i] + ads[2*sample.dad.i+1]}"
-  if sample.mom != nil and sample.mom.i > 0:
+  if sample.mom != nil and sample.mom.i >= 0:
     result[2] = &"{ads[2*sample.mom.i] + ads[2*sample.mom.i+1]}"
 
 proc getAB(ads:var seq[int32], sample:Sample): array[3, string] =
   result = [".", ".", "."]
   if ads.len == 0: return
   result[0] = &"{ads[2*sample.i+1].float32 / max(1, ads[2*sample.i] + ads[2*sample.i+1]).float32:g}"
-  if sample.dad != nil and sample.dad.i > 0:
+  if sample.dad != nil and sample.dad.i >= 0:
     result[1] = &"{ads[2*sample.dad.i+1].float32 / max(1, ads[2*sample.dad.i] + ads[2*sample.dad.i+1]).float32:g}"
-  if sample.mom != nil and sample.mom.i > 0:
+  if sample.mom != nil and sample.mom.i >= 0:
     result[2] = &"{ads[2*sample.mom.i+1].float32 / max(1, ads[2*sample.mom.i] + ads[2*sample.mom.i+1]).float32:g}"
 
 template lookup(a:int8): string =
@@ -39,9 +39,9 @@ template lookup(a:int8): string =
 proc getGenotype(alts:seq[int8], sample:Sample): array[3, string] =
   result = [".", ".", "."]
   result[0] = lookup(alts[sample.i])
-  if sample.dad != nil and sample.dad.i > 0:
+  if sample.dad != nil and sample.dad.i >= 0:
     result[1] = lookup(alts[sample.dad.i])
-  if sample.mom != nil and sample.mom.i > 0:
+  if sample.mom != nil and sample.mom.i >= 0:
     result[2] = lookup(alts[sample.mom.i])
 
 proc getField(v:Variant, field:string, ivcf:VCF): string =
