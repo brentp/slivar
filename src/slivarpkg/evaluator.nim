@@ -826,24 +826,25 @@ iterator evaluate*(ev:var Evaluator, variant:Variant, nerrors:var int): exResult
   for gno in ev.gnos.mitems:
     discard gno.annotate(variant)
 
+  var ints = newSeq[int32](2 * variant.n_samples)
+  var floats = newSeq[float32](2 * variant.n_samples)
+  var strs = newSeq[string]()
+
+  ev.set_variant_fields(variant)
+  var alts = variant.format.genotypes(ints).alts
+  ev.set_calculated_variant_fields(alts)
+  ev.set_infos(variant, ints, floats)
+
   if ev.info_expression.ctx == nil and not ev.has_sample_expressions:
       # if there's no info expression, they might just want gnomad annotations.
       yield ("", @[], 0.0'f32)
   else:
-
-    var ints = newSeq[int32](2 * variant.n_samples)
-    var floats = newSeq[float32](2 * variant.n_samples)
-    var strs = newSeq[string]()
 
     ## the most expensive part is pulling out the format fields so we pull all fields
     ## and set values for all samples.
     ## once all that is done, we evaluate the expressions.
     ## the field_sets make it so that we only clear fields from the duk objects that were
     ## set last variant, but not this variant.
-    ev.set_variant_fields(variant)
-    var alts = variant.format.genotypes(ints).alts
-    ev.set_calculated_variant_fields(alts)
-    ev.set_infos(variant, ints, floats)
 
     if ev.info_expression.ctx == nil or ev.try_info_check:
       for r in ev.evaluate_floats(nerrors, variant): yield r

@@ -13,7 +13,7 @@ v0.2.1
 + `tsv`: bugfix!! previously, `slivar tsv` used a `< 0` check where it should hvae used `<= 0` so
    candidates with a parental sample at index 0 in the samples of the vcf would have missing information
    for depth, GQ, and AB. (#78 . Thanks @amwenger for finding the problem and its source).
-
++ `expr`: always annotate variant and INFO even if no sample (or trio,group,fam) expressions are given so one can use slivar just to get the 'impactful' annotation.
 
 v0.2.0
 ======
