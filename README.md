@@ -1,4 +1,6 @@
 # slivar: filter/annotate variants in VCF/BCF format with simple expressions [![Build Status](https://travis-ci.com/brentp/slivar.svg?branch=master)](https://travis-ci.com/brentp/slivar)
+[![downloads](https://anaconda.org/bioconda/slivar/badges/downloads.svg)](https://anaconda.org/bioconda/slivar)
+
 
 If you use `slivar`, please cite [the paper](https://www.biorxiv.org/content/10.1101/2020.08.13.249532v2)
 
