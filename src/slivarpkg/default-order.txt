@@ -12,8 +12,6 @@ disruptive_inframe_insertion
 disruptive_inframe_deletion
 inframe_insertion
 inframe_deletion
-disruptive_inframe_insertion
-disruptive_inframe_deletion
 missense
 protein_protein_contact
 conservative_inframe_insertion
