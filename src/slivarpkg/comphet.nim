@@ -171,7 +171,7 @@ proc main*(dropfirst:bool=false) =
     option("-v", "--vcf", default="/dev/stdin", help="input VCF")
     option("-s", "--sample-field", multiple=true, help="optional INFO field(s) that contains list of samples (kids) that have passed previous filters.\ncan be specified multiple times. this is needed for multi-family VCFs")
     option("-p", "--ped", default="", help="required ped file describing the trios in the VCF")
-    option("--skip", default="splice_region,splice_region,non_coding_transcript,intron,non_coding_transcript,non_coding,upstream_gene,downstream_gene,non_coding_transcript_exon,NMD_transcript,5_prime_UTR,3_prime_UTR", help="skip variants with these impacts (comma-separated)")
+    option("--skip", default="splice_region,intron,non_coding_transcript,non_coding,upstream_gene,downstream_gene,non_coding_transcript_exon,NMD_transcript,5_prime_UTR,3_prime_UTR", help="skip variants with these impacts (comma-separated)")
     option("-o", "--out-vcf", default="/dev/stdout", help="path to output VCF/BCF")
     flag("-a", "--allow-non-trios", help="allow samples with one or both parent unspecified. if this mode is used, any pair of heterozygotes co-occuring in the same gene, sample will be reported for samples without both parents that don't have kids. if a single parent is present some additional filtering is done.")
 
