@@ -1,3 +1,7 @@
+v0.2.2
+======
++ fix bug with '.' in ALT field (caused message about incorrect number of alts in some cases. thanks Batsal for reporting)
+
 v0.2.1
 ======
 + add `INFO.highest_impact_order` so user can do things like:

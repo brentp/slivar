@@ -796,7 +796,8 @@ proc set_format_fields*(ev:var Evaluator, v:Variant, alts: var seq[int8], ints: 
     ev.set_format_field(f, fmt, ints, floats, strs)
     if f.name == "AD":
       has_ad = true
-      if ev.samples.len * (1 + v.ALT.len) != ints.len:
+      let v_alt_len = max(1, v.ALT.len)
+      if ev.samples.len * (1 + v_alt_len) != ints.len:
         stderr.write_line &"""[slivar] error !!! please decompose and normalize after setting Number=A for the AD field in your VCF header"""
         stderr.write_line &"""         expected 2 values per sample for 'AD' field, but got {ints.len / ev.samples.len:.1f} for variant: {v.CHROM}:{v.start + 1}:{v.REF}:{join(v.ALT, ",")}"""
         stderr.write_line """         see: https://github.com/brentp/slivar/wiki/decomposing-and-subsetting-vcfs"""
