@@ -1,0 +1,47 @@
+FROM brentp/slivar:v0.2.1
+
+ENV PATH="/snpEff/scripts:${PATH}"
+
+RUN cd / \
+    && yum install -y unzip java-1.8.0-openjdk \
+    && wget -q https://snpeff.blob.core.windows.net/versions/snpEff_latest_core.zip \
+    && unzip snpEff_latest_core.zip \
+    && rm snpEff_latest_core.zip \
+    && snpEff download GRCh37.75 \
+    && snpEff download GRCh38.99
+
+
+RUN cd / \
+    && source scl_source enable devtoolset-2 \
+    && git clone --depth 1 https://github.com/ebiggers/libdeflate.git \
+    && cd libdeflate \
+    && make -j 2 CFLAGS='-fPIC -O3' libdeflate.a \
+    && cp libdeflate.a /usr/local/lib \
+    && cp libdeflate.h /usr/local/include \
+    && cd / \
+    && rm -rf libdeflate htslib \
+    && git clone --recursive https://github.com/samtools/htslib.git \
+    && git clone --recursive https://github.com/samtools/bcftools.git \
+    && cd bcftools && git checkout 1.11 \
+    && autoreconf && ./configure --disable-bcftools-plugins \
+    && make bcftools "PLUGINS_ENABLED=no" \
+    && cp ./bcftools /usr/local/bin \
+    && cd / && rm -rf bcftools
+
+RUN cd /opt/slivar \
+    && wget -q ftp://ftp.ensembl.org/pub/grch37/release-99/gff3/homo_sapiens/Homo_sapiens.GRCh37.87.gff3.gz \
+    && wget -q ftp://ftp.ensembl.org/pub/release-102/gff3/homo_sapiens/Homo_sapiens.GRCh38.102.gff3.gz \
+    && zcat Homo_sapiens.GRCh38.102.gff3.gz | awk 'BEGIN{FS=OFS="\t"} $0 ~ /^([[:digit:]]|X|Y)/ {$1="chr"$1} {print}' \
+       | gzip -c > Homo_sapiens.GRCh38.102.chr.gff3.gz
+
+ENV GFF_37=/opt/slivar/Homo_sapiens.GRCh37.87.gff3.gz
+ENV GFF_38=/opt/slivar/Homo_sapiens.GRCh38.102.chr.gff3.gz
+ENV GFF_NOCHR_38=/opt/slivar/Homo_sapiens.GRCh38.102.gff3.gz
+
+ENV SLIVAR_37_ZIP=/opt/slivar/gnomad.hg37.zip
+ENV SLIVAR_38_ZIP=/opt/slivar/gnomad.hg38.genomes.v3.fix.zip
+
+ADD https://s3.amazonaws.com/slivar/gnomad.hg37.zip $SLIVAR_37_ZIP
+ADD https://slivar.s3.amazonaws.com/gnomad.hg38.genomes.v3.fix.zip $SLIVAR_38_ZIP
+
+RUN chmod a+r $SLIVAR_37_ZIP $SLIVAR_38_ZIP
