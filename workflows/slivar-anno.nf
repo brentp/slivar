@@ -2,7 +2,7 @@ nextflow.enable.dsl=2
 
 params.help = false
 params.genome_build = "38"
-params.outdir = "false"
+params.outdir = false
 if (params.help) {
     log.info("""
 
@@ -10,6 +10,7 @@ Usage
 -----
     nextflow run -resume \
         -profile local \
+        -entry annotate \
         -with-singularity docker://brentp/slivar-anno:v0.2.1 \
         --genome_build 37 \
         --bcf $vcf \
@@ -52,7 +53,7 @@ if (params.genome_build == 38) {
 log.info("$outdir $gff $zip $snpeffbuild $bcf $fasta ")
 
 
-process annotate {
+process annotate_vcf {
 
   publishDir "$outdir", mode: "copy"
   maxRetries 0
@@ -77,6 +78,6 @@ process annotate {
   """                                                                                                                                                                                                                   
 }
 
-workflow {
-    annotate(tuple(bcf, name)) | view
+workflow annotate {
+    annotate_vcf(tuple(bcf, name)) | view
 }
