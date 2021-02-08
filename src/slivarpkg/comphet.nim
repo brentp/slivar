@@ -29,17 +29,21 @@ proc is_compound_het*(kid: pedfile.Sample, a:openarray[int8], b:openarray[int8],
   # where each parent transmits 1 het to the kid or where 1 het is transmitted
   # and the other is de novo.
   if a[kid.i] != 1 or b[kid.i] != 1: return false
+  let dad_nil = kid.dad == nil or kid.dad.i == -1
+  let mom_nil = kid.mom == nil or kid.mom.i == -1
+
   if allow_non_trios:
-    if kid.dad == nil and kid.mom == nil:
+    if dad_nil and mom_nil:
       return true
-    if kid.dad == nil or kid.mom == nil:
-      var p = if kid.mom == nil: kid.dad else: kid.mom
+
+    if dad_nil or mom_nil:
+      var p = if mom_nil: kid.dad else: kid.mom
       # parent must be het at 1 and only 1 site. assume the missing parent is
       # het at the other site.
       return (a[p.i] == 0 and b[p.i] == 1) or (a[p.i] == 1 and b[p.i] == 0)
 
 
-  doAssert kid.dad != nil and kid.mom != nil
+  doAssert kid.dad != nil and kid.mom != nil and kid.dad.i != -1 and kid.mom.i != -1
 
   if a[kid.dad.i] == -1 or a[kid.mom.i] == -1: return false
   if b[kid.dad.i] == -1 or b[kid.mom.i] == -1: return false
@@ -339,3 +343,21 @@ when isMainModule:
       check not is_compound_het(kid, [1'i8, 1, 0], [1'i8, 1, 0])
 
       check is_compound_het(kid, [1'i8, 0, 1], [1'i8, 0, 0])
+
+
+    test "without mom & dad":
+      var kid = Sample(id:"kid", i:0)
+      check is_compound_het(kid, [1'i8], [1'i8], allow_non_trios=true)
+
+
+    test "kid with mom and dad without index":
+
+      var mom = Sample(id:"mom", i: -1)
+      var dad = Sample(id:"dad", i: -1)
+      var kid = Sample(id:"kid", i: 0)
+      kid.dad = dad
+      kid.mom = mom
+
+      check is_compound_het(kid, [1'i8], [1'i8], allow_non_trios=true)
+
+
