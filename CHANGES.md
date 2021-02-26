@@ -2,6 +2,7 @@ v0.2.2
 ======
 + fix bug with '.' in ALT field (caused message about incorrect number of alts in some cases. thanks Batsal for reporting)
 + slivar compound-hets: fix bug with parents specified in ped file but absent from VCF (#79)
++ slivar compound-hets: add "intergenic_region" to list of impacts that are skipped by default
 
 v0.2.1
 ======
