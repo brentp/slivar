@@ -8,6 +8,9 @@ import seaborn as sns
 sns.set_style("white")
 import pandas as pd
 
+from matplotlib.ticker import FormatStrFormatter
+
+
 colors = sns.color_palette("RdYlBu", 13)
 colors = sns.cubehelix_palette(7, start=2, rot=0, dark=0.05, light=.95, reverse=False)
 colors = sns.color_palette("Set1", 13)
@@ -20,25 +23,32 @@ args.sort(key=lambda f: int(re.search("-d(\d+)-", f).groups()[0]))
 df_genomes = [pd.read_csv(f, sep="\t") for f in args]
 #df_genome = pd.read_csv(sys.argv[2], sep="\t")
 
+axis_label_size=13
 
 for df in df_genomes:
     cols = list(df.columns)
     cols[0] = cols[0].lstrip('#')
     df.columns = cols
 
-gqs = list(sorted([x for x in df_genomes[0].GQ.unique() if x > 5]))
+gqs = list(sorted([x for x in df_genomes[0].GQ.unique() if x > 0]))
+print(args)
+print(gqs)
 
 fig, axes = plt.subplots(len(df_genomes), len(gqs), figsize=(12, 8), sharey=True, sharex=True)
 #assert len(df_genome.GQ.unique()) == len(df_genome.GQ.unique())
+tmax = 0
 
 for ci, df in enumerate(df_genomes):
-    tmax = float(df.total.max())
+    tmax = max(tmax, float(df.total.max()))
+
+for ci, df in enumerate(df_genomes):
 
     depth = int(re.search("-d(\d+)-", args[ci]).groups()[0])
 
     for i, gq in enumerate(gqs):
         df_gq = df[df.GQ == gq]
         ax = axes[ci, i]
+        ax.xaxis.set_major_formatter(FormatStrFormatter('%.3f'))
 
 
         dfs = df_gq
@@ -74,18 +84,19 @@ for ci, df in enumerate(df_genomes):
         if i == 1 and ci == 0:
             ax.legend(title="Allele-balance cut-offs", fontsize=9)
 
-        ax.set_title("GQ cutoff: %d depth: %s" % (gqs[i], depth))
-        ax.set_ylabel("Transmission rate")
+        ax.set_title("GQ cutoff: %d depth: %s" % (gqs[i], depth),
+                size=axis_label_size)
+        ax.set_ylabel("Transmission rate", size=axis_label_size)
 
         #if i != len(gqs) - 1:
         #    ax.set_xticklabels([])
 
 try:
-    axes[len(axes)-1, 0].set_xlabel("Mendelian-violation rate")
-    axes[len(axes)-1, 1].set_xlabel("Mendelian-violation rate")
-    axes[len(axes)-1, 2].set_xlabel("Mendelian-violation rate")
+    for ax in axes[len(axes)-1]:
+      ax.set_xlabel("Mendelian-violation rate", size=axis_label_size)
 except IndexError:
-    axes[len(axes)-1].set_xlabel("Mendelian-violation rate")
+    axes[len(axes)-1].set_xlabel("Mendelian-violation rate",
+            size=axis_label_size)
 
 
 #axes[0, 0].set_title("genome", fontsize=15)
@@ -96,7 +107,7 @@ except IndexError:
 #plt.ylim(0.8, 1)
 sns.despine()
 ax = axes[0]
-#plt.tight_layout(rect=(0, 0.005, 1, 0.995))
+plt.tight_layout(rect=(0, 0.005, 1, 0.995), w_pad=1.8, h_pad=1.8)
 plt.savefig("supp-figure1-%s.png" % title.lower().replace(" ", "-"))
 plt.savefig("supp-figure1-%s.eps" % title.lower().replace(" ", "-"))
 #plt.show()
