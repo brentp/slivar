@@ -146,6 +146,7 @@ proc expr_main*(dropfirst:bool=false) =
     written = 0
 
   let quiet = getEnv("SLIVAR_QUIET") != ""
+  let no_include_all = getEnv("SLIVAR_NO_REPORT_ALL") != ""
   var last_rid = -1
   var exclude : Lapper[utils.region]
   for variant in ivcf.variants(opts.region):
@@ -174,14 +175,17 @@ proc expr_main*(dropfirst:bool=false) =
         n = 100000
       if i >= 500000:
         n = 500000
-    var any_pass = false
+    var any_pass = 0
     for ns in ev.evaluate(variant, nerrors):
       if opts.pass_only and ns.sampleList.len == 0 and ns.name != "": continue
-      any_pass = true
+      any_pass.inc
       if ns.name != "": # if name is "", then they didn't have any sample expressions.
         var ssamples = join(ns.sampleList, ",")
-        if variant.info.set(ns.name, ssamples) != Status.OK:
-          quit "error setting field:" & ns.name
+        if ns.val != float32.low or not no_include_all:
+          if variant.info.set(ns.name, ssamples) != Status.OK:
+            quit "error setting field:" & ns.name
+        else:
+          any_pass.dec
 
         if ns.val != float32.low:
           counter.inc(ns.sampleList, ns.name)
@@ -189,7 +193,7 @@ proc expr_main*(dropfirst:bool=false) =
     if nerrors / i > 0.2 and i >= 1000:
       quit &"too many errors {nerrors} out of {i}. please check your expression"
 
-    if any_pass or (not opts.pass_only):
+    if any_pass > 0 or (not opts.pass_only):
       doAssert ovcf.write_variant(variant)
       written.inc
   if getEnv("SLIVAR_QUIET") == "":
