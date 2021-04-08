@@ -156,7 +156,7 @@ Trios are a nice abstraction for cohorts consisting of only trios, but for more 
 for example, given either a duo, or a quartet, we can find variants present only in affected samples with:
 
 ```		
- --family-expr "aff_only:fam.every(function(s) { s.het == s.affected && s.hom_ref == !s.affected && s.GQ > 5 })"
+ --family-expr "aff_only:fam.every(function(s) { return s.het == s.affected && s.hom_ref == !s.affected && s.GQ > 5 })"
 ```
 
 Note that this does not explicitly check for transmission or non-transmission between parents and off-spring
