@@ -41,6 +41,7 @@ initiator_codon
 miRNA
 non_coding_transcript_exon
 non_coding_exon
+non_canonical_start_codon
 nc_transcript
 exon_region
 conserved_intron
