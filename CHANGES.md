@@ -100,7 +100,7 @@ v0.1.6
 + better checks for length of AD field
 + fix for empty groups (#38)
 + add --family-expr for family expressions like: 
-    `fam.every(function(s) { s.het == s.affected && s.hom_ref == !s.affected && s.GQ > 5 })`
+    `fam.every(function(s) { return s.het == s.affected && s.hom_ref == !s.affected && s.GQ > 5 })`
 + slivar tsv now outputs a sortable column for highest-impact. it makes use of a default
   list of impact orderings from: https://uswest.ensembl.org/info/genome/variation/prediction/predicted_data.html and
   supplemented with any type seen in bcftools or snpEff.
