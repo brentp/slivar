@@ -25,7 +25,7 @@ def read_dfs(i, j):
     dfo = df.join(df2)
 
     dfo.drop("comphet_side", inplace=True, axis="columns")
-    ad = dfo.auto_dom
+    ad = dfo.auto_dom.copy()
     ad = pd.DataFrame({"number_of_variants": ad})
     dfo.drop("auto_dom", inplace=True, axis="columns")
     df = dfo.melt(value_name="number_of_variants")
@@ -63,12 +63,11 @@ df = pd.concat((df, dfi))
 ad = pd.concat((ad, adi), ignore_index=True)
 ad["variable"] = "autosomal dominant"
 
-#print(ad.head())
-
 
 df_means = df.groupby(["variable", "cat"]).mean()
 ad_means = ad.groupby(["variable", "cat"]).mean()
 #print(df_means, ad_means)
+print(ad_means)
 
 
 size = 2
@@ -132,7 +131,7 @@ axes[0].set_ylim(0, 15)
 
 df_means_bar = get_mean_df(df_means, order, False)
 print(df_means_bar)
-print(ad_means_bar)
+print("AD", ad_means_bar)
 
 plt.suptitle("Impactful Candidate Variants")
 #axes[1].set_title("Genic Candidate Variants")

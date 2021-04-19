@@ -4,6 +4,8 @@ v0.2.2
 + slivar compound-hets: fix bug with parents specified in ped file but absent from VCF (#79)
 + slivar compound-hets: add "intergenic_region" to list of impacts that are skipped by default
 + add SLIVAR_NO_REPORT_ALL to prevent reporting variants for familys with no affected samples
++ fix bug when creating huge zip files with make-gnotate (#86)
++ **NOTE**: change default min depth in slivar-functions.js to 6. (was 0)
 
 v0.2.1
 ======

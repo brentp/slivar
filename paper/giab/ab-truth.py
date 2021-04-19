@@ -8,6 +8,7 @@ from sklearn.metrics import roc_curve
 np.random.seed(42)
 
 colors = sns.color_palette()
+dpi = 120
 
 # python ab-truth.py eval/fp.vcf.gz eval/tp.vcf.gz eval/fn.vcf.gz
 
@@ -52,7 +53,7 @@ ps = np.array(fps + tps)
 
 fns = np.array(list(read(fn_path, 1)))
 
-fig, ax = plt.subplots(3, 1, figsize=(6, 12))
+fig, ax = plt.subplots(3, 1, figsize=(4, 7), dpi=dpi)
 
 trs = []
 tprs = []
@@ -88,13 +89,16 @@ for i, n in enumerate(["GQ", "AB", "DP"], start=1):
     ax[i-1].plot([x], [y], 'o', c=colors[0], label="selected %s cutoff\nTPR: %.3f FPR: %.3f" % (n, y, x))
 
 
-    ax[i-1].set_title("ROC Curve on DeepVariantv1 on GIABv4.1 for %s" % n)
-    ax[i-1].set_xlabel("FPR")
+    if i == len(ax):
+        ax[i-1].set_xlabel("FPR")
     ax[i-1].set_ylabel("TPR")
+    ax[i-1].text(0.95, 0.05, "varying %s" % n, transform=ax[i-1].transAxes,
+            ha="right", size=17)
     #plt.plot(fpr[tr >= 40], tpr[tr >= 40], label="GQ >= 40")
 
 print("fns:", fns.shape)
 
+#plt.suptitle("ROC Curve for DeepVariant on GIABv4.1", size=15)
 # now show combined TPR, FPR
 tprs = np.array(tprs)
 fprs = np.array(fprs)
@@ -126,5 +130,7 @@ print(f"filtered    tn:{tn} fp:{fp} fn:{tot_fn} tp:{tp}  TPR:{tp / (tot_fn + tp)
 print(f"unfiltered          fp:{len(fps)} fn:{len(fns)} tp:{len(tps)} TPR: {len(tps) / (len(tps) + len(fns)):.3f} FDR:{unfiltered_fdr:.5f}")
 print(f"improvement in fdr:{unfiltered_fdr/filtered_fdr:.2f}X")
 
-plt.tight_layout()
+plt.tight_layout() #h_pad=4, pad=4)
+plt.savefig("supp-figure-12.png", dpi=dpi)
+plt.savefig("supp-figure-12.eps", dpi=dpi)
 plt.show()

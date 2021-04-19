@@ -148,7 +148,7 @@ proc get_highest_impact*(csqs: string, gene_fields:GeneIndexes, impact_order: Ta
       try:
         val = impact_order[impact]
       except:
-        stderr.write_line &"\warning: unknown impact \"{impact}\" from csq \"{tr}\" please report the variant at https://github.com/brentp/slivar/issues"
+        stderr.write_line &"warning: unknown impact \"{impact}\" from csq \"{tr}\" please report the variant at https://github.com/brentp/slivar/issues"
         val = impact_order.getOrDefault("IMPACTFUL_CUTOFF", 1)
       if val < result.order:
         result.order = val

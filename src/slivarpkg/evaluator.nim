@@ -563,6 +563,17 @@ proc clear_unused_infos(ev: Evaluator, f:FieldSets) {.inline.} =
 
 var info_warn = 0
 
+proc write_warning(variant:Variant, nerrors: var int) {.inline.} =
+  nerrors.inc
+  if nerrors < 10:
+    stderr.write_line "[slivar] javascript error. this can some times happen when a field is missing."
+    stderr.write_line  getCurrentExceptionMsg()
+    stderr.write "[slivar] occured with variant:", variant.tostring()
+    stderr.write_line "[slivar] continuing execution."
+  if nerrors == 10:
+    stderr.write_line "[slivar] not reporting further errors."
+
+
 proc set_infos*(ev:var Evaluator, variant:Variant, ints: var seq[int32], floats: var seq[float32]) =
   var istr: string = ""
   var info = variant.info
@@ -671,14 +682,7 @@ iterator evaluate_trios(ctx:Evaluator, nerrors: var int, variant:Variant): exRes
             if namedexpr.expr.check():
               matching_samples.add(trio[0].ped_sample.id)
         except:
-          nerrors += 1
-          if nerrors <= 10:
-            stderr.write_line "[slivar] javascript error. this can some times happen when a field is missing."
-            stderr.write_line  getCurrentExceptionMsg()
-            stderr.write "[slivar] occured with variant:", variant.tostring()
-            stderr.write_line "[slivar] continuing execution."
-          if nerrors == 10:
-            stderr.write_line "[slivar] not reporting further errors."
+          variant.write_warning(nerrors)
       if len(matching_samples) > 0:
         # set INFO of this result so subsequent expressions can use it.
         ctx.INFO[namedexpr.name] = join(matching_samples, ",")
@@ -694,17 +698,6 @@ proc alias_objects*(ctx:DTContext, os: seq[ISample], copyname:string) {.inline.}
     discard ctx.duk_put_prop_index(idx, i.duk_uarridx_t)
 
   doAssert ctx.duk_put_global_lstring(copyname, copyname.len.duk_size_t)
-
-
-proc write_warning(variant:Variant, nerrors: var int) {.inline.} =
-  nerrors.inc
-  if nerrors < 10:
-    stderr.write_line "[slivar] javascript error. this can some times happen when a field is missing."
-    stderr.write_line  getCurrentExceptionMsg()
-    stderr.write "[slivar] occured with variant:", variant.tostring()
-    stderr.write_line "[slivar] continuing execution."
-  if nerrors == 10:
-    stderr.write_line "[slivar] not reporting further errors."
 
 iterator evaluate_families(ev:Evaluator, nerrors: var int, variant:Variant): exResult =
   for i, namedexpr in ev.family_expressions:

@@ -42,7 +42,8 @@ proc parse_fields(field_args: seq[string]): seq[field] =
       toks.add("max")
     if toks.len == 3:
       toks.add("-1")
-    result.add(field(field: toks[0], name: toks[1], fn: fns[toks[2]], default: parseFloat(toks[3])))
+    let fn = fns[toks[2]]
+    result.add(field(field: toks[0], name: toks[1], fn: fn, default: parseFloat(toks[3])))
 
 # things that are too long to be encoded.
 type PosValue = tuple[chrom: string, position:pfra, values:seq[float32]]
