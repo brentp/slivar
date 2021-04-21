@@ -74,7 +74,10 @@ proc parse_group_line(groups:var seq[Group], line:string, sample_lookup:TableRef
       col_samples.add(sample_lookup[sname])
 
     if col_samples.len > 1 and not groups[groups.high].plural[i]:
-      raise newException(ValueError, &"slivar/groups:got > 1 sample in line {line}, column {i}. {$col_samples}")
+      let h = groups[groups.high].header[i]
+      var msg = &"slivar/groups:got > 1 sample in line {line}, column {i}. {$col_samples}"
+      msg &= &"either use a single sample or change header '{h}' to '{h}s' to indicate many samples in a single column"
+      raise newException(ValueError, msg)
     g.add(col_samples)
   groups[groups.high].rows.add(g)
 
@@ -104,7 +107,6 @@ when isMainModule:
     if not open(f, tmpFile, fmWrite): quit "couldn't open test file"
     f.write(s)
     f.close()
-
 
   import unittest
 
