@@ -6,6 +6,7 @@ v0.2.2
 + add SLIVAR_NO_REPORT_ALL to prevent reporting variants for familys with no affected samples
 + fix bug when creating huge zip files with make-gnotate (#86)
 + **NOTE**: change default min depth in slivar-functions.js to 6. (was 0)
++ don't hard-code tmp directory to /tmp (use $TMPDIR)
 
 v0.2.1
 ======

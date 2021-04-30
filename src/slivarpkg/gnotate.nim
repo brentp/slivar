@@ -336,7 +336,7 @@ when isMainModule:
   var zip_path = paramStr(1)
   var loc = paramStr(2)
   var g:Gnotater
-  if not g.open(zip_path, tmpDir="/tmp", missing_val= -1.0'f32):
+  if not g.open(zip_path, tmpDir=getTempDir(), missing_val= -1.0'f32):
     quit "[slivar] error opening zip. check path and contents"
   var se = loc.split(":")[1].split("-")
   g.show(loc.split(":")[0], parseInt(se[0])-1, parseInt(se[1]))
