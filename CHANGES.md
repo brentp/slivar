@@ -7,6 +7,8 @@ v0.2.2
 + fix bug when creating huge zip files with make-gnotate (#86)
 + **NOTE**: change default min depth in slivar-functions.js to 6. (was 0)
 + don't hard-code tmp directory to /tmp (use $TMPDIR)
++ [compound-hets] dont fail if no usable variants were found, just issue warning.
+  this can happen for small chroms or regions when slivar was parallelized.
 
 v0.2.1
 ======

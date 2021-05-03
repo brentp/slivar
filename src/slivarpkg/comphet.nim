@@ -305,7 +305,8 @@ proc main*(dropfirst:bool=false) =
   ivcf.close()
   stderr.write_line &"[slivar compound-hets] wrote {nwritten} variants that were part of a compound het."
   if ncsqs == 0:
-    quit &"[slvar compound-hets] no variants had any of the requested fields; unable to call compound hets"
+    stderr.write_line &"[slvar compound-hets] WARNING!!! no variants had any of the requested fields; unable to call compound hets!"
+    quit 0
 
   var summaryPath = getEnv("SLIVAR_SUMMARY_FILE")
   if summaryPath == "":
