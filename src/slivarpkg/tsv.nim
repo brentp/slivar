@@ -182,7 +182,7 @@ proc main*(dropfirst:bool=false) =
     help("""convert filtered VCF to tab-separated-value spreadsheet for final filtering
 
 create a --gene-description file e.g. from human phenotype ontology with:
-  wget -qO - http://compbio.charite.de/jenkins/job/hpo.annotations.monthly/lastSuccessfulBuild/artifact/annotation/ALL_SOURCES_ALL_FREQUENCIES_genes_to_phenotype.txt | cut -f 2,3 > gene_desc.txt
+  wget -qO - http://purl.obolibrary.org/obo/hp/hpoa/phenotype_to_genes.txt | awk 'BEGIN{FS=OFS="\t"} (NR > 1) { print $4, $2 }' > gene_desc.txt
 or from clinvar with:
   wget -qO - ftp://ftp.ncbi.nlm.nih.gov/pub/clinvar/gene_condition_source_id | cut -f 2,5 | grep -v ^$'\t' > clinvar_gene_desc.txt
 or gene->pLI with:
