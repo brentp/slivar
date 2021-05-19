@@ -47,10 +47,16 @@ proc tojson(tbl: Table[string, seq[float32]]): string =
     for v in vals:
       result.add($$v)
       result.add(',')
+    if len(vals) == 0: result.add(' ')
     result[result.high] = ']'
     result.add(",\n")
-  result[result.high-1] = '\n'
-  result[result.high] = '}'
+  if result.len > 1:
+    result[result.high-1] = '\n'
+    result[result.high] = '}'
+  else:
+    stderr.write_line "[slivar ddc] no values found"
+    result = "{}"
+
 
 proc tojson(t:Trio): string =
   result = newStringOfCap(16384)
@@ -124,7 +130,16 @@ proc getf32(v:Variant, f:string): seq[float32] =
   if st != Status.UnexpectedType: return
   var i: seq[int32]
   st = v.format.get(f, i)
-  if st != Status.OK: return
+  if st == Status.NotFound:
+    # get GQ from PL
+    if v.format.get("PL", i) != Status.OK: return
+    var tmp = newSeq[int32](int(i.len/3))
+    for idx in 0..<tmp.len:
+      var pls = @[i[3*idx], i[3*idx+1], i[3*idx+2]]
+      sort(pls)
+      tmp[idx] = pls[1] - pls[0]
+    i = tmp
+
   result.setLen(i.len)
   for k, val in i:
     # TODO: handle missing
@@ -169,7 +184,7 @@ proc check*[T: VariantInfo|seq[Trio]](ivcf:VCF, fields: seq[string], ftype:BCF_H
         of "Flag":
           infos.bool_tbl[f] = newSeqOfCap[bool](65536)
         else:
-          echo "unknown type for", f, " ", hr
+          echo "unknown type for:", f, " ", hr
 
       else:
 
@@ -182,7 +197,10 @@ proc check*[T: VariantInfo|seq[Trio]](ivcf:VCF, fields: seq[string], ftype:BCF_H
 
     except KeyError:
       when T is VariantInfo:
-        quit &"requested info field {f} not found in header"
+        if f == "QUAL":
+          infos.float_tbl[f] = newSeqOfCap[float32](65536)
+        else:
+          quit &"requested info field {f} not found in header"
       else:
         if f == "AB":
           for s in infos.mitems:
@@ -237,7 +255,8 @@ proc ddc_main*(dropfirst:bool=false) =
     o.sample_id = kids[i].id
     o.tbl = initTable[string, seq[float32]]()
 
-  discard ivcf.check(opts.info_fields.split(','), BCF_HEADER_TYPE.BCF_HL_INFO, output_infos)
+  if opts.info_fields != "":
+    discard ivcf.check(opts.info_fields.split(','), BCF_HEADER_TYPE.BCF_HL_INFO, output_infos)
   var fmt_fields = ivcf.check(opts.fmt_fields.split(','), BCF_HEADER_TYPE.BCF_HL_FMT, output_trios)
 
   var x: seq[int32]
@@ -286,6 +305,8 @@ proc ddc_main*(dropfirst:bool=false) =
 
         let fi = fmt_fields.find(k)
         let fmt = fmts[fi]
+        if fmt.len == 0: continue
+
 
         if k == "GQ":
           kid_seq.add(min(min(fmt[kid.i], fmt[kid.dad.i]), fmt[kid.mom.i]))

@@ -1,4 +1,4 @@
-const ROC_VAR = "GQ"
+var ROC_VAR = "GQ"
 var ROC_SIGN = ROC_VAR == "AB" ? "<" : ">"
 var ranges = { samples: {} }
 var plots = { hists: {}, rocs: {} }
@@ -436,6 +436,11 @@ function sort_trio(trio) {
     // are first so we can draw the ROC curve
     var order = new Array(trio.violations.length)
     for (var i = 0; i < trio.violations.length; i++) { order[i] = i; }
+    if(!(ROC_VAR in trio.tbl)){
+        console.log("can't use {ROC_VAR} as it's not present")
+        ROC_VAR = Object.keys(trio.tbl)[0]
+        ROC_SIGN = ROC_VAR == "AB" ? "<" : ">"
+    }
 
     var roc_var = trio.tbl[ROC_VAR];
     if (ROC_VAR == "AB") {
