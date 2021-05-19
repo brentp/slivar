@@ -147,6 +147,11 @@ proc getf32(v:Variant, f:string): seq[float32] =
 
 proc violation(kid:Sample, alts: seq[int8], allele_balances: seq[float32]): bool =
   result = alts[kid.i] >= 1 and alts[kid.mom.i] == 0 and alts[kid.dad.i] == 0
+  if not result and alts[kid.i] == 2:
+      result = [alts[kid.mom.i], alts[kid.dad.i]] in [[0'i8, 1], [1'i8, 0]]
+  if not result and alts[kid.i] == 0:
+      result = [alts[kid.mom.i], alts[kid.dad.i]] in [[2'i8, 1], [1'i8, 2]]
+
   if allele_balances.len == 0 or result == false: return
   if allele_balances[kid.mom.i] > 0 or allele_balances[kid.dad.i] > 0:
     raise newException(ValueError, "non zero allele balance for parents")
