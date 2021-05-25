@@ -46,6 +46,7 @@ nc_transcript
 exon_region
 conserved_intron
 GENIC_CUTOFF
+feature_fusion
 intron
 NMD_transcript
 non_coding_transcript

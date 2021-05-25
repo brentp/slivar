@@ -1,3 +1,7 @@
+v0.2.3 (dev)
+============
++ add `feature_fusion` to impact order list (#92)
+
 v0.2.2
 ======
 + fix bug with '.' in ALT field (caused message about incorrect number of alts in some cases. thanks Batsal for reporting)
