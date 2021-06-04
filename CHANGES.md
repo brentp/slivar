@@ -1,6 +1,7 @@
-v0.2.3 (dev)
-============
+v0.2.3
+======
 + add `feature_fusion` to impact order list (#92)
++ [compound-hets] write summary even if no variants found
 
 v0.2.2
 ======
