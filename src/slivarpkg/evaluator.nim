@@ -588,7 +588,7 @@ proc set_infos*(ev:var Evaluator, variant:Variant, ints: var seq[int32], floats:
   # with non-impactful in ANN
   var impactful_found = false
   var genic_found = false
-  var highest_impact = int32.high.int
+  var highest_impact = int32.high.int - 1
   let default_order = default_order
 
   for field in info.fields:
