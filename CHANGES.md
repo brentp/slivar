@@ -1,3 +1,7 @@
+v0.2.4
+======
++ fix long-standing bug (#27) that would cause sigsegv in some cases
+
 v0.2.3
 ======
 + add `feature_fusion` to impact order list (#92)

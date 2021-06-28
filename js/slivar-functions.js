@@ -5,7 +5,7 @@ function hq(kid, mom, dad) {
 }
 
 function hq1(sample) {
-  if (sample.unknown || sample.GQ < config.min_GQ) { return false; }
+  if (sample.unknown || (sample.GQ < config.min_GQ)) { return false; }
   if ((sample.AD[0] + sample.AD[1]) < config.min_DP) { return false; }
   if (sample.hom_ref){
       return sample.AB < 0.02
@@ -14,11 +14,6 @@ function hq1(sample) {
       return sample.AB >= config.min_AB && sample.AB <= (1 - config.min_AB)
   }
   return sample.AB > 0.98
-}
-
-function hqrv(variant, INFO, af_cutoff) {
-  // hi-quality, rare variant.
-  return INFO.gnomad_popmax_af < af_cutoff && variant.FILTER == 'PASS'
 }
 
 function denovo(kid, mom, dad){

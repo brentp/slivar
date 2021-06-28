@@ -196,4 +196,5 @@ assert_in_stderr "sample	compound-het
 SID_3	2
 SID_4	2"
 
+run check_issue_27 $exe expr -g _clinvar.test.zip -v tests/test-27.vcf.gz
 

@@ -438,9 +438,11 @@ proc id2names*(h:Header): seq[idpair] =
   ## lookup of headerid -> name
   var hdr = h.hdr
   result = newSeq[idpair](hdr.n[0])
-  for i in 0..<hdr.n[0].int:
-    var idp = cast[seq[bcf_idpair_t]](hdr.id[0])[i]
-    if idp.val == nil or idp.key.len == 0: continue
+  let arr = cast[ptr UncheckedArray[bcf_idpair_t]](hdr.id[0])
+  for i in 0..<hdr.n[0].int32:
+    var idp = arr[i]
+    if idp.val == nil or idp.key == nil: continue
+    if idp.key.len == 0: continue
     var name = idp.key
     if idp.val.hrec[1] == nil and idp.val.hrec[2] == nil: continue
     if idp.val.id >= result.len:
@@ -795,7 +797,10 @@ proc set_format_fields*(ev:var Evaluator, v:Variant, alts: var seq[int8], ints: 
         stderr.write_line &"""         expected 2 values per sample for 'AD' field, but got {ints.len / ev.samples.len:.1f} for variant: {v.CHROM}:{v.start + 1}:{v.REF}:{join(v.ALT, ",")}"""
         stderr.write_line """         see: https://github.com/brentp/slivar/wiki/decomposing-and-subsetting-vcfs"""
       if not has_ab:
-        ev.set_ab(fmt, ints, v.ALT.len + 1)
+        if ev.samples.len * (1 + valt_len) == ints.len:
+          ev.set_ab(fmt, ints, v.ALT.len + 1)
+        else:
+          ev.fmt_field_sets.curr.excl(f.i.uint8)
         has_ab = true
 
     elif f.name == "AB":
