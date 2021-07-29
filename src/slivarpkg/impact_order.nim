@@ -21,4 +21,6 @@ proc adjustOrder*(order: string): TableRef[string, int] =
 
 var default_order* = adjustOrder(order_x)
 if getEnv("SLIVAR_IMPACTFUL_ORDER") != "":
-  default_order = adjustOrder(getEnv("SLIVAR_IMPACTFUL_ORDER"))
+  if not fileExists(getEnv("SLIVAR_IMPACTFUL_ORDER")):
+    raise newException(IOError, "[slivar] couldn't open file at:" & getEnv("SLIVAR_IMPACTFUL_ORDER") & " specified by env var 'SLIVAR_IMPACTFUL_ORDER'")
+  default_order = adjustOrder(getEnv("SLIVAR_IMPACTFUL_ORDER").readFile)

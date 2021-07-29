@@ -1,3 +1,8 @@
+v0.2.5
+======
++ it was previously not possible to adjust the order of impacts with
+  `SLIVAR_IMPACTFUL_ORDER`. This is now fixed. (#97)
+
 v0.2.4
 ======
 + fix long-standing bug (#27) that would cause sigsegv in some cases
