@@ -261,8 +261,8 @@ proc ddc_main*(dropfirst:bool=false) =
     o.tbl = initTable[string, seq[float32]]()
 
   if opts.info_fields != "":
-    discard ivcf.check(opts.info_fields.split(','), BCF_HEADER_TYPE.BCF_HL_INFO, output_infos)
-  var fmt_fields = ivcf.check(opts.fmt_fields.split(','), BCF_HEADER_TYPE.BCF_HL_FMT, output_trios)
+    discard ivcf.check(opts.info_fields.strip().split(','), BCF_HEADER_TYPE.BCF_HL_INFO, output_infos)
+  var fmt_fields = ivcf.check(opts.fmt_fields.strip().split(','), BCF_HEADER_TYPE.BCF_HL_FMT, output_trios)
 
   var x: seq[int32]
 

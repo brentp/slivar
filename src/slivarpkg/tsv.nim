@@ -218,7 +218,7 @@ or gene->pLI with:
   else:
     extra = "(sample,dad,mom)"
 
-  var tsv_header = @["mode", "family_id", "sample_id", "chr:pos:ref:alt", "genotype" & extra]
+  var tsv_header = @["mode", "family_id", "sample_id", "chr:pos:ref:alt", "QUAL", "genotype" & extra]
 
   if opts.sample_field.len == 0:
     echo p.help
@@ -301,7 +301,7 @@ or gene->pLI with:
         if sample_id notin sampleId2Obj: continue
         var sample = sampleId2Obj[sample_id]
         doAssert sample.id == sample_id
-        var line = @[f, sample.family_id, sample.id, &"""{v.CHROM}:{v.start+1}:{v.REF}:{join(v.ALT, ",")}"""]
+        var line = @[f, sample.family_id, sample.id, &"""{v.CHROM}:{v.start+1}:{v.REF}:{join(v.ALT, ",")}""", $v.QUAL]
         line.add(join(getGenotype(alts, sample), ",").strip(chars={','}))
 
         for f in opts.info_field:
