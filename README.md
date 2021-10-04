@@ -247,6 +247,10 @@ It is used after filtering to rare(-ish) heterozygotes.
 
 See a full description of use [here](https://github.com/brentp/slivar/wiki/compound-heterozygotes)
 
+**NOTE** that by default, this command limits to a subset of impacts; this is
+adjustable with the `--skip` flag. See more on the
+[wiki](https://github.com/brentp/slivar/wiki/compound-heterozygotes)
+
 ### tsv
 
 This command is used to convert a filtered and annotated VCF to a TSV (tab-separated value file) for final 
