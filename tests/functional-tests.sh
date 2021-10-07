@@ -136,6 +136,12 @@ run check_tsv_id_qual $exe tsv -i DP -i QUAL -i ID -c BCSQ --csq-column dna_chan
 assert_exit_code 0
 assert_equal $(grep -c $'DP\t' xx.tsv) 1
 assert_equal 4 $(grep -c ^denovo xx.tsv)
+assert_equal "QUAL
+2548.1
+755.1
+2789.1
+501.1" "$(cut -f 7 xx.tsv)"
+
 #rm xx.tsv
 
 run check_family_expr $exe expr --pass-only -p tests/ashk-trio.ped -v tests/ashk-trio.vcf.gz --trio "dn:mom.hom_ref && kid.het && dad.hom_ref" --family-expr 'dnf:fam.every(function(s) {return s.het == s.affected && s.hom_ref == !s.affected})' -o /dev/null
