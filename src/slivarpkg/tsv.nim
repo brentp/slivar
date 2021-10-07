@@ -45,6 +45,11 @@ proc getGenotype(alts:seq[int8], sample:Sample): array[3, string] =
     result[2] = lookup(alts[sample.mom.i])
 
 proc getField(v:Variant, field:string, ivcf:VCF): string =
+  # check for ID or QUAL
+  if field == "ID":
+    return $v.ID
+  if field == "QUAL":
+    return &"{v.QUAL:.1f}"
   case ivcf.header.get(field, BCF_HEADER_TYPE.BCF_HL_INFO)["Type"]
   of "String":
     discard v.info.get(field, result)
@@ -196,7 +201,7 @@ or gene->pLI with:
     option("-s", "--sample-field", multiple=true, help="INFO field(s) that contains list of samples that have passed previous filters.\ncan be specified multiple times.")
     option("-g", "--gene-description", multiple=true, help="tab-separated lookup of gene (column 1) to description (column 2) to add to output. the gene is case-sensitive. can be specified multiple times")
     option("--impact-order", help="ordering of impacts to override the default (https://raw.githubusercontent.com/brentp/slivar/master/src/slivarpkg/default-order.txt)")
-    option("-i", "--info-field", multiple=true, help="INFO field(s) that should be added to output (e.g. gnomad_popmax_af)")
+    option("-i", "--info-field", multiple=true, help="INFO field(s) that should be added to output (e.g. gnomad_popmax_af) can also use 'ID' or 'QUAL' to report those variant fields.")
     option("-o", "--out", default="/dev/stdout", help="path to output tab-separated file")
     arg("vcf", help="input VCF", default="/dev/stdin")
 
@@ -218,7 +223,7 @@ or gene->pLI with:
   else:
     extra = "(sample,dad,mom)"
 
-  var tsv_header = @["mode", "family_id", "sample_id", "chr:pos:ref:alt", "QUAL", "genotype" & extra]
+  var tsv_header = @["mode", "family_id", "sample_id", "chr:pos:ref:alt", "genotype" & extra]
 
   if opts.sample_field.len == 0:
     echo p.help
@@ -233,7 +238,8 @@ or gene->pLI with:
     g2ds.add(gd.gene2description)
 
   for f in opts.info_field:
-    doAssert ivcf.header.get(f, BCF_HEADER_TYPE.BCF_HL_INFO)["Type"] != ""
+    if not (f == "ID" or f == "QUAL"):
+      doAssert ivcf.header.get(f, BCF_HEADER_TYPE.BCF_HL_INFO)["Type"] != ""
     tsv_header.add(f)
 
   var gene_fields :GeneIndexes
@@ -301,7 +307,7 @@ or gene->pLI with:
         if sample_id notin sampleId2Obj: continue
         var sample = sampleId2Obj[sample_id]
         doAssert sample.id == sample_id
-        var line = @[f, sample.family_id, sample.id, &"""{v.CHROM}:{v.start+1}:{v.REF}:{join(v.ALT, ",")}""", $v.QUAL]
+        var line = @[f, sample.family_id, sample.id, &"""{v.CHROM}:{v.start+1}:{v.REF}:{join(v.ALT, ",")}"""]
         line.add(join(getGenotype(alts, sample), ",").strip(chars={','}))
 
         for f in opts.info_field:

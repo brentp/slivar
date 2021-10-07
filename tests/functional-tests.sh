@@ -131,6 +131,12 @@ assert_exit_code 0
 assert_equal $(grep -c $'DP\t' xx.tsv) 1
 assert_equal 4 $(grep -c ^denovo xx.tsv)
 
+# TSV
+run check_tsv_id_qual $exe tsv -i DP -i QUAL -i ID -c BCSQ --csq-column dna_change -s denovo --ped tests/ashk-trio.ped  tests/with-bcsq.vcf -o xx.tsv
+assert_exit_code 0
+assert_equal $(grep -c $'DP\t' xx.tsv) 1
+assert_equal 4 $(grep -c ^denovo xx.tsv)
+#rm xx.tsv
 
 run check_family_expr $exe expr --pass-only -p tests/ashk-trio.ped -v tests/ashk-trio.vcf.gz --trio "dn:mom.hom_ref && kid.het && dad.hom_ref" --family-expr 'dnf:fam.every(function(s) {return s.het == s.affected && s.hom_ref == !s.affected})' -o /dev/null
 assert_exit_code 0
@@ -162,7 +168,6 @@ assert_exit_code 0
 assert_in_stderr "sample	kh
 HG002	779"
 
-rm xx.tsv
 run check_bad_field_type_fails_in_make_gnotate $exe make-gnotate -f culprit --prefix xx tests/ashk-trio.vcf.gz
 assert_exit_code 1
 assert_in_stderr "only Integer and Float are supported"

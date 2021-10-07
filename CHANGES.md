@@ -1,3 +1,7 @@
+v0.2.6
+======
++ allow specifying `QUAL` and `ID` to `-i` argument to `slivar tsv` (#104 #105)
+
 v0.2.5
 ======
 + it was previously not possible to adjust the order of impacts with
