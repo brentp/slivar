@@ -99,6 +99,7 @@ proc set_csq_fields*(ivcf:VCF, field:string, gene_fields: var GeneIndexes, csq_c
   for tryfield in [field, "CSQ", "BCSQ", "ANN"]:
     try:
       desc = ivcf.header.get(tryfield, BCF_HEADER_TYPE.BCF_HL_INFO)["Description"]
+      break
     except:
       if tryfield == field:
         stderr.write_line &"[slivar tsv] warning! didn't find {field} in header in {ivcf.fname} trying other fields"
