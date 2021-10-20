@@ -92,7 +92,19 @@ proc set_csq_fields*(ivcf:VCF, field:string, gene_fields: var GeneIndexes, csq_c
   gene_fields.transcript = -1
   gene_fields.columns = newOrderedTable[string, int]()
 
-  var desc = ivcf.header.get(field, BCF_HEADER_TYPE.BCF_HL_INFO)["Description"]
+  # try to get the requested field, but iterate through other known csq fields
+  # as a backup. sometimes, snpEff, for example will not add it's ANN or EFF
+  # field to the header given an empty VCF.
+  var desc: string
+  for tryfield in [field, "CSQ", "BCSQ", "ANN"]:
+    try:
+      desc = ivcf.header.get(tryfield, BCF_HEADER_TYPE.BCF_HL_INFO)["Description"]
+    except:
+      if tryfield == field:
+        stderr.write_line &"[slivar tsv] warning! didn't find {field} in header in {ivcf.fname} trying other fields"
+
+  if desc == "":
+    raise newException(KeyError, &"consequence field: {field} not found in header")
   # snpEff ##INFO=<ID=ANN,Number=.,Type=String,Description="Functional annotations: 'Allele | Annotation | Annotation_Impact | Gene_Name | Gene_ID | Feature_Type | Feature_ID | Transcript_BioType | Rank | HGVS.c | HGVS.p | cDNA.pos / cDNA.length | CDS.pos / CDS.length | AA.pos / AA.length | Distance | ERRORS / WARNINGS / INFO' ">
 
   var spl = (if "Format: '" in desc: "Format: '" else: "Format: ")
