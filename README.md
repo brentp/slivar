@@ -2,7 +2,7 @@
 [![downloads](https://anaconda.org/bioconda/slivar/badges/downloads.svg)](https://anaconda.org/bioconda/slivar)
 
 
-If you use `slivar`, please cite [the paper](https://www.biorxiv.org/content/10.1101/2020.08.13.249532v2)
+If you use `slivar`, please cite [the paper](https://www.nature.com/articles/s41525-021-00227-3)
 
 slivar is a set of command-line tools that enables rapid querying and filtering of VCF files. 
 It facilitates operations on trios and [groups](#groups) and allows arbitrary expressions using simple javascript.
