@@ -1,3 +1,7 @@
+v0.2.7
+======
++ [tsv] fix for empty VCFs
+
 v0.2.6
 ======
 + allow specifying `QUAL` and `ID` to `-i` argument to `slivar tsv` (#104 #105)
