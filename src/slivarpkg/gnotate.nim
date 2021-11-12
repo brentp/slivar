@@ -348,7 +348,11 @@ when isMainModule:
       var filt = v.FILTER
 
       var oval = -1'f32
-      if v.info.get(original_field, floats) != Status.OK:
+      var st = v.info.get(original_field, floats)
+      if st == Status.UnexpectedType:
+        if v.info.get(original_field, ints) == Status.OK:
+          oval = ints[0].float32
+      elif st == Status.NotFound:
         if filt == "PASS":
           if nmiss < 10:
             echo "not annotated:" & v.tostring()[0..150]
