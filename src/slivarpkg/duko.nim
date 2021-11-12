@@ -42,6 +42,11 @@ proc `[]=`*(ctx: DTContext, key: string, value: string) {.inline.} =
     discard ctx.duk_push_lstring(value.cstring, value.len.duk_size_t)
     discard ctx.duk_put_global_lstring(key.cstring, key.len.duk_size_t)
 
+proc `[]=`*(ctx: DTContext, key: string, value: cstring) {.inline.} =
+    ## set a global value in the context
+    discard ctx.duk_push_lstring(value, value.len.duk_size_t)
+    discard ctx.duk_put_global_lstring(key.cstring, key.len.duk_size_t)
+
 proc `[]=`*(ctx: DTContext, key: string, values: seq[SomeNumber]) {.inline.} =
   ## set a global array of values
   var idx = ctx.duk_push_array()
@@ -217,10 +222,10 @@ template `[]=`*(o:Duko, key:string, value: SomeInteger) =
     #stderr.write_line "done []= key:", key, " values:", $value, " ", $o.ctx.len
     o.ctx.pop()
 
-template `[]=`*(o:Duko, key:string, value: string) =
+template `[]=`*(o:Duko, key:string, value: string|cstring) =
     ## set the property at key to a value
     let idx = o.ctx.duk_push_heapptr(o.vptr)
-    discard o.ctx.duk_push_lstring(value, value.len.duk_size_t)
+    discard o.ctx.duk_push_lstring(value.cstring, value.len.duk_size_t)
     #stderr.write_line "[]= key:", key, " values:", $value, " ", $o.ctx.len
     if 1 != o.ctx.duk_put_prop_lstring(idx, key.cstring, key.len.duk_size_t):
       quit "problem setting:" & key & " -> " & $value

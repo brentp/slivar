@@ -1,15 +1,11 @@
 import strutils
-import streams
 import os
 import times
 import algorithm
 import strformat
 import random
 
-#import minizip
-#type ZipArchive = Zip
-import zip/zipfiles
-
+import minizip
 import ./pracode
 import hts
 
@@ -25,7 +21,7 @@ type Long* = object
 const MissingVal = float32(0x7F800001) # float32.low
 
 type Gnotater* = ref object
-  zip: ZipArchive
+  zip: Zip
   missing_value: float32 ## annotate variants absent from gnotate file with an allele frequency of -1.0
   chrom: cstring ## this tracks the current chromosome.
   encs: seq[uint64] ## encoded position,ref,alt. alts > 1 are encoding a FILTER as well.
@@ -55,42 +51,29 @@ proc cmp_long*(a, b:Long): int =
 randomize()
 
 proc open*(g:var Gnotater, zpath: string, tmpDir:string="/tmp", missing_val:float32= -1.0'f32): bool =
-  g = Gnotater(tmpDir:tmpDir, missing_value:missing_val)
+  g = Gnotater(tmpDir:tmpDir, missing_value:missing_val, names: @[], chroms: @[])
   if not open(g.zip, zpath):
     stderr.write_line &"[slivar] error opening {zpath} for annotation"
     return false
 
-  var r = $rand(int.high) & $rand(int.high)
-  var path = g.tmpDir / &"chroms{r}.txt"
-  g.zip.extract_file("sli.var/chroms.txt", path)
-  for l in path.lines:
-    g.chroms.add(l.strip)
-  removeFile(path)
+  var s = newString(1)
+  doAssert g.zip.read_into("sli.var/chroms.txt", s)
+  for l in s.strip().split(seps={'\n'}):
+    g.chroms.add(l.strip())
 
-  path = g.tmpDir / &"fields{r}.txt"
-  g.zip.extract_file("sli.var/fields.txt", path)
-  for l in path.lines:
+  doAssert g.zip.read_into("sli.var/fields.txt", s)
+  for l in s.strip().split(seps={'\n'}):
     g.names.add(l.strip())
-  removeFile(path)
 
-  var hasMsg = false
-  if getEnv("SLIVAR_QUIET") == "":
-    for p in g.zip.walkFiles:
-      if p.endsWith("message.txt"):
-        hasMsg = true
-        break
-
-  if hasMsg:
-    path = g.tmpDir / &"message{r}.txt"
-    g.zip.extract_file("sli.var/message.txt", path)
+  if getEnv("SLIVAR_QUIET") == "" and g.zip.read_into("sli.var/message.txt", s):
     stderr.write_line "[slivar] message for " & zpath & ":"
-    for l in path.lines:
+    for l in s.strip().split(seps={'\n'}):
       if l.strip() != "":
         stderr.write_line "   > " & l
-    removeFile(path)
-
   g.encs = newSeq[uint64]()
   g.values = newSeq[seq[float32]](g.n_fields)
+  for i in 0..<g.values.len:
+    g.values[i] = newSeq[float32](0)
   g.longs = newSeq[Long]()
 
   return true
@@ -118,65 +101,28 @@ proc parseLong(line: string, n_fields:int): Long {.inline.} =
 
 
 proc readLongs(g:var Gnotater, chrom: string) =
-  let st = g.zip.getStream(&"sli.var/{chrom}/long-alleles.txt")
-  g.longs.setLen(0)
-  # reading into memory here is the fastest way I could find. I think the calls
-  # to streams are not inlined and therefore can be expensive. reading this
-  # file is still slower than reading the encoded binary data.
-  let big = st.readAll
+
+  var big = newString(16)
+  doAssert g.zip.read_into(&"sli.var/{chrom}/long-alleles.txt", big)
   var i = 0
   for l in big.split(seps={'\n'}):
     if unlikely(l.len == 0): continue
     if unlikely(i == 0 and l.startswith("position")): continue
     g.longs.add(parseLong(l, g.n_fields))#.strip(chars={'\n'})))
     i += 1
-  st.close()
 
-proc readEncs(g:Gnotater, chrom: string) =
-  var st = g.zip.getStream(&"sli.var/{chrom}/gnotate-variant.bin")
-  var chunk = 21660531 # this is the exact number of elements in chr1 so it makes this the fastest
-  if g.encs.len > chunk:
-    g.encs.setLen(chunk)
-  else:
-    g.encs = newSeqUninitialized[uint64](chunk)
-  while true:
-    let bytesRead = st.readData(g.encs[g.encs.len - chunk].addr, chunk * uint64.sizeof)
-    if bytesRead < chunk * uint64.sizeof:
-      g.encs.setLen(g.encs.len - chunk + int(bytesRead / uint64.sizeof))
-      break
-    g.encs.setLen(g.encs.len + chunk)
-  st.close()
+proc readEncs(g:var Gnotater, chrom: string) =
+  doAssert g.zip.readInto(&"sli.var/{chrom}/gnotate-variant.bin", g.encs)
 
-proc readValues(g: var Gnotater, chrom: string, field_i: int, expected_length:int) =
+proc readValues(g: var Gnotater, chrom: string, field_i: int) =
   var field_name = g.names[field_i]
   # gnotate-gnomad_num_homalt.bin
-  #var st = g.zip.getStream(&"sli.var/{chrom}/gnotate-{field_name}.bin")
-  var chunk = expected_length
   shallow(g.values)
-  if field_i > g.values.high:
-    # if we encounter a new chromosome after an empty one.
-    g.values.setLen(field_i + 1)
-  if g.values[field_i].len >= chunk:
-    g.values[field_i].setLen(chunk)
-  else:
-    g.values[field_i] = newSeqUninitialized[float32](chunk)
-  shallow(g.values[field_i])
+  doAssert g.zip.readInto(&"sli.var/{chrom}/gnotate-{field_name}.bin", g.values[field_i])
 
-  g.zip.extractInto(&"sli.var/{chrom}/gnotate-{field_name}.bin", g.values[field_i])
-  #var vs = g.values[field_i]
-  #echo "len:", vs.len, " chunk:", chunk
-
-  #let bytesRead = st.readData(g.values[field_i][0].addr, chunk * float32.sizeof)
-  #if bytesRead != chunk * float32.sizeof:
-  #  raise newException(IOError, "didn't get expected size")
-  #var x:int
-  #doAssert 0 == st.readData(x.addr, x.sizeof)
-  #doAssert st.atEnd
-  #st.close()
-
-proc readValues(g: var Gnotater, chrom: string, expected_length:int) =
+proc readValues(g: var Gnotater, chrom: string) =
   for i in 0..<g.n_fields:
-    g.readValues(chrom, i, expected_length)
+    g.readValues(chrom, i)
 
 proc sanitize_chrom*(c:string): string {.inline.} =
   if c.len == 1: return c
@@ -200,7 +146,7 @@ proc load(g:var Gnotater, chrom: cstring): bool =
   when defined(gnotate_times):
     var etime = cpuTime() - t
   var t2 = cpuTime()
-  g.readValues(chrom, g.encs.len)
+  g.readValues(chrom)
   when defined(gnotate_times):
     var atime = cpuTime() - t2
   t2 = cpuTime()
@@ -333,6 +279,7 @@ proc update_header*(g:Gnotater, ivcf:VCF) =
 
 when isMainModule:
 
+  #[
   var zip_path = paramStr(1)
   var loc = paramStr(2)
   var g:Gnotater
@@ -340,10 +287,10 @@ when isMainModule:
     quit "[slivar] error opening zip. check path and contents"
   var se = loc.split(":")[1].split("-")
   g.show(loc.split(":")[0], parseInt(se[0])-1, parseInt(se[1]))
+  ]#
 
 
 
-  #[
   import times
 
   var vcf_path = paramStr(1)
@@ -423,4 +370,3 @@ when isMainModule:
 
     n += 1
   echo "PASS:", $n, " variants tested with max difference:", max_diff
-  ]#

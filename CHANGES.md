@@ -1,3 +1,8 @@
+v0.2.8
+======
++ [internal] use same zip library for make-gnotate as gnotate. this should
+  improve speed for reading many small chromosomes.
+
 v0.2.7
 ======
 + [tsv] fix for empty VCFs

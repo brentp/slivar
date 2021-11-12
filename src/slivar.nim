@@ -93,7 +93,7 @@ proc expr_main*(dropfirst:bool=false) =
 
   if opts.gnotate.len != 0:
     for p in opts.gnotate:
-      var gno:Gnotater
+      var gno = Gnotater()
       if not gno.open(p, tmpDir=getTempDir()):
         quit "[slivar] failed to open gnotate file. please check path"
       gno.update_header(ivcf)

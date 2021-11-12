@@ -241,12 +241,12 @@ proc set_sample_attributes(ev:Evaluator, by_name: TableRef[string, ISample]) =
     if sample.ped_sample.mom != nil:
       if sample.ped_sample.mom.id notin by_name: continue #
       sample.duk.alias(by_name[sample.ped_sample.mom.id].duk, "mom")
-    if ev.ctx.duk_peval_string_noresult(&"{samples_name}[\"{sample.ped_sample.id}\"].kids = []") != 0:
+    if ev.ctx.duk_peval_string_noresult(cstring(&"{samples_name}[\"{sample.ped_sample.id}\"].kids = []")) != 0:
         quit "error setting sample kids"
     for kid in sample.ped_sample.kids:
       #stderr.write_line &"{samples_name}[\"{sample.ped_sample.id}\"].kids.push({samples_name}[\"{kid.id}\"])"
       if kid.id notin by_name: continue #
-      if ev.ctx.duk_peval_string(&"{samples_name}[\"{sample.ped_sample.id}\"].kids.push({samples_name}[\"{kid.id}\"])") != 0:
+      if ev.ctx.duk_peval_string(cstring(&"{samples_name}[\"{sample.ped_sample.id}\"].kids.push({samples_name}[\"{kid.id}\"])")) != 0:
         var err = $ev.ctx.duk_safe_to_string(-1)
         quit &"error setting sample kid: {kid.id} for parent: {sample.ped_sample.id}" & "\n" & err
       else:
@@ -502,7 +502,7 @@ proc set_format_field(ctx: Evaluator, f:FormatField, fmt:FORMAT, ints: var seq[i
 
 proc set_variant_fields*(ctx:Evaluator, variant:Variant) =
   ctx.variant["FILTER"] = variant.FILTER
-  ctx.variant["CHROM"] = $variant.CHROM
+  ctx.variant["CHROM"] = variant.CHROM
   ctx.variant["start"] = variant.start
   ctx.variant["stop"] = variant.stop
   ctx.variant["POS"] = variant.POS
@@ -510,7 +510,7 @@ proc set_variant_fields*(ctx:Evaluator, variant:Variant) =
   ctx.variant["REF"] = variant.REF
   ctx.variant["ALT"] = variant.ALT
   ctx.variant["is_multiallelic"] = (len(variant.ALT) > 1)
-  ctx.variant["ID"] = $variant.ID
+  ctx.variant["ID"] = variant.ID
   if variant.ALT.len > 1:
     stderr.write_line &"[slivar] warning! found multiallelic site at {variant.CHROM}:{variant.start + 1}. slivar will do sane things with this, but it's better to decompose"
 
