@@ -322,8 +322,9 @@ proc newEvaluator*(ivcf:VCF, samples: seq[Sample], groups: seq[Group], float_exp
     try:
       var gf:GeneIndexes
       var fields = ivcf.set_csq_fields(f, gf)
-      result.gene_fields.add(gf)
-      result.VCF[f] = fields
+      if fields.len > 0:
+        result.gene_fields.add(gf)
+        result.VCF[f] = fields
       # add this to the field names so we can clear it as needed
     except KeyError:
       continue

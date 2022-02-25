@@ -111,7 +111,12 @@ proc set_csq_fields*(ivcf:VCF, field:string, gene_fields: var GeneIndexes, csq_c
   var spl = (if "Format: '" in desc: "Format: '" else: "Format: ")
   if spl notin desc:
     spl = ": '"
-  var adesc = desc.split(spl)[1].split("'")[0].strip().strip(chars={'"', '\''}).multiReplace(("[", ""), ("]", ""), ("'", ""), ("*", "")).split("|")
+  var adesc:seq[string]
+  try:
+    adesc = desc.split(spl)[1].split("'")[0].strip().strip(chars={'"', '\''}).multiReplace(("[", ""), ("]", ""), ("'", ""), ("*", "")).split("|")
+  except IndexDefect:
+    # format field description not as expected. return emptyr result and don't fill gene fields
+    return result
 
   for v in adesc.mitems: v = v.toUpperAscii.strip()
   result = adesc
@@ -132,7 +137,8 @@ proc set_csq_fields*(ivcf:VCF, field:string, gene_fields: var GeneIndexes, csq_c
     if gene_fields.transcript != -1: break
 
   if gene_fields.gene == -1:
-    quit &"[slivar] unable to find gene field in {field}"
+    stderr.write_line &"[slivar] warning: found {field} but it did not contain a description that indicated gene field. skipping"
+    raise newException(KeyError, "&[slivar] gene field not found")
   if gene_fields.consequence == -1:
     quit &"[slivar] unable to find consequence field in {field}"
   if gene_fields.transcript == -1:
@@ -268,8 +274,8 @@ or gene->pLI with:
     impact_order = adjustOrder(opts.impact_order.readFile)
 
   if opts.csq_field != "":
-    set_csq_fields(ivcf, opts.csq_field, gene_fields, opts.csq_column)
-    tsv_header.add(["gene", "highest_impact"])
+    if set_csq_fields(ivcf, opts.csq_field, gene_fields, opts.csq_column).len > 0:
+      tsv_header.add(["gene", "highest_impact"])
 
   for f in opts.sample_field:
     doAssert ivcf.header.get(f, BCF_HEADER_TYPE.BCF_HL_INFO)["Type"] == "String"

@@ -222,8 +222,8 @@ proc main*(dropfirst:bool=false) =
     if f == "": continue
     try:
       var gf:GeneIndexes
-      ivcf.set_csq_fields(f, gf)
-      gene_fields.add(gf)
+      if ivcf.set_csq_fields(f, gf).len > 0:
+        gene_fields.add(gf)
       # add this to the field names so we can clear it as needed
     except KeyError:
       continue
