@@ -1,0 +1,69 @@
+##fileformat=VCFv4.2
+##FILTER=<ID=PASS,Description="All filters passed">
+##contig=<ID=chr1,length=248956422,assembly=hg38>
+##contig=<ID=chr2,length=242193529,assembly=hg38>
+##contig=<ID=chr3,length=198295559,assembly=hg38>
+##contig=<ID=chr4,length=190214555,assembly=hg38>
+##contig=<ID=chr5,length=181538259,assembly=hg38>
+##contig=<ID=chr6,length=170805979,assembly=hg38>
+##contig=<ID=chr7,length=159345973,assembly=hg38>
+##contig=<ID=chr8,length=145138636,assembly=hg38>
+##contig=<ID=chr9,assembly=hg38,length=138394717>
+##contig=<ID=chr10,length=133797422,assembly=hg38>
+##contig=<ID=chr11,assembly=hg38,length=135086622>
+##contig=<ID=chr12,assembly=hg38,length=133275309>
+##contig=<ID=chr13,length=114364328,assembly=hg38>
+##contig=<ID=chr14,length=107043718,assembly=hg38>
+##contig=<ID=chr15,length=101991189,assembly=hg38>
+##contig=<ID=chr16,length=90338345,assembly=hg38>
+##contig=<ID=chr17,length=83257441,assembly=hg38>
+##contig=<ID=chr18,length=80373285,assembly=hg38>
+##contig=<ID=chr19,length=58617616,assembly=hg38>
+##contig=<ID=chr20,length=64444167,assembly=hg38>
+##contig=<ID=chr21,length=46709983,assembly=hg38>
+##contig=<ID=chr22,length=50818468,assembly=hg38>
+##contig=<ID=chrX,length=156040895,assembly=hg38>
+##contig=<ID=chrY,length=57227415,assembly=hg38>
+##contig=<ID=chrM,length=16569,assembly=hg38>
+##FILTER=<ID=VQSRTrancheINDEL99.00to99.90,Description="Truth sensitivity tranche level for INDEL model at VQS Lod: -13.994500 <= x < -6.258300">
+##FILTER=<ID=VQSRTrancheINDEL99.90to100.00,Description="Truth sensitivity tranche level for INDEL model at VQS Lod: -9610804.293300 <= x < -13.994500">
+##FILTER=<ID=VQSRTrancheINDEL99.90to100.00+,Description="Truth sensitivity tranche level for INDEL model at VQS Lod < -9610804.293300">
+##FILTER=<ID=VQSRTrancheSNP99.00to99.90,Description="Truth sensitivity tranche level for SNP model at VQS Lod: -29.360600 <= x < 9.695500">
+##FILTER=<ID=VQSRTrancheSNP99.90to100.00,Description="Truth sensitivity tranche level for SNP model at VQS Lod: -291300536.306900 <= x < -29.360600">
+##FILTER=<ID=VQSRTrancheSNP99.90to100.00+,Description="Truth sensitivity tranche level for SNP model at VQS Lod < -291300536.306900">
+##INFO=<ID=BCSQ,Number=.,Type=String,Description="Haplotype-aware consequence annotation from BCFtools/csq. Format: '[*]consequence|gene|transcript|biotype[|strand|amino_acid_change|dna_change]' or, for consequences of variants split across multiple sites, a pointer to the record storing the consequences '@position'. '*' prefix indicates a consequence downstream from a stop">
+##INFO=<ID=CLNDN,Number=.,Type=String,Description="ClinVar's preferred disease name for the concept specified by disease identifiers in CLNDISDB (from /scratch/ucgd/lustre-work/marth/marth-projects/calypso/reannotation/data/ClinVar_GRCh38_Mar8_2022.vcf.gz)">
+##INFO=<ID=CLNSIG,Number=.,Type=String,Description="Clinical significance for this single variant (from /scratch/ucgd/lustre-work/marth/marth-projects/calypso/reannotation/data/ClinVar_GRCh38_Mar8_2022.vcf.gz)">
+##INFO=<ID=REVEL,Number=1,Type=Float,Description="REVEL score (from /scratch/ucgd/lustre-work/marth/marth-projects/calypso/reannotation/data/revel_scores_grch38.vcf.gz)">
+##FORMAT=<ID=AD,Number=R,Type=Integer,Description="Allelic depths for the ref and alt alleles in the order listed">
+##FORMAT=<ID=BCSQ,Number=.,Type=Integer,Description="Bitmask of indexes to INFO/BCSQ, with interleaved first/second haplotype. Use \"bcftools query -f'[%CHROM\t%POS\t%SAMPLE\t%TBCSQ\n]'\" to translate.">
+##FORMAT=<ID=DP,Number=1,Type=Integer,Description="Read depth">
+##FORMAT=<ID=GQ,Number=1,Type=Integer,Description="Genotype quality">
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+##FORMAT=<ID=PGT,Number=1,Type=String,Description="Physical phasing haplotype information, describing how the alternate alleles are phased in relation to one another">
+##FORMAT=<ID=PID,Number=1,Type=String,Description="Physical phasing ID information, where each unique ID within a given sample (but not across samples) connects records within a phasing group">
+##FORMAT=<ID=PL,Number=G,Type=Integer,Description="The phred-scaled genotype likelihoods rounded to the closest integer">
+##FORMAT=<ID=SAC,Number=.,Type=Integer,Description="Number of reads on the forward and reverse strand supporting each allele (including reference)">
+##reference=file:///scratch/ucgd/lustre/common/data/Reference/GRCh38/human_g1k_v38_decoy_phix.fasta
+##VEP="v104" time="2022-01-15 02:15:34" cache="/uufs/chpc.utah.edu/common/PE/proj_UCGD/apps/redwood.bridges/vep/104/vep_cache/homo_sapiens/104_GRCh38" ensembl-funcgen=104.f1c7762 ensembl-variation=104.6154f8b ensembl=104.1af1dce ensembl-io=104.1d3bb6e 1000genomes="phase3" COSMIC="92" ClinVar="20210102" ESP="V2-SSA137" HGMD-PUBLIC="20204" assembly="GRCh38.p13" dbSNP="154" gencode="GENCODE 38" genebuild="2014-07" gnomAD="r2.1.1" polyphen="2.2.2" regbuild="1.0" sift="sift5.2.2"
+##GO=GO terms associated with protein product
+##LoFtool=LoFtool score for gene
+##CADD_PHRED=PHRED-like scaled CADD score
+##CADD_RAW=Raw CADD score
+##SpliceRegion=SpliceRegion predictions
+##INFO=<ID=gnomad_popmax_af,Number=1,Type=Float,Description="field from from gnotate VCF">
+##INFO=<ID=gnomad_popmax_af_filter,Number=0,Type=Flag,Description="non-passing flag in gnotate source VCF">
+##INFO=<ID=gnomad_n_hets,Number=1,Type=Float,Description="field from from gnotate VCF">
+##INFO=<ID=gnomad_n_hets_filter,Number=0,Type=Flag,Description="non-passing flag in gnotate source VCF">
+##INFO=<ID=gnomad_n_homalt,Number=1,Type=Float,Description="field from from gnotate VCF">
+##INFO=<ID=gnomad_n_homalt_filter,Number=0,Type=Flag,Description="non-passing flag in gnotate source VCF">
+##INFO=<ID=comphet_side,Number=.,Type=String,Description="added by slivar with expression: 'comphet_side(kid, mom, dad) && INFO.gnomad_popmax_af < 0.005' from A1257-220114-VAR-Botto-Leukodystrophy_Final_1642265647.vcf.gz.annotated.vcf.gz">
+##INFO=<ID=denovo,Number=.,Type=String,Description="added by slivar with expression: 'fam.every(segregating_denovo) && INFO.gnomad_popmax_af < 0.001' from A1257-220114-VAR-Botto-Leukodystrophy_Final_1642265647.vcf.gz.annotated.vcf.gz">
+##INFO=<ID=impactful,Number=0,Type=Flag,Description="variant is impactful according to slivar and impacts added by VEP/snpEff/bcftools (https://github.com/brentp/slivar/wiki/impactful)">
+##INFO=<ID=genic,Number=0,Type=Flag,Description="variant is genic according to slivar and impacts added by VEP/snpEff/bcftools (https://github.com/brentp/slivar/wiki/impactful)">
+##INFO=<ID=highest_impact_order,Number=1,Type=Integer,Description="impact order (lower is higher) of this variant across all genes and transcripts it overlaps. this integer can be used as a look into the order list to get the actual impact">
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	UDN231974	UDN810123	UDN971716
+chr6	63280472	.	G	A	1457.2	PASS	BCSQ=3_prime_utr|LGSN|ENST00000370658|protein_coding,3_prime_utr|LGSN|ENST00000622415|protein_coding,@63280473;REVEL=0.698;gnomad_popmax_af=6.54707e-05;gnomad_n_hets=2;gnomad_n_homalt=0;genic;highest_impact_order=29;comphet_side=UDN810123	GT:AD:DP:GQ:PGT:PID:PL:SAC:BCSQ	0/0:39,0:39:99:.:.:0,104,1338:.:0	0/1:19,21:40:99:0|1:63280472_G_A:853,0,1277:6,13,10,11:42	0/1:14,17:31:99:0|1:63280472_G_A:672,0,933:8,6,6,11:42
+chr16	788413	.	C	CCCCGGCCCG	1145.3	PASS	BCSQ=@788407,inframe_insertion|CHTF18|ENST00000631357|protein_coding|+|107P>107PPAR|788413C>CCCCGGCCCG;gnomad_popmax_af=0.00231284;gnomad_n_hets=204;gnomad_n_homalt=1;impactful;genic;highest_impact_order=12;comphet_side=UDN810123	GT:AD:DP:GQ:PGT:PID:PL:SAC:BCSQ	0/0:47,0:47:99:.:.:0,105,1575:.:0	0/1:16,10:26:99:.:.:355,0,795:8,8,4,6:2	0/1:3,6:9:99:.:.:236,0,321:0,3,2,4:8
+chr16	793183	.	G	A	2399.8	PASS	BCSQ=3_prime_utr|CHTF18|ENST00000440239|NMD,@788407,missense|CHTF18|ENST00000631357|protein_coding|+|761D>764N|793183G>A,missense|CHTF18|ENST00000317063|protein_coding|+|571D>571N|793183G>A,missense|CHTF18|ENST00000262315|protein_coding|+|571D>571N|793183G>A,missense|CHTF18|ENST00000455171|protein_coding|+|599D>599N|793183G>A;REVEL=0.054;gnomad_popmax_af=0.00330795;gnomad_n_hets=343;gnomad_n_homalt=1;impactful;genic;highest_impact_order=14;comphet_side=UDN810123	GT:AD:DP:GQ:PL:SAC:BCSQ	0/0:40,0:40:99:0,100,1354:.:0	0/1:24,19:43:99:581,0,750:13,11,14,5:2698	0/1:20,16:36:99:519,0,632:11,9,13,3:2722
+chr19	3593228	.	G	A	712.2	PASS	BCSQ=3_prime_utr|GIPC3|ENST00000644452|protein_coding,@3592545;gnomad_popmax_af=-1;gnomad_n_hets=-1;gnomad_n_homalt=-1;genic;highest_impact_order=29;comphet_side=UDN810123	GT:AD:DP:GQ:PL:SAC:BCSQ	0/0:43,0:43:99:0,99,1131:.:0	0/1:29,21:50:99:528,0,691:15,14,12,9:10	0/1:21,11:32:99:252,0,454:12,9,7,4:10

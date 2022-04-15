@@ -209,3 +209,11 @@ SID_4	2"
 
 run check_issue_27 $exe expr -g _clinvar.test.zip -v tests/test-27.vcf.gz
 
+
+run check_csq $exe  compound-hets -v tests/comphet.csq.vcf --skip NONE -s comphet_side -s denovo -o x.vcf.gz -p tests/comphet.csq.ped 
+assert_exit_code 0
+assert_in_stderr "[slivar] warning! BCSQ has a CSQ of @63280473 which is incomplete. skipping chr6:63280472(G/A)
+[slivar] warning! BCSQ has a CSQ of @788407 which is incomplete. skipping chr16:788413(C/CCCCGGCCCG)
+[slivar] warning! BCSQ has a CSQ of @788407 which is incomplete. skipping chr16:793183(G/A)
+[slivar] warning! BCSQ has a CSQ of @3592545 which is incomplete. skipping chr19:3593228(G/A)"
+rm x.vcf.gz

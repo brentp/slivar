@@ -1,0 +1,4 @@
+#Kindred_ID	Sample_ID	Paternal_ID	Maternal_ID	Sex	Affection_Status
+K01	UDN231974	0	0	1	1
+K01	UDN810123	UDN231974	UDN971716	2	2
+K01	UDN971716	0	0	2	1
