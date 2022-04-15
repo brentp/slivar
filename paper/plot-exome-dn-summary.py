@@ -25,7 +25,7 @@ sns.swarmplot(x="variable", y="number_of_variants",
        data=df, ax=axes[0], palette=colors)
 
 axes[0].set_xlabel("Filtering strategy", size=15)
-axes[0].set_ylabel("Candidate $\it{de}$ $\it{novo}$ variants")
+axes[0].set_ylabel("Number of candidate $\it{de}$ $\it{novo}$ variants")
 labels = ["0.2 <= AB < 0.8\n& GQ >= 20",
           "gnomAD popmax AF < 0.001",
                          "impactful"]
@@ -52,8 +52,8 @@ ax.set_ylim(-0.5, 10.5)
 #ax.axhline(o, 0.1, 0.4, lw=4)
 #ax.axhline(f, 1-0.4, 1 - 0.1, lw=4)
 
-plt.tight_layout()
 sns.despine()
+plt.tight_layout()
 plt.savefig("figure2-exome-denovos.png")
 plt.savefig("figure2-exome-denovos.eps")
 plt.show()
