@@ -168,6 +168,7 @@ function add_defaults(s) {
 	        s.AB = s.AD[1] / Math.max(1, s.AD[1] + s.AD[0])
 	}
 	if(s.affected === undefined) { s.affected = false }
+	if(s.kids === undefined) { s.kids = [] }
 }
 
 var HET = 1, HOM_REF = 0, HOM_ALT = 2, UNKNOWN = -1
@@ -313,6 +314,24 @@ var mom = Sample(HOM_REF, {id:"mom", sex:"female"})
 var dad = Sample(HOM_REF, {id:"dad", sex:"male"})
 var kid = Sample(HOM_ALT, {id:"kid", sex:"male", affected: true})
 assert(segregating_recessive, [[kid, dad, mom]], "hom-alt denovo is segregating recessive")
+
+
+SECTION("segregating x dominant")
+var mom = Sample(HOM_REF, {id:"mom", sex:"female", GQ: 20, DP: 20})
+var dad = Sample(HOM_ALT, {id:"dad", sex:"male", affected: true, GQ: 9, DP: 20})
+var kid = Sample(HOM_ALT, {id:"kid", sex:"male", affected: true, GQ: 20, DP: 20})
+kid.mom = mom
+kid.dad = dad
+dad.kids = [kid]
+mom.kids = [kid]
+
+assert_not(segregating_dominant_x, [[kid, dad, mom]], "dad has too low GQ")
+
+dad.GQ = 10
+assert(segregating_dominant_x, [[kid, dad, mom]], "dad has 10 GQ")
+
+
+
 
 
 output = document.getElementById("testing_output")

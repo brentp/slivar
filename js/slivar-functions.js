@@ -1,11 +1,13 @@
-var config = {min_GQ: 20, min_AB: 0.20, min_DP: 6}
+var config = {min_GQ: 20, min_AB: 0.20, min_DP: 6, min_male_X_GQ: 10}
 // hi quality variants
-function hq(kid, mom, dad) {
-  return hq1(kid) && hq1(mom) && hq1(dad)
+function hq(kid, mom, dad, isX) {
+  return hq1(kid, isX) && hq1(mom, isX) && hq1(dad, isX)
 }
 
-function hq1(sample) {
-  if (sample.unknown || (sample.GQ < config.min_GQ)) { return false; }
+function hq1(sample, isX) {
+  let gq = isX && sample.sex == 'male'? config.min_male_X_GQ : config.min_GQ
+
+  if (sample.unknown || (sample.GQ < gq)) { return false; }
   if ((sample.AD[0] + sample.AD[1]) < config.min_DP) { return false; }
   if (sample.hom_ref){
       return sample.AB < 0.02
@@ -25,7 +27,7 @@ function denovo(kid, mom, dad){
 
 function x_denovo(kid, mom, dad) {
   if(!(kid.alts >= 1 && mom.hom_ref && dad.hom_ref && kid.AB > 0.3)){ return false; }
-  if(!hq(kid, mom, dad)) { return false; }
+  if(!hq(kid, mom, dad, true)) { return false; }
   if(kid.sex != 'male') { return false; }
   return ((mom.AD[1] + dad.AD[1]) < 2);
 }
@@ -42,7 +44,7 @@ function recessive(kid, mom, dad) {
 }
 
 function x_recessive(kid, mom, dad) { 
-  return (mom.het && kid.AB > 0.75 && dad.hom_ref && kid.alts >= 1 && hq(kid, mom, dad)
+  return (mom.het && kid.AB > 0.75 && dad.hom_ref && kid.alts >= 1 && hq(kid, mom, dad, true)
               && kid.sex == 'male' && mom.AB > config.min_AB && mom.AB < (1 - config.min_AB))
 }
 
@@ -65,29 +67,29 @@ function fake_auto_dom(kid, mom, dad) {
 
 function segregating_dominant_x(s) {
   // this is an internal function only called after checking sample quality and on X
-  if(!s.affected) { return s.hom_ref }
+  if(!s.affected) { return hq1(s, true) && s.hom_ref }
 
   if(s.sex == "male") {
-    for(var i=0; i < s.kids.length; s++) {
+    for(var i=0; i < s.kids.length; i++) {
       var kid = s.kids[i];
       // kids of affected dad must be affected.
       if(!kid.affected) { return false; }
     }
-    // mom of affected male must be affected.
-    if(("mom" in s) && !(s.mom.affected && s.mom.het)){ return false; }
-    if(("mom" in s) && !hq1(mom)){ return false; }
-    if(("dad" in s) && !hq1(dad)){ return false; }
+    // mom of affected male must be affected if she is het.
+    if(("mom" in s) && !(s.mom.affected == s.mom.het)){ return false; }
+    if(("mom" in s) && !hq1(s.mom, true)){ return false; }
+    if(("dad" in s) && !hq1(s.dad, true)){ return false; }
 
-    return (s.hom_alt || s.het) && hq1(s)
+    return (s.hom_alt || s.het) && hq1(s, true)
   }
   if(s.sex != "female"){return false; }
   // this block enforces inherited dominant, but not find de novos
   if(("mom" in s) || ("dad" in s)) {
     if(!((("mom" in s) && s.mom.affected && s.mom.het) || (s.dad && s.dad.affected))) { return false;}
-    if(("dad" in s) && !hq1(s.dad)){ return false; }
-    if(("mom" in s) && !hq1(s.mom)){ return false; }
+    if(("dad" in s) && !hq1(s.dad, true)){ return false; }
+    if(("mom" in s) && !hq1(s.mom, true)){ return false; }
   }
-  return s.het && hq1(s)
+  return s.het && hq1(s, true)
 }
 
 function hom_ref(s) {
@@ -99,8 +101,8 @@ function hom_ref_parent(s) {
 }
 
 function segregating_dominant(s) {
-  if(!hq1(s)){ return false; }
   if(variant.CHROM == "chrX" || variant.CHROM == "X") { return segregating_dominant_x(s); }
+  if(!hq1(s)){ return false; }
   if (s.affected) {
      return s.het
   }
