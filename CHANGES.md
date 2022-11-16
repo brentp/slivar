@@ -3,6 +3,7 @@ v0.2.8
 + [internal] use same zip library for make-gnotate as gnotate. this should
   improve speed for reading many small chromosomes.
 + don't quit on CSQ/ANN/BCSQ fields that don't have enough information to parse (#122)
++ fix segregating_dominant_x
 
 v0.2.7
 ======

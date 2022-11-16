@@ -317,7 +317,6 @@ proc newEvaluator*(ivcf:VCF, samples: seq[Sample], groups: seq[Group], float_exp
   result.allow_fmt_strings = getEnv("SLIVAR_FORMAT_STRINGS") != ""
   result.VCF = result.ctx.newObject("VCF")
 
-
   for f in ["ANN", "CSQ", "BCSQ"]:
     try:
       var gf:GeneIndexes
