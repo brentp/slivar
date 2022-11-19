@@ -5,7 +5,7 @@ function hq(kid, mom, dad, isX) {
 }
 
 function hq1(sample, isX) {
-  let gq = isX && sample.sex == 'male'? config.min_male_X_GQ : config.min_GQ
+  var gq = isX && sample.sex == 'male'? config.min_male_X_GQ : config.min_GQ
 
   if (sample.unknown || (sample.GQ < gq)) { return false; }
   if ((sample.AD[0] + sample.AD[1]) < config.min_DP) { return false; }
