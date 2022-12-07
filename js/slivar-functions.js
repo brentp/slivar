@@ -1,4 +1,4 @@
-var config = {min_GQ: 20, min_AB: 0.20, min_DP: 6, min_male_X_GQ: 10}
+var config = {min_GQ: 20, min_AB: 0.20, min_DP: 6, min_male_X_GQ: 10, min_male_X_DP: 3}
 // hi quality variants
 function hq(kid, mom, dad, isX) {
   return hq1(kid, isX) && hq1(mom, isX) && hq1(dad, isX)
@@ -6,9 +6,10 @@ function hq(kid, mom, dad, isX) {
 
 function hq1(sample, isX) {
   var gq = isX && sample.sex == 'male'? config.min_male_X_GQ : config.min_GQ
+  var dp = isX && sample.sex == 'male'? config.min_male_X_DP : config.min_DP
 
   if (sample.unknown || (sample.GQ < gq)) { return false; }
-  if ((sample.AD[0] + sample.AD[1]) < config.min_DP) { return false; }
+  if ((sample.AD[0] + sample.AD[1]) < dp) { return false; }
   if (sample.hom_ref){
       return sample.AB < 0.02
   }
