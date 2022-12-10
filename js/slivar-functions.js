@@ -1,4 +1,4 @@
-var config = {min_GQ: 20, min_AB: 0.20, min_DP: 6, min_male_X_GQ: 10, min_male_X_DP: 3}
+var config = {min_GQ: 20, min_AB: 0.20, min_DP: 6, min_male_X_GQ: 10, min_male_X_DP: 6}
 // hi quality variants
 function hq(kid, mom, dad, isX) {
   return hq1(kid, isX) && hq1(mom, isX) && hq1(dad, isX)
