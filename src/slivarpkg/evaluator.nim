@@ -777,7 +777,8 @@ proc set_format_fields*(ev:var Evaluator, v:Variant, alts: var seq[int8], ints: 
   swap(ev.fmt_field_sets.last, ev.fmt_field_sets.curr)
   ev.fmt_field_sets.curr = {}
 
-  ev.set_hom_het_alts(alts)
+  if alts.len > 0:
+    ev.set_hom_het_alts(alts)
 
   var fmt = v.format
   var has_ad = false
