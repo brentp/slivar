@@ -64,7 +64,7 @@ So for hg38:
 ```
 vcf=/path/to/your/vcf.vcf.gz
 ped=/path/to/your/pedigree.ped
-wget https://github.com/brentp/slivar/releases/download/v0.1.11/slivar
+wget https://github.com/brentp/slivar/releases/download/v0.2.8/slivar
 chmod +x ./slivar
 wget https://raw.githubusercontent.com/brentp/slivar/master/js/slivar-functions.js
 wget https://slivar.s3.amazonaws.com/gnomad.hg38.genomes.v3.fix.zip
