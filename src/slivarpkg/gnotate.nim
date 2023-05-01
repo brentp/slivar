@@ -101,6 +101,7 @@ proc parseLong(line: string, n_fields:int): Long {.inline.} =
 
 
 proc readLongs(g:var Gnotater, chrom: string) =
+  g.longs.setLen(0)
 
   var big = newString(16)
   doAssert g.zip.read_into(&"sli.var/{chrom}/long-alleles.txt", big)

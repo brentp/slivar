@@ -54,6 +54,7 @@ assert_equal "0" "$(bcftools view -H -i 'FMT/DP[0] <= 10 || FMT/DP[1] <= 10 || F
 assert_equal 11 $(bcftools view -H xx.bcf | wc -l)
 
 
+
 run check_denovo_with_filter $exe expr --js js/slivar-functions.js -v tests/ashk-trio.vcf.gz --pass-only --trio "denovo:variant.FILTER == 'PASS' && kid.alts == 1 && mom.alts == 0 && dad.alts == 0 && (mom.AD[1] + dad.AD[1]) < 2 && kid.GQ > 10 && mom.GQ > 10 && dad.GQ > 10 && kid.DP > 10 && mom.DP > 10 && dad.DP > 10" --ped tests/ashk-trio.ped -o xx.bcf
 
 assert_exit_code 0
@@ -217,3 +218,10 @@ assert_in_stderr "[slivar] warning! BCSQ has a CSQ of @63280473 which is incompl
 [slivar] warning! BCSQ has a CSQ of @788407 which is incomplete. skipping chr16:793183(G/A)
 [slivar] warning! BCSQ has a CSQ of @3592545 which is incomplete. skipping chr19:3593228(G/A)"
 rm x.vcf.gz
+
+
+run check_indel_bug_setup $exe make-gnotate -f AF:gno_af tests/indel-bug.vcf --prefix tests/indel-bug
+run check_indel_bug $exe expr -g tests/indel-bug.zip -v tests/indel-bug.vcf -o x.vcf
+assert_equal 0 $(bcftools query -f "%AF\t%gno_af"  x.vcf | awk '$1 != $2' | wc -l)
+rm x.vcf
+
