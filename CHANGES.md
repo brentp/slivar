@@ -1,3 +1,7 @@
+v0.2.9
+======
++ bugfix for 0.2.8 regression where indels present in gnotate file would be instead annotated as missing #149
+
 v0.2.8
 ======
 + [internal] use same zip library for make-gnotate as gnotate. this should
