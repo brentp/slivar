@@ -22,16 +22,16 @@ RUN source scl_source enable devtoolset-2 && \
     wget --no-check-certificate --quiet http://ftp.gnu.org/gnu/autoconf/autoconf-2.69.tar.gz && \
     tar xzf autoconf-2.69.tar.gz && \
     cd autoconf* && ./configure && make && make install && cd .. && rm -rf autoconf* && \
-    git clone --depth 1 https://github.com/ebiggers/libdeflate.git && \
-    cd libdeflate && make -j 2 CFLAGS='-fPIC -O3' libdeflate.a && \
+    git clone https://github.com/ebiggers/libdeflate.git && \
+    cd libdeflate && git checkout v1.13 && make -j 2 CFLAGS='-fPIC -O3' libdeflate.a && \
     cp libdeflate.a /usr/local/lib && cp libdeflate.h /usr/local/include && \
     cd .. && rm -rf libdeflate && \
-    git clone --recursive https://github.com/samtools/htslib && \
-    cd htslib && git checkout 1.13 && autoheader && autoconf && \
+    git clone --recursive https://github.com/samtools/htslib && cd htslib \
+    && git checkout 1.13 && git submodule update --recursive && autoheader && autoconf && \
     ./configure --disable-libcurl --with-libdeflate && \
     cd .. && make -j4 CFLAGS="-fPIC -O3" -C htslib install && \
-    git clone https://github.com/samtools/bcftools && \
-    cd bcftools && git checkout 1.13 && autoheader && autoconf && \
+    git clone https://github.com/samtools/bcftools && cd bcftools \
+    && git checkout 1.13 && git submodule update --recursive && autoheader && autoconf && \
     ./configure --disable-libcurl --with-libdeflate --disable-bcftools-plugins && \
     cd .. && make -j4 PLUGINS_ENABLED=no CFLAGS="-O3" -C bcftools install && \
     echo "/usr/local/lib" >> etc/ld.so.conf
