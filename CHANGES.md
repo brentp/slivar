@@ -1,3 +1,8 @@
+v0.3.0
+======
++ bugfix for 0.2.8 regression where SNPs present in gnotate file would be instead annotated as missing #149.
+  This happened when annotating a chromosome *after* a chromosome present in the query set that was not in the gnotate file
+
 v0.2.9
 ======
 + bugfix for 0.2.8 regression where indels present in gnotate file would be instead annotated as missing #149

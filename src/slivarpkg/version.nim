@@ -1,2 +1,2 @@
-const slivarVersion* = "0.2.9"
+const slivarVersion* = "0.3.0"
 const slivarGitCommit* = staticExec("git rev-parse --verify HEAD")
