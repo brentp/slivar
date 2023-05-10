@@ -478,7 +478,17 @@ proc load_js*(ev:Evaluator, code:string) =
 
 
 
-proc set_format_field(ctx: Evaluator, f:FormatField, fmt:FORMAT, ints: var seq[int32], floats: var seq[float32], strs: var seq[string]) =
+proc set_format_field(ctx: Evaluator, f:FormatField, fmt:FORMAT, gts:var Genotypes, ints: var seq[int32], floats: var seq[float32], strs: var seq[string]) =
+
+  if f.name == "GT":
+      var ialleles = newSeq[int32]()
+      for sample in ctx.samples.mitems:
+          let gti = gts[sample.ped_sample.i]
+          ialleles.setLen(gti.len)
+          for i, allele in gti:
+              ialleles[i] = allele.value.int32
+          sample.duk["GT"] = ialleles
+      return
 
   case f.vtype:
     of BCF_TYPE.INT32, BCF_TYPE.INT16, BCF_TYPE.INT8:
@@ -772,7 +782,7 @@ template clear_unused_formats(ev:Evaluator) =
     for sample in ev.samples:
       sample.duk.del(ev.field_names[idx].name)
 
-proc set_format_fields*(ev:var Evaluator, v:Variant, alts: var seq[int8], ints: var seq[int32], floats: var seq[float32], strs: var seq[string]) =
+proc set_format_fields*(ev:var Evaluator, v:Variant, gts: var Genotypes, alts: var seq[int8], ints: var seq[int32], floats: var seq[float32], strs: var seq[string]) =
   # fill the format fields
   swap(ev.fmt_field_sets.last, ev.fmt_field_sets.curr)
   ev.fmt_field_sets.curr = {}
@@ -787,9 +797,8 @@ proc set_format_fields*(ev:var Evaluator, v:Variant, alts: var seq[int8], ints: 
     if ev.format_white_list.len > 0 and f.name notin ev.format_white_list:
       continue
     ev.fmt_field_sets.curr.incl(f.i.uint8)
-    if f.name == "GT": continue
     if has_ab and f.name == "AB": continue
-    ev.set_format_field(f, fmt, ints, floats, strs)
+    ev.set_format_field(f, fmt, gts, ints, floats, strs)
     if f.name == "AD":
       has_ad = true
       let v_alt_len = max(1, v.ALT.len)
@@ -831,7 +840,8 @@ iterator evaluate*(ev:var Evaluator, variant:Variant, nerrors:var int): exResult
   var strs = newSeq[string]()
 
   ev.set_variant_fields(variant)
-  var alts = variant.format.genotypes(ints).alts
+  var gts = variant.format.genotypes(ints)
+  var alts = gts.alts
   ev.set_calculated_variant_fields(alts)
   ev.set_infos(variant, ints, floats)
 
@@ -854,7 +864,7 @@ iterator evaluate*(ev:var Evaluator, variant:Variant, nerrors:var int): exResult
         yield ("", @[], 0.0'f32)
 
       elif ev.trios.len > 0 or ev.groups.len > 0 or ev.families.len > 0:
-        ev.set_format_fields(variant, alts, ints, floats, strs)
+        ev.set_format_fields(variant, gts, alts, ints, floats, strs)
         for r in ev.evaluate_trios(nerrors, variant): yield r
         for r in ev.evaluate_groups(nerrors, variant): yield r
         for r in ev.evaluate_families(nerrors, variant): yield r
