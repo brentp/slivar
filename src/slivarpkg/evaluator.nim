@@ -123,6 +123,7 @@ type Evaluator* = ref object
 
   info_field_sets: FieldSets[uint16]
   fmt_field_sets: FieldSets[uint8]
+  csq_field_sets: FieldSets[uint8]
   allow_fmt_strings: bool
 
   empty: Duko
@@ -136,6 +137,8 @@ type Evaluator* = ref object
   #info_impact_set : Duko # set of impacts seen in this variant
   variant: Duko
   gnos*:seq[Gnotater]
+
+  CSQ: Duko
 
   trios: seq[Trio]
   families: seq[Family]
@@ -421,17 +424,19 @@ proc newEvaluator*(ivcf:VCF, samples: seq[Sample], groups: seq[Group], float_exp
         stderr.write_line &"[slivar] evaluating on {result.trios.len} trios"
     else:
       stderr.write_line &"[slivar] WARNING! specified --trio expressions without any trios"
+  
+  let parse_csq = getEnv("SLIVAR_PARSE_CSQ") != ""
 
   if strict:
     result.INFO = result.ctx.newStrictObject("INFO")
     result.variant = result.ctx.newStrictObject("variant")
-    #if getEnv("SLIVAR_IMPACT_SET") != "":
-    #  result.info_impact_set = result.INFO.newStrictObject("info_impact_set")
+    if parse_csq:
+      result.CSQ = result.ctx.newStrictObject("CSQ")
   else:
     result.INFO = result.ctx.newObject("INFO")
     result.variant = result.ctx.newObject("variant")
-    #if getEnv("SLIVAR_IMPACT_SET") != "":
-    #  result.info_impact_set = result.INFO.newStrictObject("info_impact_set")
+    if parse_csq:
+      result.CSQ = result.ctx.newObject("CSQ")
   result.set_sample_attributes(by_name)
 
 proc id2names*(h:Header): seq[idpair] =
@@ -574,6 +579,10 @@ proc clear_unused_infos(ev: Evaluator, f:FieldSets) {.inline.} =
     ev.INFO.del(ev.field_names[idx].name)
 
 var info_warn = 0
+
+template clear_unused_csqs(ev: Evaluator) =
+  for idx in ev.csq_field_sets.last.sub(ev.csq_field_sets.curr):
+    ev.CSQ.del(ev.field_names[idx].name)
 
 proc write_warning(variant:Variant, nerrors: var int) {.inline.} =
   nerrors.inc
@@ -774,6 +783,7 @@ iterator evaluate_groups(ev:Evaluator, nerrors: var int, variant:Variant): exRes
         yield ($namedexpr.name, matching_groups, -1'f32)
       elif ev.INFO.hasKey(namedexpr.name):
         ev.INFO.del(namedexpr.name)
+
 
 template clear_unused_formats(ev:Evaluator) =
   #for idx in ev.fmt_field_sets.last - ev.fmt_field_sets.curr:
