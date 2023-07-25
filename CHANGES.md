@@ -1,3 +1,8 @@
+v0.3.1
+======
++ add CSQ parsing js code: https://github.com/brentp/slivar/wiki/CSQ
++ expose sample.GT
+
 v0.3.0
 ======
 + bugfix for 0.2.8 regression where SNPs present in gnotate file would be instead annotated as missing #149.
