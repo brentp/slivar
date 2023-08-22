@@ -28,7 +28,7 @@ slivar has sub-commands:
 # Table of Contents
 
 * [Installation](#installation)
-* [QuickStart](#QuickStart)
+* [QuickStart](#quickstart)
 * [Commands](#commands)
  * [expr](#expr)
     * [trio](#trio)
@@ -78,6 +78,8 @@ wget https://slivar.s3.amazonaws.com/gnomad.hg38.genomes.v3.fix.zip
 	--trio "custom:kid.het && mom.het && dad.het && kid.GQ > 20 && mom.GQ > 20 && dad.GQ > 20" \
 	--pass-only
 ```
+
+The pedigree format is explained [here](https://github.com/brentp/slivar/wiki/pedigree-file)
 
 ## Commands
 
