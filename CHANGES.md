@@ -2,6 +2,7 @@ v0.3.1
 ======
 + add CSQ parsing js code: https://github.com/brentp/slivar/wiki/CSQ
 + expose sample.GT
++ update impact order to include new effects from VEP (#157)
 
 v0.3.0
 ======
