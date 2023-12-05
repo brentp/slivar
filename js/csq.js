@@ -8,15 +8,21 @@ var CSQ = function (info_csq, csq_names, numeric_fields) {
 
     return new Proxy(csq, {
         get: function (target, name) {
-            if (name in target._names) {
-                var result = target._values[target._names[name]];
-                if (target._numeric_fields[name]) {
-                    result = parseFloat(result);
-                }
-
-                return result
+            if (!(name in target._names)) {
+                throw "unknown CSQ field: " + name;
             }
-            throw "unknown CSQ field: " + name;
+
+            var result = target._values[target._names[name]];
+            if (target._numeric_fields[name]) {
+                if(result.length == 0 || isNaN(result)) {
+                    result = NaN
+                } else {
+                    try {
+                        result = parseFloat(result);
+                    } catch(e) { result = NaN }
+                }
+            }
+            return result
         }
     });
 };
