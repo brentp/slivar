@@ -41,6 +41,7 @@ initiator_codon
 splice_donor_5th_base
 splice_polypyrimidine_tract
 splice_donor_region
+coding_transcript
 miRNA
 non_coding_transcript_exon
 non_coding_exon
@@ -56,6 +57,7 @@ non_coding_transcript
 non_coding
 upstream_gene
 sequence_feature
+sequence
 downstream_gene
 intragenic
 TFBS_ablation
