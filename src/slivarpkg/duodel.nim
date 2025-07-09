@@ -15,14 +15,15 @@ type Duo = object
   parent_label: string # "mom" or "dad"
   i: int
 
-template AB(sample_i:int, AD:seq[int32]): float32 =
+template AB(sample_i: int, AD: seq[int32]): float32 =
   var a = AD[2*sample_i+1].float32
   a / max(1, a + AD[2*sample_i].float32)
 
-template DP(sample_i: int, AD:seq[int32]): int32 =
+template DP(sample_i: int, AD: seq[int32]): int32 =
   AD[2*sample_i+1] + AD[2*sample_i]
 
-proc hq*(sample_i: int, GQ: seq[int32], AD: seq[int32], alts: seq[int8], min_dp=9): bool {.inline.} =
+proc hq*(sample_i: int, GQ: seq[int32], AD: seq[int32], alts: seq[int8],
+    min_dp = 9): bool {.inline.} =
   if GQ[sample_i] < 20: return false
   if sample_i.DP(AD) < min_dp: return false
   var ab = sample_i.AB(AD)
@@ -54,7 +55,7 @@ proc transmit(duo: Duo, GQ: seq[int32], AD: seq[int32], alts: seq[int8]): set[Tr
     result.incl Transmit.Uninformative
 
 
-  if not hq(duo.kid.i, GQ, AD, alts, 9): result.incl  Transmit.LowQual
+  if not hq(duo.kid.i, GQ, AD, alts, 9): result.incl Transmit.LowQual
   if not hq(duo.parent.i, GQ, AD, alts): result.incl Transmit.LowQual
   if p == 1:
     result.incl Transmit.ParentHet
@@ -73,24 +74,28 @@ proc transmit(duo: Duo, GQ: seq[int32], AD: seq[int32], alts: seq[int8]): set[Tr
   return result + {Transmit.Maybe}
 
 
-proc duos(samples:seq[Sample], affected_only:bool): seq[Duo] =
+proc duos(samples: seq[Sample], affected_only: bool): seq[Duo] =
   for s in samples:
     if affected_only and not s.affected: continue
-    if s.mom != nil: result.add(Duo(kid:s, parent: s.mom, i: result.len, parent_label: "mom"))
-    if s.dad != nil: result.add(Duo(kid:s, parent: s.dad, i: result.len, parent_label: "dad"))
+    if s.mom != nil: result.add(Duo(kid: s, parent: s.mom, i: result.len,
+        parent_label: "mom"))
+    if s.dad != nil: result.add(Duo(kid: s, parent: s.dad, i: result.len,
+        parent_label: "dad"))
 
 type Site = object
   chrom*: string
   start*: int64
   sample_i*: int
   status*: set[Transmit]
-  i*: int # index of sites used in this duo
+  i*: int     # index of sites used in this duo
   dps_i*: int # index into DPs seq
   ads*: array[4, uint16]
 
-proc near(group: seq[Site], other:Site, i_dist:int=3, genome_dist:int=10000): bool =
+proc near(group: seq[Site], other: Site, i_dist: int = 3,
+    genome_dist: int = 10000): bool =
   for g in group:
-    if abs(g.i - other.i) <= i_dist and abs(g.start - other.start) < genome_dist: return true
+    if abs(g.i - other.i) <= i_dist and abs(g.start - other.start) <
+        genome_dist: return true
   return false
 
 type SiteStats = object
@@ -192,7 +197,7 @@ proc normalize*(DPs: var seq[seq[uint16]]): seq[seq[float32]] =
     for v in row.mitems:
       v = v / rowMean
 
-proc get(s:Sample, DPs: var seq[seq[float32]]): seq[float32] =
+proc get(s: Sample, DPs: var seq[seq[float32]]): seq[float32] =
   result = newSeqOfCap[float32](DPs.len)
   for row in DPs:
     result.add(row[s.i])
@@ -203,7 +208,9 @@ proc median(vals: seq[float32]): float32 =
   sort(vals, system.cmp[float32])
   return vals[int(vals.high / 2)]
 
-proc cull(duo: Duo, sites: seq[Site], DPs: var seq[seq[float32]], i_dist:int=25, genome_dist:int=200000, min_sites:int=2, min_size:int=20) =
+proc cull(duo: Duo, sites: seq[Site], DPs: var seq[seq[float32]],
+    i_dist: int = 25, genome_dist: int = 200000, min_sites: int = 2,
+    min_size: int = 20) =
 
   var dp_norm_kid = duo.kid.get(DPs)
   var dp_norm_parent = duo.parent.get(DPs)
@@ -218,7 +225,8 @@ proc cull(duo: Duo, sites: seq[Site], DPs: var seq[seq[float32]], i_dist:int=25,
     if Transmit.No in c.status: seeds.add(c)
 
   var used = initHashSet[int]()
-  shallow(seeds)
+  when NimMajor < 2:
+    shallow(seeds)
   for j, site in seeds:
     if site.i in used: continue
     used.incl(site.i)
@@ -248,7 +256,7 @@ proc cull(duo: Duo, sites: seq[Site], DPs: var seq[seq[float32]], i_dist:int=25,
     s &= &"{stats.hq_kid_hets}\t{stats.kid_hets}\t{stats.hq_parent_hets}\t{stats.hq_parent_hom_alts}"
     echo s
 
-template min16*(i:int32):uint16 =
+template min16*(i: int32): uint16 =
   max(0, min(uint16.high.int32, i)).uint16
 
 proc toDP(AD: seq[int32]): seq[uint16] =
@@ -258,19 +266,21 @@ proc toDP(AD: seq[int32]): seq[uint16] =
 
 include ./utils
 
-proc main*(dropfirst:bool=false) =
+proc main*(dropfirst: bool = false) =
   ## TODO: find homozygous deletions with ./.
   var p = newParser("slivar duodel"):
     help("""find denovo structural deletions in parent-child duos using non-transmission of SNPs
     see: https://github.com/brentp/slivar/wiki/finding-deletions-in-parent-child-duos
     """)
-    option("-p", "--ped", help="required ped file describing the duos in the VCF")
-    option("-g", "--gnotate", help="optional gnotate file to check for flagged variants to exclude")
-    option("-s", "--min-sites", default="3", help="minimum number of variants required to define a region (use 1 to output all putative deletions)")
-    option("-S", "--min-size", default="50", help="minimum size in base-pairs of a region")
-    option("-x", "--exclude", help="path to BED file of exclude regions e.g. (LCRs or self-chains)")
-    flag("-a", "--affected-only", help="only output DEL calls for affected kids")
-    arg("vcf", default="/dev/stdin", help="input SNP/indel VCF")
+    option("-p", "--ped", help = "required ped file describing the duos in the VCF")
+    option("-g", "--gnotate", help = "optional gnotate file to check for flagged variants to exclude")
+    option("-s", "--min-sites", default = "3",
+        help = "minimum number of variants required to define a region (use 1 to output all putative deletions)")
+    option("-S", "--min-size", default = "50",
+        help = "minimum size in base-pairs of a region")
+    option("-x", "--exclude", help = "path to BED file of exclude regions e.g. (LCRs or self-chains)")
+    flag("-a", "--affected-only", help = "only output DEL calls for affected kids")
+    arg("vcf", default = "/dev/stdin", help = "input SNP/indel VCF")
 
   var argv = commandLineParams()
   if len(argv) > 0 and argv[0] == "duo-del":
@@ -287,13 +297,13 @@ proc main*(dropfirst:bool=false) =
 
 
   var samples = parse_ped(opts.ped)
-  var ivcf:VCF
-  if not open(ivcf, opts.vcf, threads=2):
+  var ivcf: VCF
+  if not open(ivcf, opts.vcf, threads = 2):
     quit "couldn't open VCF"
   samples = samples.match(ivcf)
   var duos = samples.duos(opts.affected_only)
   stderr.write_line &"[slivar] found {duos.len} duos"
-  var gno:Gnotater
+  var gno: Gnotater
   if opts.gnotate != "":
     if not gno.open(opts.gnotate):
       quit "couldn't open gnotate file at:" & opts.gnotate
@@ -320,17 +330,20 @@ proc main*(dropfirst:bool=false) =
       if last_rid != -1:
         var fdps = DPs.normalize
         for duo in duos:
-          duo.cull(sites[duo.i], fdps, min_sites=min_sites, min_size=min_size)
+          duo.cull(sites[duo.i], fdps, min_sites = min_sites,
+              min_size = min_size)
           sites[duo.i].setLen(0)
         DPs.setLen(0)
       last_rid = v.rid
 
-    if v.CHROM == "X" or v.CHROM == "chrX" or v.CHROM == "MT" or v.CHROM == "chrM" or v.CHROM == "chrMT": continue
+    if v.CHROM == "X" or v.CHROM == "chrX" or v.CHROM == "MT" or v.CHROM ==
+        "chrM" or v.CHROM == "chrMT": continue
     if v.FILTER notin ["PASS", "", "."]: continue
     if len(v.ALT) > 1: continue
     if len(v.REF) != 1: continue
     if len(v.ALT[0]) != 1: continue
-    if exclude != nil and stripChr(v.CHROM) in exclude and 0 != exclude[stripChr(v.CHROM)].count(v.start.int, v.start.int + 1):
+    if exclude != nil and stripChr(v.CHROM) in exclude and 0 != exclude[
+        stripChr(v.CHROM)].count(v.start.int, v.start.int + 1):
       continue
     var LowQual = false
     if gno != nil and gno.annotate(v) and v.info.has_flag(gno.names[0] & "_filter"):
@@ -359,7 +372,8 @@ proc main*(dropfirst:bool=false) =
       if Transmit.Uninformative in m: continue
       if LowQual:
         m.incl(Transmit.LowQual)
-      var c = Site(chrom: $v.CHROM, start: v.start, status: m, dps_i: DPs.high, i: sites[duo.i].len)
+      var c = Site(chrom: $v.CHROM, start: v.start, status: m, dps_i: DPs.high,
+          i: sites[duo.i].len)
       c.ads[0] = min16(AD[2*duo.kid.i])
       c.ads[1] = min16(AD[2*duo.kid.i+1])
       c.ads[2] = min16(AD[2*duo.parent.i])
@@ -368,7 +382,7 @@ proc main*(dropfirst:bool=false) =
 
   var fdps = DPs.normalize
   for duo in duos:
-    duo.cull(sites[duo.i], fdps, min_sites=min_sites, min_size=min_size)
+    duo.cull(sites[duo.i], fdps, min_sites = min_sites, min_size = min_size)
 
 when isMainModule:
   main()

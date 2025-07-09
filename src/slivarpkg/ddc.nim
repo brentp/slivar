@@ -12,12 +12,12 @@ import strutils
 import strformat
 import os
 
-proc `$$`(k:float32): string {.inline.} =
+proc `$$`(k: float32): string {.inline.} =
   result = &"{k:.3f}"
   while result.len > 1 and result[result.high] == '0':
-    result = result.strip(chars={'0'}, leading=false)
+    result = result.strip(chars = {'0'}, leading = false)
   if result[result.high] == '.':
-    result = result.strip(chars={'.'}, leading=false)
+    result = result.strip(chars = {'.'}, leading = false)
 
 const tmpl_html* = staticRead("ddc.html")
 
@@ -58,7 +58,7 @@ proc tojson(tbl: Table[string, seq[float32]]): string =
     result = "{}"
 
 
-proc tojson(t:Trio): string =
+proc tojson(t: Trio): string =
   result = newStringOfCap(16384)
   result.add(&"""{{sample_id: "{t.sample_id}",
 tbl: {t.tbl.tojson},
@@ -66,7 +66,7 @@ violations: {%t.violations},
 variant_idxs: {%t.variant_idxs}
 }}""")
 
-proc tojson(ts:seq[Trio]): string =
+proc tojson(ts: seq[Trio]): string =
   result = newStringOfCap(16384*128)
   result.add('[')
   for t in ts:
@@ -74,7 +74,7 @@ proc tojson(ts:seq[Trio]): string =
     result.add(',')
   result[result.high] = ']'
 
-proc tojson(v:VariantInfo): string =
+proc tojson(v: VariantInfo): string =
   result = newStringOfCap(16384)
   result.add(&"""{{float_tbl: {v.float_tbl.tojson},
 bool_tbl: {%v.bool_tbl},
@@ -87,10 +87,11 @@ proc trio_kids(samples: seq[Sample]): seq[Sample] =
   ## return all samples that have a mom and dad.
   result = newSeqOfCap[Sample](16)
   for sample in samples:
-    if sample.mom == nil or sample.mom.i == -1 or sample.dad == nil or sample.dad.i == -1: continue
+    if sample.mom == nil or sample.mom.i == -1 or sample.dad == nil or
+        sample.dad.i == -1: continue
     result.add(sample)
 
-proc getAB(v:Variant): seq[float32] =
+proc getAB(v: Variant): seq[float32] =
   if v.format.get("AB", result) != Status.OK:
 
     var ad: seq[int32]
@@ -108,7 +109,7 @@ proc getAB(v:Variant): seq[float32] =
   #  if ab == 0'f32 or ab == 1'f32: continue
   #  if ab > 0.5: ab = 1-ab
 
-proc getINFOf32(v:Variant, f:string): float32 =
+proc getINFOf32(v: Variant, f: string): float32 =
   if f == "QUAL":
     return v.QUAL.float32
   var rr = newSeqUninitialized[float32](1)
@@ -123,7 +124,7 @@ proc getINFOf32(v:Variant, f:string): float32 =
   doAssert i.len == 1, &"[slivar] require only fields with single values got {rr.len} in field {f}"
   return i[0].float32
 
-proc getf32(v:Variant, f:string): seq[float32] =
+proc getf32(v: Variant, f: string): seq[float32] =
   if f == "AB": return v.getAB
   var st = v.format.get(f, result)
   if st == Status.OK: return
@@ -145,26 +146,29 @@ proc getf32(v:Variant, f:string): seq[float32] =
     # TODO: handle missing
     result[k] = val.float32
 
-proc violation(kid:Sample, alts: seq[int8], allele_balances: seq[float32]): bool =
+proc violation(kid: Sample, alts: seq[int8], allele_balances: seq[
+    float32]): bool =
   result = alts[kid.i] >= 1 and alts[kid.mom.i] == 0 and alts[kid.dad.i] == 0
   if not result and alts[kid.i] == 2:
-      result = [alts[kid.mom.i], alts[kid.dad.i]] in [[0'i8, 1], [1'i8, 0]]
+    result = [alts[kid.mom.i], alts[kid.dad.i]] in [[0'i8, 1], [1'i8, 0]]
   if not result and alts[kid.i] == 0:
-      result = [alts[kid.mom.i], alts[kid.dad.i]] in [[2'i8, 1], [1'i8, 2]]
+    result = [alts[kid.mom.i], alts[kid.dad.i]] in [[2'i8, 1], [1'i8, 2]]
 
   if allele_balances.len == 0 or result == false: return
   if allele_balances[kid.mom.i] > 0 or allele_balances[kid.dad.i] > 0:
     raise newException(ValueError, "non zero allele balance for parents")
 
-proc inherited(kid:Sample, alts: seq[int8], allele_balances: seq[float32]): bool =
-  result = alts[kid.i] == 1 and [alts[kid.mom.i], alts[kid.dad.i]] in [[0'i8, 1], [1'i8, 0]]
+proc inherited(kid: Sample, alts: seq[int8], allele_balances: seq[
+    float32]): bool =
+  result = alts[kid.i] == 1 and [alts[kid.mom.i], alts[kid.dad.i]] in [[0'i8,
+      1], [1'i8, 0]]
   if result == false or allele_balances.len == 0: return
   if alts[kid.dad.i] == 0 and allele_balances[kid.dad.i] > 0:
     raise newException(ValueError, "non zero allele balance for parents")
   if alts[kid.mom.i] == 0 and allele_balances[kid.mom.i] > 0:
     raise newException(ValueError, "non zero allele balance for parents")
 
-proc get_variant_length(v:Variant): int =
+proc get_variant_length(v: Variant): int =
   var length = int(v.ALT[0].len - v.REF.len)
   if v.ALT[0][0] == '<':
     var lengths: seq[int32]
@@ -172,12 +176,13 @@ proc get_variant_length(v:Variant): int =
       length = lengths[0]
     else:
       length = int(v.stop - v.start - 1)
-      var svt:string
+      var svt: string
       if v.info.get("SVTYPE", svt) == Status.OK and svt == "DEL":
         length = -length
   result = length
 
-proc check*[T: VariantInfo|seq[Trio]](ivcf:VCF, fields: seq[string], ftype:BCF_HEADER_TYPE, infos: var T): seq[string] =
+proc check*[T: VariantInfo|seq[Trio]](ivcf: VCF, fields: seq[string],
+    ftype: BCF_HEADER_TYPE, infos: var T): seq[string] =
   for f in fields:
     try:
       let hr = ivcf.header.get(f, ftype)
@@ -214,13 +219,14 @@ proc check*[T: VariantInfo|seq[Trio]](ivcf:VCF, fields: seq[string], ftype:BCF_H
           quit &"requested info field {f} not found in header"
   return fields
 
-proc ddc_main*(dropfirst:bool=false) =
+proc ddc_main*(dropfirst: bool = false) =
   var p = newParser("slivar ddc"):
     #option("-x", help="haploid (x) chromosome", default="chrX")
-    option("--chrom", help="limit to this chromosome only. use '-3' for all chromosomes (in the case of exome data)", default="chr15")
-    option("--info-fields", help="comma-delimited list of info fields")
-    option("--fmt-fields", help="comma-delimited list of sample fields")
-    option("--html", default="slivar-ddc.html", help="path to output file")
+    option("--chrom", help = "limit to this chromosome only. use '-3' for all chromosomes (in the case of exome data)",
+        default = "chr15")
+    option("--info-fields", help = "comma-delimited list of info fields")
+    option("--fmt-fields", help = "comma-delimited list of sample fields")
+    option("--html", default = "slivar-ddc.html", help = "path to output file")
     arg("vcf")
     arg("ped")
 
@@ -233,8 +239,8 @@ proc ddc_main*(dropfirst:bool=false) =
   if opts.help:
     quit 0
 
-  var ivcf:VCF
-  if not open(ivcf, opts.vcf, threads=2):
+  var ivcf: VCF
+  if not open(ivcf, opts.vcf, threads = 2):
     quit "could not open vcf:" & opts.vcf
 
   var samples = parse_ped(opts.ped).match(ivcf)
@@ -245,7 +251,7 @@ proc ddc_main*(dropfirst:bool=false) =
     randomize()
     shuffle(kids)
     kids = kids[0..<max_trios]
-    kids.sort(proc(a, b:Sample): int = a.i - b.i)
+    kids.sort(proc(a, b: Sample): int = a.i - b.i)
     samples = newSeq[Sample]()
     for k in kids:
       samples.add(k)
@@ -254,15 +260,18 @@ proc ddc_main*(dropfirst:bool=false) =
       if k.mom notin samples:
         samples.add(k.mom)
 
-  var output_infos = VariantInfo(float_tbl: initTable[string, seq[float32]](), bool_tbl: initTable[string, seq[bool]]())
+  var output_infos = VariantInfo(float_tbl: initTable[string, seq[float32]](),
+      bool_tbl: initTable[string, seq[bool]]())
   var output_trios = newSeq[Trio](kids.len)
   for i, o in output_trios.mpairs:
     o.sample_id = kids[i].id
     o.tbl = initTable[string, seq[float32]]()
 
   if opts.info_fields != "":
-    discard ivcf.check(opts.info_fields.strip().split(','), BCF_HEADER_TYPE.BCF_HL_INFO, output_infos)
-  var fmt_fields = ivcf.check(opts.fmt_fields.strip().split(','), BCF_HEADER_TYPE.BCF_HL_FMT, output_trios)
+    discard ivcf.check(opts.info_fields.strip().split(','),
+        BCF_HEADER_TYPE.BCF_HL_INFO, output_infos)
+  var fmt_fields = ivcf.check(opts.fmt_fields.strip().split(','),
+      BCF_HEADER_TYPE.BCF_HL_FMT, output_trios)
 
   var x: seq[int32]
 
@@ -278,12 +287,15 @@ proc ddc_main*(dropfirst:bool=false) =
     var fmts = newSeq[seq[float32]](fmt_fields.len)
     for i, f in fmt_fields:
       fmts[i] = v.getf32(f)
-    shallow(fmts)
+
+    when NimMajor < 2:
+      shallow(fmts)
     if "AB" in fmt_fields:
       ab = fmts[fmt_fields.find("AB")]
 
     var alts = v.format.genotypes(x).alts
-    shallow(alts)
+    when NimMajor < 2:
+      shallow(alts)
     var any_used = false
     var any_violation = false
 
@@ -335,7 +347,7 @@ proc ddc_main*(dropfirst:bool=false) =
   html = html.replace("<TRIO_JSON>", output_trios.tojson)
 
 
-  var fh:File
+  var fh: File
   if not open(fh, opts.html, fmWrite):
     quit "couldn't open output html file:" & opts.html
   fh.write(html)
