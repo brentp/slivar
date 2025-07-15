@@ -1,3 +1,11 @@
+v0.3.3
+======
++ add GQs to tsv output
+
+v0.3.2
+======
++ fix default order
+
 v0.3.1
 ======
 + add CSQ parsing js code: https://github.com/brentp/slivar/wiki/CSQ
