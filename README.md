@@ -1,4 +1,4 @@
-# slivar: filter/annotate variants in VCF/BCF format with simple expressions [![Build Status](https://travis-ci.com/brentp/slivar.svg?branch=master)](https://travis-ci.com/brentp/slivar)
+# slivar: filter/annotate variants in VCF/BCF format with simple expressions [![build status](https://github.com/brentp/slivar/actions/workflows/ci.yml/badge.svg)](https://github.com/brentp/slivar/actions/workflows/ci.yml)
 [![downloads](https://anaconda.org/bioconda/slivar/badges/downloads.svg)](https://anaconda.org/bioconda/slivar)
 
 
