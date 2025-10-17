@@ -86,7 +86,8 @@ function segregating_dominant_x(s) {
   if(s.sex != "female"){return false; }
   // this block enforces inherited dominant, but not find de novos
   if(("mom" in s) || ("dad" in s)) {
-    if(!((("mom" in s) && s.mom.affected && s.mom.het) || (s.dad && s.dad.affected))) { return false;}
+    if(!((("mom" in s) && s.mom.affected && s.mom.het) || 
+        (("dad" in s) && s.dad.affected && s.dad.het))) { return false;}
     if(("dad" in s) && !hq1(s.dad, true)){ return false; }
     if(("mom" in s) && !hq1(s.mom, true)){ return false; }
   }

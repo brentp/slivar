@@ -221,6 +221,18 @@ as_trio(kid, dad, mom)
 kid.mom = mom; kid.dad = dad
 assert_not(segregating_denovo, [[kid, dad, mom]], "affected mom is not segregating de novo")
 
+var dom_mom = Sample(HET, {id:"mom_dom", sex:"female", affected: true})
+var dom_dad = Sample(HOM_REF, {id:"dad_dom", sex:"male", affected: false})
+var dom_kid = Sample(HET, {id:"kid_dom", sex:"male", affected: true})
+as_trio(dom_kid, dom_dad, dom_mom)
+assert(segregating_dominant, [[dom_kid, dom_dad, dom_mom]], "autosomal dominant trio with affected het mom")
+
+var dom_pair_mom = Sample(HET, {id:"mom_dom_pair", sex:"female", affected: true})
+var dom_pair_kid = Sample(HET, {id:"kid_dom_pair", sex:"female", affected: true})
+dom_pair_mom.kids = [dom_pair_kid]
+dom_pair_kid.mom = dom_pair_mom
+assert(segregating_dominant, [[dom_pair_kid, dom_pair_mom]], "autosomal dominant mom+kid affected pair")
+
 
 var k1 = Sample(HET, {id:"kid", sex:"female", affected: true})
 var m1 = Sample(HOM_REF, {id:"mom", sex:"female", affected: false})
