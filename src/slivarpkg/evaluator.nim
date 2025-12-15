@@ -4,6 +4,7 @@ import hts/files
 import math
 import pedfile
 import ./duko
+import duktape/compat
 import os
 import ./fastsets
 import ./impact_order
@@ -215,16 +216,21 @@ proc set_hom_het_alts(ctx:Evaluator, alts: var seq[int8]) =
     sctx.pop()
     sample.last_alts = alt
 
-var debug: DTCFunction = (proc (ctx: DTContext): cint {.stdcall.} =
-  var nargs = ctx.duk_get_top()
+proc slivarFatal(udata: pointer; msg: cstringConst) {.cdecl.} =
+  stderr.write_line "slivar fatal error:"
+  quit $msg
+
+proc debug(ctx: DukContextPtr): duk_ret_t {.cdecl.} =
+  let dctx = cast[DTContext](ctx)
+  let nargs = dctx.duk_get_top()
   if nargs == 1:
-    stderr.write_line $ctx.duk_safe_to_string(-1)
-    return
-  discard ctx.duk_push_string(", ")
-  ctx.duk_insert(0)
-  ctx.duk_join(nargs)
-  stderr.write_line $ctx.duk_require_string(-1)
-)
+    stderr.write_line $dctx.duk_safe_to_string(-1)
+    return 0
+  discard dctx.duk_push_string(", ")
+  dctx.duk_insert(0)
+  dctx.duk_join(nargs)
+  stderr.write_line $dctx.duk_require_string(-1)
+  return 0
 
 const samples_name = "$S"
 
@@ -303,12 +309,8 @@ proc newEvaluator*(ivcf:VCF, samples: seq[Sample], groups: seq[Group], float_exp
                    sample_expressions: seq[NamedExpression],
                    info_expr: string, gnos:seq[Gnotater], field_names:seq[idpair], skip_non_variable_sites: bool): Evaluator =
   ## make a new evaluation context for the given string
-  var my_fatal: duk_fatal_function = (proc (udata: pointer, msg:cstring) {.stdcall.} =
-    stderr.write_line "slivar fatal error:"
-    quit $msg
-  )
-
-  result = Evaluator(ctx:duk_create_heap(nil, nil, nil, nil, my_fatal), skip_non_variable_sites:skip_non_variable_sites)
+  let rawCtx = duk_create_heap_compat(nil, nil, nil, nil, slivarFatal)
+  result = Evaluator(ctx: rawCtx.asDTContext, skip_non_variable_sites: skip_non_variable_sites)
   result.ctx.duk_require_stack_top(50)
   result.field_names = field_names
 
@@ -378,7 +380,7 @@ proc newEvaluator*(ivcf:VCF, samples: seq[Sample], groups: seq[Group], float_exp
       by_name[sample.id] = result.samples[result.samples.high]
 
   result.gnos = gnos
-  discard result.ctx.duk_push_c_function(debug, -1.cint)
+  discard duk_push_c_function_compat(result.ctx.asCompatCtx, debug, -1.cint)
   discard result.ctx.duk_put_global_string("debug")
 
   for ex in trio_expressions:
@@ -868,4 +870,3 @@ iterator evaluate*(ev:var Evaluator, variant:Variant, nerrors:var int): exResult
         for r in ev.evaluate_trios(nerrors, variant): yield r
         for r in ev.evaluate_groups(nerrors, variant): yield r
         for r in ev.evaluate_families(nerrors, variant): yield r
-

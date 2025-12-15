@@ -18,7 +18,7 @@ license       = "MIT"
 
 
 # Dependencies
-requires "hts >= 0.3.4", "lapper >= 0.1.6", "https://github.com/brentp/duktape-nim#dev", "https://github.com/brentp/pedfile >= 0.0.3"
+requires "hts >= 0.3.4", "lapper >= 0.1.6", "https://github.com/brentp/duktape-nim#dev2", "https://github.com/brentp/pedfile >= 0.0.3"
 requires "https://github.com/brentp/nim-minizip >= 0.0.11", "argparse >=0.10.1 & < 0.10.2"
 srcDir = "src"
 installExt = @["nim"]
@@ -43,4 +43,3 @@ task docs, "Builds documentation":
     if file.endswith("value.nim"): continue
     if splitfile(file).ext == ".nim":
       exec "nim doc2 --verbosity:0 --hints:off -o:" & "docs" /../ file.changefileext("html").split("/", 1)[1] & " " & file
-

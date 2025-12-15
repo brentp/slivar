@@ -273,9 +273,9 @@ proc hasKey*(o: Duko, key:string): bool {.inline.} =
 when isMainModule:
   import unittest
   import strutils
-  var my_fatal: duk_fatal_function = (proc (udata: pointer, msg:cstring) {.stdcall.} =
-      quit $msg
-  )
+  import duktape/compat
+  proc my_fatal(udata: pointer; msg: cstringConst) {.cdecl.} =
+    quit $msg
 
   suite "duktaper":
     test "usage":
@@ -320,7 +320,7 @@ when isMainModule:
       ctx.duk_destroy_heap()
 
     test "set string":
-      var ctx = duk_create_heap(nil, nil, nil, nil, my_fatal)
+      var ctx = duk_create_heap_compat(nil, nil, nil, nil, my_fatal).asDTContext
       var obj = ctx.newObject("obj")
       ctx["asdf"] = "hello"
       ctx.duk_eval_string("asdf")
@@ -342,7 +342,7 @@ when isMainModule:
       ctx.duk_destroy_heap()
 
     test "object in object":
-      var ctx = duk_create_heap(nil, nil, nil, nil, my_fatal)
+      var ctx = duk_create_heap_compat(nil, nil, nil, nil, my_fatal).asDTContext
       var outer = ctx.newObject("outer")
       var inner = outer.newObject("inner")
       inner["asdf"] = "hello"
@@ -356,7 +356,7 @@ when isMainModule:
       ctx.duk_destroy_heap()
 
     test "alias to object":
-      var ctx = duk_create_heap(nil, nil, nil, nil, my_fatal)
+      var ctx = duk_create_heap_compat(nil, nil, nil, nil, my_fatal).asDTContext
       var kid = ctx.newObject("kid")
       var mom = ctx.newObject("mom")
       mom["age"] = 42.1
@@ -367,7 +367,7 @@ when isMainModule:
       ctx.duk_destroy_heap()
 
     test "set boolean":
-      var ctx = duk_create_heap(nil, nil, nil, nil, my_fatal)
+      var ctx = duk_create_heap_compat(nil, nil, nil, nil, my_fatal).asDTContext
       var obj = ctx.newObject("obj")
       obj["ab"] = true
       ctx.duk_eval_string("obj.ab ? 'YES' : 'NO'")
@@ -376,7 +376,7 @@ when isMainModule:
       ctx.duk_destroy_heap()
 
     test "duko.del removes key":
-      var ctx = duk_create_heap(nil, nil, nil, nil, my_fatal)
+      var ctx = duk_create_heap_compat(nil, nil, nil, nil, my_fatal).asDTContext
       var obj = ctx.newObject("obj")
 
       obj.del("ab")
@@ -403,7 +403,7 @@ when isMainModule:
 
 
     test "strict object":
-      var ctx = duk_create_heap(nil, nil, nil, nil, my_fatal)
+      var ctx = duk_create_heap_compat(nil, nil, nil, nil, my_fatal).asDTContext
       if ctx.duk_peval_string_no_result(strictO):
         let err = $ctx.duk_safe_to_string(-1)
         raise newException(ValueError, err)
@@ -456,7 +456,7 @@ when isMainModule:
       ctx.duk_destroy_heap();
 
     test "compiled speed":
-      var ctx = duk_create_heap(nil, nil, nil, nil, my_fatal)
+      var ctx = duk_create_heap_compat(nil, nil, nil, nil, my_fatal).asDTContext
       var expr = "kid.dp < 500 && dad > 21" & " && mom == kid.dp"
       var e = ctx.compile(expr)
       var kid = ctx.newObject("kid")
@@ -515,7 +515,7 @@ when isMainModule:
         obj.del("attr" & $i, "attrs" & $i, "attrx" & $i)
 
     test "many objects":
-      var ctx = duk_create_heap(nil, nil, nil, nil, nil)
+      var ctx = duk_create_heap_compat(nil, nil, nil, nil, nil).asDTContext
       ctx.duk_require_stack_top(10)
       if ctx.duk_peval_string(strictO):
         let err = $ctx.duk_safe_to_string(-1)
@@ -538,7 +538,7 @@ when isMainModule:
           obj.del
 
     test "hasKey":
-      var ctx = duk_create_heap(nil, nil, nil, nil, nil)
+      var ctx = duk_create_heap_compat(nil, nil, nil, nil, nil).asDTContext
       if ctx.duk_peval_string(strictO):
         let err = $ctx.duk_safe_to_string(-1)
         raise newException(ValueError, err)
@@ -549,5 +549,3 @@ when isMainModule:
       check o.hasKey("asdf")
       o.del("asdf")
       check not o.hasKey("asdf")
-
-
