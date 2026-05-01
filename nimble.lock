@@ -1,0 +1,66 @@
+{
+  "version": 2,
+  "packages": {
+    "argparse": {
+      "version": "0.10.1",
+      "vcsRevision": "a39ad187bb795132df1150f1276f0d92d1c7d48b",
+      "url": "https://github.com/iffy/nim-argparse",
+      "downloadMethod": "git",
+      "dependencies": [],
+      "checksums": {
+        "sha1": "ca6943a0561568610e27599e1e79c9b67628ee27"
+      }
+    },
+    "duktape": {
+      "version": "0.1.0",
+      "vcsRevision": "d5e98716b8218c44933fe5b4c57f52c69c7a27ba",
+      "url": "https://github.com/brentp/duktape-nim",
+      "downloadMethod": "git",
+      "dependencies": [],
+      "checksums": {
+        "sha1": "5f93e83b86bf387414d1cd4add490927959be36a"
+      }
+    },
+    "hts": {
+      "version": "0.3.31",
+      "vcsRevision": "93ad65442b16d0191aa0c44803d10a6fb7cde9fa",
+      "url": "https://github.com/brentp/hts-nim",
+      "downloadMethod": "git",
+      "dependencies": [],
+      "checksums": {
+        "sha1": "38ee23c436d9f4c585f8f6d425ac3630460e528a"
+      }
+    },
+    "lapper": {
+      "version": "0.1.8",
+      "vcsRevision": "bdd43a522d2bf1730794e3a68a45673f83a42cfe",
+      "url": "https://github.com/brentp/nim-lapper",
+      "downloadMethod": "git",
+      "dependencies": [],
+      "checksums": {
+        "sha1": "0831c5dae95a2da58f0d8f2896baa3e0f4806f4d"
+      }
+    },
+    "minizip": {
+      "version": "0.0.11",
+      "vcsRevision": "df9cb0b8e7337b578063373fe4de0d3e101a4aa1",
+      "url": "https://github.com/brentp/nim-minizip",
+      "downloadMethod": "git",
+      "dependencies": [],
+      "checksums": {
+        "sha1": "cddb65df455f59547288691ed6729e2ab42a347c"
+      }
+    },
+    "pedfile": {
+      "version": "0.0.4",
+      "vcsRevision": "d6a4a9727c070d7f2322d54a705541bf278a46f4",
+      "url": "https://github.com/brentp/pedfile",
+      "downloadMethod": "git",
+      "dependencies": [],
+      "checksums": {
+        "sha1": "d9a3e1f99f34a25865a3b014d1ad7776f868f63c"
+      }
+    }
+  },
+  "tasks": {}
+}
