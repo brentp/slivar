@@ -26,3 +26,6 @@ src/slivarpkg/tsv
 src/slivarpkg/siset
 *.tsv
 paper/dn_roc
+nimble.develop
+nimble.paths
+nimbledeps
