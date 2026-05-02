@@ -1,3 +1,7 @@
+v0.3.4
+======
++ nim v2 compat
+
 v0.3.3
 ======
 + add GQs to tsv output

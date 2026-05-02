@@ -3,17 +3,31 @@ on: [push, pull_request]
 jobs:
   ubuntu:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        nim-version: ["2.2.10", "1.6.6"]
     steps:
       - uses: actions/checkout@v5
       - run: sudo apt-get update && sudo apt-get install libhts-dev bcftools
-      - run: echo /home/linuxbrew/.linuxbrew/bin >> $GITHUB_PATH
-      - run: brew install nim
+      - uses: jiro4989/setup-nim-action@v2
+        with:
+          nim-version: ${{ matrix.nim-version }}
+      - run: nimble install -y
       - run: nimble test
   mac:
     runs-on: macos-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        nim-version: ["2.2.10", "1.6.6"]
     steps:
       - uses: actions/checkout@v5
-      - run: brew install nim htslib bcftools
+      - uses: jiro4989/setup-nim-action@v2
+        with:
+          nim-version: ${{ matrix.nim-version }}
+      - run: brew install htslib bcftools
       - run: sed -i "" -e "s/nim c/nim c --passL:-Wl,-rpath,\/opt\/homebrew\/opt\/htslib\/lib/" slivar.nimble
       - run: sed -i "" -e "s/nim c/nim c --passL:-Wl,-rpath,\/opt\/homebrew\/opt\/htslib\/lib/" tests/functional-tests.sh
+      - run: nimble install -y
       - run: nimble test
