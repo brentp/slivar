@@ -187,6 +187,61 @@ run check_make_gnotate_clinvar_annotation $exe expr -g _clinvar.test.zip -v test
 assert_exit_code 0
 
 
+run check_js_sample_attributes $exe expr --pass-only -v tests/ashk-trio.vcf.gz -p tests/ashk-trio.ped -o /dev/null \
+  --trio 'x:variant.POS == 762589 && debug(kid.GT, kid.AD, kid.AB.toFixed(3), kid.sex, kid.id, "DP" in kid, "XX" in kid, kid.mom.id, kid.dad.id, mom.kids.length, mom.kids[0].id, Object.keys(kid).sort().join("|"))'
+assert_exit_code 0
+assert_in_stderr "1,1, 1,21, 0.955, male, HG002, true, false, HG004, HG003, 1, HG002, AB|AD|DP|GQ|GT|PL|affected|alts|dad|het|hom_alt|hom_ref|id|kids|mom|phenotype|sex|unknown"
+
+run check_js_variant_and_info $exe expr --pass-only -v tests/ashk-trio.vcf.gz -o /dev/null \
+  --info 'variant.POS == 762589 && debug(variant.CHROM, variant.REF, variant.ALT, variant.FILTER, variant.num_het, INFO.AF[0].toFixed(3), INFO.culprit, "NEGATIVE_TRAIN_SITE" in INFO, "XX" in INFO)'
+assert_exit_code 0
+assert_in_stderr "1, G, C, VQSRTrancheSNP99.00to99.90, 1, 0.833, MQ, true, false"
+
+run check_js_unknown_attribute $exe expr --pass-only -v tests/ashk-trio.vcf.gz -p tests/ashk-trio.ped -o /dev/null \
+  --trio 'x:variant.POS == 762589 && kid.nonexistent > 1'
+assert_exit_code 0
+assert_in_stderr "unknown attribute:nonexistent"
+
+run check_js_modern_syntax $exe expr --pass-only -v tests/ashk-trio.vcf.gz -p tests/ashk-trio.ped -o /dev/null \
+  --trio 'x:[kid, mom, dad].filter(s => s.het).length === 1 && kid.het' --info 'INFO?.AF ?? false'
+assert_exit_code 0
+assert_in_stderr "sample	x"
+
+run check_js_multi_statement $exe expr --pass-only -v tests/ashk-trio.vcf.gz -o /dev/null \
+  --info 'var a = 1; a = a + 1; variant.POS == 762589 && debug("multi", a)'
+assert_exit_code 0
+assert_in_stderr "multi, 2"
+
+JSV="-v tests/js-semantics.vcf -p tests/ashk-trio.ped -o /dev/null --pass-only"
+run check_js_info_shape_from_header $exe expr $JSV \
+  --info 'debug("shape", variant.POS, Array.isArray(INFO.AF), Array.isArray(INFO.AFS), Array.isArray(INFO.LST), INFO.LST)'
+assert_exit_code 0
+assert_in_stderr "shape, 100, true, false, true, 7"
+assert_in_stderr "shape, 200, true, false, true, 7,8"
+
+run check_js_real_format_fields_win $exe expr $JSV \
+  --trio 'x:debug("fmt", variant.POS, kid.alts, kid.het, kid.AB.length || kid.AB)'
+assert_exit_code 0
+assert_in_stderr "fmt, 100, 42, true, 2"
+assert_in_stderr "fmt, 200, 1, true, 0.75"
+
+run check_js_results_shadow_input $exe expr $JSV --trio 'result:kid.het' --trio 'y:debug("res", variant.POS, INFO.result)'
+assert_exit_code 0
+assert_in_stderr "res, 100, HG002"
+
+run check_js_no_genotypes $exe expr $JSV --trio 'x:debug("nogt", variant.POS, "het" in kid, "alts" in kid, "aaf" in variant) || true'
+assert_exit_code 0
+assert_in_stderr "nogt, 300, false, false, false"
+
+run check_js_writes $exe expr $JSV \
+  --info 'if (variant.POS == 100) { INFO.X = 7; INFO.AFS = 9; delete INFO.LST; } debug("w", variant.POS, INFO.X, INFO.AFS, "LST" in INFO) || true' \
+  --trio 'x:kid.AD.push(99); kid.AD[0] = 1; debug("ad", variant.POS, kid.AD)'
+assert_exit_code 0
+assert_in_stderr "w, 100, 7, 9, false"
+assert_in_stderr "w, 200, 7, 0.5, true"
+assert_in_stderr "ad, 100, 1,10,99"
+assert_in_stderr "ad, 200, 1,15,99"
+
 export SLIVAR_FORMAT_STRINGS=1
 run check_slivar_format_strings $exe expr --pass-only --sample-expr 'pid:"PID" in sample && sample.PID == "866319_G_A"' -v tests/ashk-trio.vcf.gz --ped tests/ashk-trio.ped
 assert_exit_code 0

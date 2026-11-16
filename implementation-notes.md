@@ -1,12 +1,21 @@
 # javascript
 
-The javascript stuff uses the `duktape` javascript engine. This is quite fast, but the
-syntax is somewhat onerous. There is a (zero-cost) wrapper in `duko.nim` to simplify this.
-That wrapper is used in slivar to make it simpler to set/get values to the javascript objects.
+The javascript engine is JavaScriptCore (JSC), through https://github.com/brentp/jsc-nim. On linux
+that downloads a prebuilt, statically-linkable JSC from Bun's WebKit fork at compile time.
 
-Currently all values in the INFO and FORMAT fields are sent to the javascript objects. There
-could be some simple regular expressions to check which fields are used an only fill those
-if it improved performance substantially.
+Calls across the JSC C API are relatively expensive (~150-300ns each), while JIT-compiled javascript
+is very fast, so the design minimizes crossings:
+
++ nim decodes INFO and FORMAT values into C buffers that javascript sees as typed arrays
+  (`Buf` in evaluator.nim). Nothing is copied into javascript objects.
++ `INFO`, `variant` and each sample (`kid`, `mom`, `sample`, ...) are javascript `Proxy` objects
+  (see `runtime.js`) that read from those typed arrays when an attribute is accessed. They
+  also implement the "strict" behavior: accessing a missing attribute throws `unknown attribute:x`
+  unless `SLIVAR_NO_ATTRIBUTE_CHECKING` is set.
++ strings (CHROM, REF, INFO strings, ...) are written to a shared utf-8 arena and decoded lazily.
++ per variant, nim makes at most two calls: `$sl.info()` for the `--info` expression and
+  `$sl.samples()` which loops over all trios/groups/families and expressions in javascript
+  and writes the indexes of matches into a shared `Int32Array`.
 
 # gnotate
 
@@ -31,15 +40,10 @@ exceptions suffice.
 
 # filling sample and info fields
 
-slivar fills every sample with every FORMAT field. It also takes care to clear values. So,
-if variant `i` has `GT:GQ:DP:AD:PL` but variant `i+1` has only `GT:GQ:AD`, then `DP` and `PL`
-will be unavailable. This is required for correctness but required some extra engineering since
-deleting all attributes from all samples before each variant is quite expensive. Instead,
-`slivar` uses a bitset to see which format and info fields were used in the last variant vs in
-the current variant. It then takes `last - curr` and clears those values.
-Those sets are stored in `info_field_sets` and `fmt_field_sets`. There is also a lookup from the
-index (used by htslib) to the name (used for the duktape engine) so that slivar can delete the attribute
-from the duktape object by name.
+slivar decodes every FORMAT field for every sample. If variant `i` has `GT:GQ:DP:AD:PL` but
+variant `i+1` has only `GT:GQ:AD`, then `DP` and `PL` will be unavailable. Each header id has a
+count in `FMT_N` / `INFO_N` (0 means absent for this variant); nim resets only the ids that were set
+for the previous variant.
 
 # compression
 

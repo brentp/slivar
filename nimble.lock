@@ -11,16 +11,6 @@
         "sha1": "ca6943a0561568610e27599e1e79c9b67628ee27"
       }
     },
-    "duktape": {
-      "version": "0.1.0",
-      "vcsRevision": "d5e98716b8218c44933fe5b4c57f52c69c7a27ba",
-      "url": "https://github.com/brentp/duktape-nim",
-      "downloadMethod": "git",
-      "dependencies": [],
-      "checksums": {
-        "sha1": "5f93e83b86bf387414d1cd4add490927959be36a"
-      }
-    },
     "hts": {
       "version": "0.3.31",
       "vcsRevision": "93ad65442b16d0191aa0c44803d10a6fb7cde9fa",
@@ -29,6 +19,16 @@
       "dependencies": [],
       "checksums": {
         "sha1": "38ee23c436d9f4c585f8f6d425ac3630460e528a"
+      }
+    },
+    "jsc": {
+      "version": "0.1.2",
+      "vcsRevision": "0ab6ff48c242b4a0d7647f3cbb0992b20440713b",
+      "url": "https://github.com/brentp/jsc-nim",
+      "downloadMethod": "git",
+      "dependencies": [],
+      "checksums": {
+        "sha1": "425d1014da9f02939364707fd4802fd6916ae9e5"
       }
     },
     "lapper": {
@@ -49,6 +49,16 @@
       "dependencies": [],
       "checksums": {
         "sha1": "cddb65df455f59547288691ed6729e2ab42a347c"
+      }
+    },
+    "nim": {
+      "version": "2.4.2",
+      "vcsRevision": "",
+      "url": "https://github.com/nim-lang/Nim.git",
+      "downloadMethod": "git",
+      "dependencies": [],
+      "checksums": {
+        "sha1": "550024213969ab65e33e4e8d8bb3547d1f6936f4"
       }
     },
     "pedfile": {

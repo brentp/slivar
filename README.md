@@ -313,10 +313,12 @@ See [the wiki](https://github.com/brentp/slivar/wiki/data-driven-cutoffs) for mo
 
 ## How it works
 
- `slivar` embeds the [duktape javascript engine](https://duktape.org/) to allow the user to specify expressions.
- For each variant, each trio (and each sample), it fills the appropriate `attributes`. This can be intensive for
- VCFs with many samples, but this is done **as efficiently as possible** such that `slivar` can evaluate 10's of
- thousand of variants per second even with dozens of trios.
+ `slivar` embeds the [JavaScriptCore](https://docs.webkit.org/Deep%20Dive/JSC/JavaScriptCore.html) javascript engine
+ (via [jsc-nim](https://github.com/brentp/jsc-nim)) to allow the user to specify expressions. Expressions are compiled once
+ and JIT-compiled by JavaScriptCore. For each variant, slivar decodes the INFO and FORMAT fields into memory that is shared
+ directly with javascript, so attributes like `kid.AD` or `INFO.gnomad_af` are only materialized when an expression reads them.
+ All trio, group and family expressions for a variant are evaluated in a single call into javascript. This keeps the cost low
+ even for VCFs with hundreds of samples. Expressions may use modern javascript (ES2023: `let`, `const`, arrow functions, etc.).
 
 ## Summary Table
 

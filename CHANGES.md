@@ -1,3 +1,11 @@
+v0.5.0 (unreleased)
+======
++ replace the duktape javascript engine with JavaScriptCore (via https://github.com/brentp/jsc-nim).
+  expressions are JIT-compiled and per-variant data is shared with javascript without copying.
+  2.5X faster on a trio and ~10X faster on a 300-sample cohort in benchmarks. modern javascript
+  (ES2023) is now supported in expressions and --js files.
++ the static binary is now built with `scripts/build-static.sh` (see docker/Dockerfile.static).
+
 v0.3.4
 ======
 + nim v2 compat

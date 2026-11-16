@@ -29,3 +29,5 @@ paper/dn_roc
 nimble.develop
 nimble.paths
 nimbledeps
+.static-build/
+slivar_static

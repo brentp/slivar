@@ -1,5 +1,4 @@
 import pedfile
-import ./slivarpkg/duko
 from ./slivarpkg/version import slivarVersion, slivarGitCommit
 import ./slivarpkg/evaluator
 import ./slivarpkg/groups
@@ -100,14 +99,12 @@ proc expr_main*(dropfirst:bool=false) =
       gnos.add(gno)
 
   var
-    iTbl: seq[NamedExpression]
     trioExprs: seq[NamedExpression]
     groupExprs: seq[NamedExpression]
     sampleExprs: seq[NamedExpression]
     familyExprs: seq[NamedExpression]
     out_samples: seq[string] # only output kids if only trio expressions were specified
 
-  let field_names = id2names(ivcf.header)
   if opts.trio.len != 0:
     trioExprs = ivcf.getNamedExpressions(opts.trio, opts.vcf, false)
   if opts.group_expr.len != 0:
@@ -120,7 +117,7 @@ proc expr_main*(dropfirst:bool=false) =
       quit "error must specify --ped to use with --family-expr"
     familyExprs = ivcf.getNamedExpressions(opts.family_expr, opts.vcf, false, trioExprs, groupExprs, sampleExprs)
 
-  var ev = newEvaluator(ivcf, samples, groups, iTbl, trioExprs, groupExprs, familyExprs, sampleExprs, opts.info, gnos, field_names=field_names, opts.skip_non_variable)
+  var ev = newEvaluator(ivcf, samples, groups, trioExprs, groupExprs, familyExprs, sampleExprs, opts.info, gnos, opts.skip_non_variable)
   ovcf.copy_header(ivcf.header)
 
   doAssert ovcf.write_header
@@ -131,7 +128,7 @@ proc expr_main*(dropfirst:bool=false) =
   var counter = ev.initCounter()
 
   # set pass only if they have only info expr, otherwise, there's no point.
-  if not opts.pass_only and ev.info_expression.ctx != nil and not ev.has_sample_expressions:
+  if not opts.pass_only and ev.has_info_expression and not ev.has_sample_expressions:
     opts.pass_only = true
 
   if opts.js != "":
