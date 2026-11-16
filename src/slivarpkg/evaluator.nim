@@ -449,7 +449,9 @@ proc newEvaluator*(ivcf:VCF, samples: seq[Sample], groups: seq[Group],
           for s in col: arr.add(%s.idx)
           values.add(arr)
         else: values.add(%col[0].idx)
-      addUnit(ukGroup, Unit(ids: @[row[0][0].id]), g.header, values)
+      # a match reports the first sample of the row (the first column may be empty).
+      let ids = if row[0].len > 0: @[row[0][0].id] else: @[]
+      addUnit(ukGroup, Unit(ids: ids), g.header, values)
 
   if family_expressions.len > 0:
     var by_fam = newTable[string, seq[Sample]]()  # (iteration order determines output order)

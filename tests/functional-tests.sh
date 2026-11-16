@@ -233,6 +233,10 @@ run check_js_no_genotypes $exe expr $JSV --trio 'x:debug("nogt", variant.POS, "h
 assert_exit_code 0
 assert_in_stderr "nogt, 300, false, false, false"
 
+run check_group_empty_first_column $exe expr -v tests/ashk-trio.vcf.gz --alias tests/empty-first-column.group --pass-only --group-expr 'g:uns.length == 3 && uns[0].alts == 1' -o /dev/null
+assert_exit_code 0
+assert_in_stderr "HG003	"
+
 run check_js_writes $exe expr $JSV \
   --info 'if (variant.POS == 100) { INFO.X = 7; INFO.AFS = 9; delete INFO.LST; } debug("w", variant.POS, INFO.X, INFO.AFS, "LST" in INFO) || true' \
   --trio 'x:kid.AD.push(99); kid.AD[0] = 1; debug("ad", variant.POS, kid.AD)'

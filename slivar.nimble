@@ -30,9 +30,12 @@ skipDirs = @["tests"]
 import ospaths,strutils
 
 task test, "run the tests":
-  # the tests compile with plain `nim c`, which finds the dependencies (that
-  # nimble has just installed) through nimble.paths; (re)generate it.
-  exec "nimble setup -y"
+  # the tests compile with plain `nim c`. Since nimble.lock exists, nim (>= 1.6.12)
+  # doesn't search the nimble packages itself; `nimble setup` writes nimble.paths
+  # (and config.nims, which includes it). nimble < 0.14 (as with nim 1.6.6) has no
+  # setup, but that nim finds the packages without it.
+  try: exec "nimble setup -y"
+  except OSError: echo "[slivar] `nimble setup` failed; testing without nimble.paths"
   exec "bash tests/functional-tests.sh"
   exec "nim c  -d:useSysAssert -d:useGcAssert --lineDir:on --debuginfo --lineDir:on --debuginfo -r --threads:on src/slivarpkg/pracode"
   exec "nim c  -d:useSysAssert -d:useGcAssert --lineDir:on --debuginfo --lineDir:on --debuginfo -r --threads:on src/slivarpkg/groups"
