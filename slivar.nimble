@@ -18,7 +18,7 @@ license       = "MIT"
 
 
 # Dependencies
-requires "hts >= 0.3.31", "lapper >= 0.1.8", "https://github.com/brentp/jsc-nim >= 0.1.2", "https://github.com/brentp/pedfile >= 0.0.4"
+requires "hts >= 0.3.31", "lapper >= 0.1.8", "https://github.com/brentp/jsc-nim >= 0.1.3", "https://github.com/brentp/pedfile >= 0.0.4"
 requires "https://github.com/brentp/nim-minizip >= 0.0.11", "argparse >=0.10.1 & < 0.10.2"
 srcDir = "src"
 installExt = @["nim"]

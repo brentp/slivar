@@ -17,10 +17,6 @@ import strutils
 proc clean(s:string): string =
   return s.replace("\"", "").replace("'", "")
 
-type CompiledExpression* = object
-  name*: string
-  expr*: string
-
 type NamedExpression* = object
   name*: string
   expr*: string
@@ -86,9 +82,6 @@ iterator variants*(vcf:VCF, region:string): Variant =
     for v in vcf.query(region): yield v
 
 
-
-type ISample* = ref object
-  ped_sample*: pedfile.Sample
 
 type exResult* = tuple[name:string, sampleList:seq[string], val:float32]
   ## a match yielded by evaluate: the expression name and the matching sample ids.
@@ -214,11 +207,10 @@ type FmtBuf = object
 
 type Evaluator* = ref object
   b: Bridge
-  samples*: seq[Isample]
+  samples*: seq[Sample]
   gnos*: seq[Gnotater]
 
   # vcf header info
-  field_names: seq[idpair]       # header id -> name and whether it's an INFO / FORMAT field
   gene_fields: seq[GeneIndexes]  # CSQ/ANN/BCSQ fields used to compute impactful, genic, ...
   impactful_id: int              # header ids of the fields slivar adds (-1 if absent)
   genic_id: int
@@ -233,7 +225,7 @@ type Evaluator* = ref object
   # reports matches as indexes into units (see sl.samples in runtime.js).
   # sample expressions are group expressions on a "sample" group.
   units: array[UnitKind, seq[Unit]]
-  exprs: array[UnitKind, seq[CompiledExpression]]
+  exprs: array[UnitKind, seq[NamedExpression]]
   has_info_expression*: bool
 
   # javascript functions and objects
@@ -273,16 +265,16 @@ proc slivarDebug(ctx: JSContextRef, function: JSObjectRef, thisObject: JSObjectR
   stderr.write_line parts.join(", ")
   return JSValueMakeUndefined(ctx)
 
-proc trio_kids*(samples: seq[Sample], by_name: TableRef[string, ISample]): seq[Sample] =
+proc trio_kids*(samples: seq[Sample], sample_index: TableRef[string, int]): seq[Sample] =
   ## return all samples that have a mom and dad that are present in the vcf
   result = newSeqOfCap[Sample](16)
   for sample in samples:
     if sample.mom == nil or sample.mom.i == -1: continue
     if sample.dad == nil or sample.dad.i == -1: continue
-    if by_name != nil:
-      if sample.id notin by_name: continue
-      if sample.mom.id notin by_name: continue
-      if sample.dad.id notin by_name: continue
+    if sample_index != nil:
+      if sample.id notin sample_index: continue
+      if sample.mom.id notin sample_index: continue
+      if sample.dad.id notin sample_index: continue
     result.add(sample)
 
 const prelude = staticRead("prelude.js")
@@ -360,8 +352,8 @@ proc newEvaluator*(ivcf:VCF, samples: seq[Sample], groups: seq[Group],
     discard ivcf.header.add_info("highest_impact_order", "1", "Integer", "impact order (lower is higher) of this variant across all genes and transcripts it overlaps. this integer can be used as a look into the order list to get the actual impact")
 
   # the header may have changed above so the ids are calculated here.
-  result.field_names = id2names(ivcf.header)
-  for i, f in result.field_names:
+  let field_names = id2names(ivcf.header)
+  for i, f in field_names:
     if not f.info: continue
     if f.name == "impactful": result.impactful_id = i
     elif f.name == "genic": result.genic_id = i
@@ -372,13 +364,12 @@ proc newEvaluator*(ivcf:VCF, samples: seq[Sample], groups: seq[Group],
     if getEnv("SLIVAR_QUIET") == "":
       stderr.write_line "[slivar] using non-strict mode. missing attributes will not show a warning or error"
 
-  # need this because we can only have 1 object per sample id. this allows fast lookup by id.
-  var by_name = newTable[string,ISample]()
+  # sample id -> index in ev.samples (which is not the vcf index, sample.i, when
+  # the ped file has fewer samples than the vcf).
+  result.samples = samples
   var sample_index = newTable[string, int]()
-  for sample in samples:
-    result.samples.add(ISample(ped_sample:sample))
-    by_name[sample.id] = result.samples[result.samples.high]
-    sample_index[sample.id] = result.samples.high
+  for j, sample in samples:
+    sample_index[sample.id] = j
 
   discard ctx.eval(runtime, "runtime.js")
   ctx.setGlobal("debug", JSValueRef(ctx.newFunction("debug", slivarDebug)))
@@ -392,18 +383,16 @@ proc newEvaluator*(ivcf:VCF, samples: seq[Sample], groups: seq[Group],
   # their index in ev.samples.
   var cfg = newJObject()
   cfg["strict"] = %strict
-  cfg["skip_non_variable"] = %skip_non_variable_sites
   var info_names = newJArray()
   var fmt_names = newJArray()
-  for f in result.field_names:
+  for f in field_names:
     info_names.add(%(if f.info: f.name else: ""))
     fmt_names.add(%(if f.format: f.name else: ""))
   cfg["info"] = info_names
   cfg["fmt"] = fmt_names
   proc idx(s: Sample): int = sample_index.getOrDefault(s.id, -1)
   var jsamples = newJArray()
-  for sample in result.samples:
-    let s = sample.ped_sample
+  for s in samples:
     var kids = newJArray()
     for kid in s.kids:
       if kid.idx >= 0: kids.add(%kid.idx)
@@ -422,7 +411,7 @@ proc newEvaluator*(ivcf:VCF, samples: seq[Sample], groups: seq[Group],
     result.units[kind].add(u)
     junits[$kind].add(%*{"names": names, "values": values, "ids": u.ids, "require_alt": require_alt})
 
-  for kid in samples.trio_kids(by_name):
+  for kid in samples.trio_kids(sample_index):
     # with skip_non_variable_sites, a trio is skipped unless one of its samples (vcf indexes) has an alt.
     let require_alt = if skip_non_variable_sites: %*[kid.i, kid.dad.i, kid.mom.i] else: newJNull()
     addUnit(ukTrio, Unit(ids: @[kid.id]), ["kid", "dad", "mom"], %*[kid.idx, kid.dad.idx, kid.mom.idx], require_alt)
@@ -475,10 +464,18 @@ proc newEvaluator*(ivcf:VCF, samples: seq[Sample], groups: seq[Group],
     let jcfg = JSValueMakeFromJSONString(ctx.ctx, js)
     discard ctx.call(setup, [jcfg], result.b.sl)
 
-  # --- shared buffers
+  # --- expressions. sample expressions are group expressions (on the "sample" group).
   let ev = result
+  ev.exprs[ukTrio] = trio_expressions
+  ev.exprs[ukGroup] = group_expressions & sample_expressions
+  ev.exprs[ukFamily] = family_expressions
+  for kind in UnitKind:
+    for ex in ev.exprs[kind]:
+      ev.js_add_expression($kind, ex.name, ex.expr)
+
+  # --- shared buffers
   let nvcf = max(1, ivcf.n_samples)
-  let nids = max(1, ev.field_names.len)
+  let nids = max(1, field_names.len)
   ev.b.bind_buf(ev.meta, "META", 8)
   ev.b.bind_buf(ev.vnum, "VNUM", 16)
   ev.b.bind_buf(ev.alts, "ALTS", nvcf)
@@ -493,20 +490,11 @@ proc newEvaluator*(ivcf:VCF, samples: seq[Sample], groups: seq[Group],
   ev.b.bind_buf(ev.str, "STR", 4096)
   ev.b.bind_buf(ev.str_off, "STR_OFF", 64)
   ev.b.bind_buf(ev.str_len, "STR_LEN", 64)
-  let n_out = 1 + (trio_expressions.len * (ev.units[ukTrio].len + 1)) +
-              ((group_expressions.len + sample_expressions.len) * (ev.units[ukGroup].len + 1)) +
-              (family_expressions.len * (ev.units[ukFamily].len + 1))
+  # OUT holds, for each expression, a match count and the index of each matching unit.
+  var n_out = 1
+  for kind in UnitKind:
+    n_out += ev.exprs[kind].len * (ev.units[kind].len + 1)
   ev.b.bind_buf(ev.out_buf, "OUT", n_out)
-
-  # --- expressions. sample expressions are group expressions (on the "sample" group).
-  template add(kind: string, exprs: seq[NamedExpression], dest: var seq[CompiledExpression]) =
-    for ex in exprs:
-      ev.js_add_expression(kind, ex.name, ex.expr)
-      dest.add(CompiledExpression(expr: ex.expr, name: ex.name))
-  add($ukTrio, trio_expressions, ev.exprs[ukTrio])
-  add($ukGroup, group_expressions, ev.exprs[ukGroup])
-  add($ukGroup, sample_expressions, ev.exprs[ukGroup])
-  add($ukFamily, family_expressions, ev.exprs[ukFamily])
 
   if info_expr != "" and info_expr != "nil":
     ev.js_add_expression("info", "", info_expr)
@@ -739,7 +727,7 @@ proc set_ab(ev: Evaluator, ints: var seq[int32], n_alleles:int=2) =
     a: float32
 
   for s in ev.samples:
-    let i = s.ped_sample.i
+    let i = s.i
     r = ints[n_alleles * i].float32
     a = ints[n_alleles * i + 1].float32
     for j in 2..<n_alleles:
@@ -823,9 +811,9 @@ proc set_format_fields*(ev:var Evaluator, v:Variant, gts: var Genotypes, alts: v
         ev.set_ab(ints, v.ALT.len + 1)
         ab_computed = true
 
-template trio_expressions*(ev: Evaluator): seq[CompiledExpression] = ev.exprs[ukTrio]
-template group_expressions*(ev: Evaluator): seq[CompiledExpression] = ev.exprs[ukGroup]
-template family_expressions*(ev: Evaluator): seq[CompiledExpression] = ev.exprs[ukFamily]
+template trio_expressions*(ev: Evaluator): seq[NamedExpression] = ev.exprs[ukTrio]
+template group_expressions*(ev: Evaluator): seq[NamedExpression] = ev.exprs[ukGroup]
+template family_expressions*(ev: Evaluator): seq[NamedExpression] = ev.exprs[ukFamily]
 
 proc has_sample_expressions*(ev: Evaluator): bool {.inline.} =
   for kind in UnitKind:
