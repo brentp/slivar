@@ -1,0 +1,14 @@
+##fileformat=VCFv4.2
+##contig=<ID=1,length=249250621>
+##INFO=<ID=AF,Number=A,Type=Float,Description="per-alt">
+##INFO=<ID=AFS,Number=1,Type=Float,Description="scalar">
+##INFO=<ID=LST,Number=.,Type=Integer,Description="list">
+##INFO=<ID=result,Number=1,Type=String,Description="a field with the same name as an expression">
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+##FORMAT=<ID=AD,Number=R,Type=Integer,Description="Allelic depths">
+##FORMAT=<ID=alts,Number=1,Type=Integer,Description="a real field named like a slivar attribute">
+##FORMAT=<ID=AB,Number=2,Type=Float,Description="a vector AB">
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	HG002	HG003	HG004
+1	100	.	A	C	50	PASS	AF=0.25;AFS=0.5;LST=7;result=old	GT:AD:alts:AB	0/1:10,10:42:0.1,0.9	0/0:20,0:43:0.2,0.8	0/0:20,0:44:0.3,0.7
+1	200	.	A	G	50	PASS	AF=0.75;AFS=0.5;LST=7,8	GT:AD	0/1:5,15	0/0:20,0	0/0:20,0
+1	300	.	A	T	50	PASS	AFS=0.5	AD	5,15	20,0	20,0

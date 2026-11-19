@@ -16,8 +16,8 @@ proc initCounter*(ev:Evaluator): Counter =
   result.sampleIndexes = newTable[string, int]()
   result.exprIndexes = newTable[string, int]()
   for i, s in ev.samples:
-    result.sampleIndexes[s.ped_sample.id] = i
-    result.samples.add(s.ped_sample.id)
+    result.sampleIndexes[s.id] = i
+    result.samples.add(s.id)
   for i, e in ev.trio_expressions:
     result.exprIndexes[e.name] = result.exprIndexes.len
     result.exprs.add(e.name)

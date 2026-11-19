@@ -1,5 +1,4 @@
 import hts/vcf
-import ./evaluator
 import times
 import ./version
 import ./gnotate
@@ -261,7 +260,6 @@ proc main*(dropfirst:bool=false) =
     if not open(vcfs[i], p, threads=3):
       quit "couldn't open:" & p
 
-  var ev = newEvaluator(vcfs[0], @[], @[], @[], @[], @[], @[], @[], "nil", @[], id2names(vcfs[0].header), false)
   for v in vcfs[0]:
     if len(v.ALT) > 1:
       quit "input should be decomposed and normalized"
@@ -280,7 +278,6 @@ proc main*(dropfirst:bool=false) =
 
         longs = newSeqOfCap[PosValue](65536)
         kvs = newSeqOfCap[evalue](65536)
-        ev = newEvaluator(vcfs[0], @[], @[], @[], @[], @[], @[], @[], "nil", @[], id2names(vcfs[0].header), false)
 
       last_chrom = $v.CHROM
       last_rid = v.rid

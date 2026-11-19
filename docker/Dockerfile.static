@@ -1,0 +1,20 @@
+# Build a fully static slivar binary:
+#   docker build -t slivar-static -f docker/Dockerfile.static .
+#   docker run --rm -v $(pwd):/out slivar-static cp /slivar/slivar_static /out/
+FROM ubuntu:22.04
+
+ARG NIM_URL=https://github.com/nim-lang/nightlies/releases/download/latest-version-2-2/linux_x64.tar.xz
+
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+      build-essential ca-certificates curl git bzip2 xz-utils file \
+      zlib1g-dev libbz2-dev liblzma-dev libdeflate-dev && \
+    rm -rf /var/lib/apt/lists/*
+
+RUN curl -fsSL "$NIM_URL" | tar -xJ -C /opt && mv /opt/nim-* /opt/nim
+ENV PATH=/opt/nim/bin:/root/.nimble/bin:$PATH
+
+COPY . /slivar
+WORKDIR /slivar
+RUN nimble install -y -d && nimble setup && \
+    bash scripts/build-static.sh slivar_static && \
+    mkdir -p /opt/slivar && cp js/slivar-functions.js /opt/slivar/

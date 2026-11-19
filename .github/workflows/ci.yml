@@ -13,7 +13,7 @@ jobs:
       - uses: jiro4989/setup-nim-action@v2
         with:
           nim-version: ${{ matrix.nim-version }}
-      - run: nimble install -y
+      - run: nimble install -d -y
       - run: nimble test
   mac:
     runs-on: macos-latest
@@ -29,5 +29,5 @@ jobs:
       - run: brew install htslib bcftools
       - run: sed -i "" -e "s/nim c/nim c --passL:-Wl,-rpath,\/opt\/homebrew\/opt\/htslib\/lib/" slivar.nimble
       - run: sed -i "" -e "s/nim c/nim c --passL:-Wl,-rpath,\/opt\/homebrew\/opt\/htslib\/lib/" tests/functional-tests.sh
-      - run: nimble install -y
+      - run: nimble install -d -y
       - run: nimble test

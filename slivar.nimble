@@ -18,7 +18,7 @@ license       = "MIT"
 
 
 # Dependencies
-requires "hts >= 0.3.31", "lapper >= 0.1.8", "https://github.com/brentp/duktape-nim#dev2", "https://github.com/brentp/pedfile >= 0.0.4"
+requires "hts >= 0.3.31", "lapper >= 0.1.8", "https://github.com/brentp/jsc-nim >= 0.1.3", "https://github.com/brentp/pedfile >= 0.0.4"
 requires "https://github.com/brentp/nim-minizip >= 0.0.11", "argparse >=0.10.1 & < 0.10.2"
 srcDir = "src"
 installExt = @["nim"]
@@ -30,12 +30,16 @@ skipDirs = @["tests"]
 import ospaths,strutils
 
 task test, "run the tests":
+  # the tests compile with plain `nim c`. Since nimble.lock exists, nim (>= 1.6.12)
+  # doesn't search the nimble packages itself; `nimble setup` writes nimble.paths
+  # (and config.nims, which includes it). nimble < 0.14 (as with nim 1.6.6) has no
+  # setup, but that nim finds the packages without it.
+  try: exec "nimble setup -y"
+  except OSError: echo "[slivar] `nimble setup` failed; testing without nimble.paths"
   exec "bash tests/functional-tests.sh"
-  exec "nim c  -d:useSysAssert -d:useGcAssert --lineDir:on --debuginfo --lineDir:on --debuginfo -r --threads:on src/slivarpkg/duko"
   exec "nim c  -d:useSysAssert -d:useGcAssert --lineDir:on --debuginfo --lineDir:on --debuginfo -r --threads:on src/slivarpkg/pracode"
   exec "nim c  -d:useSysAssert -d:useGcAssert --lineDir:on --debuginfo --lineDir:on --debuginfo -r --threads:on src/slivarpkg/groups"
   exec "nim c  -d:useSysAssert -d:useGcAssert --lineDir:on --debuginfo --lineDir:on --debuginfo -r --threads:on src/slivarpkg/comphet"
-  exec "nim c  -d:useSysAssert -d:useGcAssert --lineDir:on --debuginfo --lineDir:on --debuginfo -r --threads:on src/slivarpkg/fastsets"
 
 task docs, "Builds documentation":
   mkDir("docs"/"slivar")

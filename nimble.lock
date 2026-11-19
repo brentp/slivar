@@ -11,16 +11,6 @@
         "sha1": "ca6943a0561568610e27599e1e79c9b67628ee27"
       }
     },
-    "duktape": {
-      "version": "0.1.0",
-      "vcsRevision": "d5e98716b8218c44933fe5b4c57f52c69c7a27ba",
-      "url": "https://github.com/brentp/duktape-nim",
-      "downloadMethod": "git",
-      "dependencies": [],
-      "checksums": {
-        "sha1": "5f93e83b86bf387414d1cd4add490927959be36a"
-      }
-    },
     "hts": {
       "version": "0.3.31",
       "vcsRevision": "93ad65442b16d0191aa0c44803d10a6fb7cde9fa",
@@ -29,6 +19,16 @@
       "dependencies": [],
       "checksums": {
         "sha1": "38ee23c436d9f4c585f8f6d425ac3630460e528a"
+      }
+    },
+    "jsc": {
+      "version": "0.1.3",
+      "vcsRevision": "0d375b25b10542e269a3f782ff1b34a5e18ee240",
+      "url": "https://github.com/brentp/jsc-nim",
+      "downloadMethod": "git",
+      "dependencies": [],
+      "checksums": {
+        "sha1": "243d73bf2ba1b75d474a579ff51b6abbb56e5a4b"
       }
     },
     "lapper": {

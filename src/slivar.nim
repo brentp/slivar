@@ -1,5 +1,4 @@
 import pedfile
-import ./slivarpkg/duko
 from ./slivarpkg/version import slivarVersion, slivarGitCommit
 import ./slivarpkg/evaluator
 import ./slivarpkg/groups
@@ -100,27 +99,25 @@ proc expr_main*(dropfirst:bool=false) =
       gnos.add(gno)
 
   var
-    iTbl: seq[NamedExpression]
     trioExprs: seq[NamedExpression]
     groupExprs: seq[NamedExpression]
     sampleExprs: seq[NamedExpression]
     familyExprs: seq[NamedExpression]
     out_samples: seq[string] # only output kids if only trio expressions were specified
 
-  let field_names = id2names(ivcf.header)
   if opts.trio.len != 0:
-    trioExprs = ivcf.getNamedExpressions(opts.trio, opts.vcf, false)
+    trioExprs = ivcf.getNamedExpressions(opts.trio, opts.vcf)
   if opts.group_expr.len != 0:
-    groupExprs = ivcf.getNamedExpressions(opts.group_expr, opts.vcf, false, trioExprs)
+    groupExprs = ivcf.getNamedExpressions(opts.group_expr, opts.vcf, trioExprs)
   if opts.sample_expr.len != 0:
-    sampleExprs = ivcf.getNamedExpressions(opts.sample_expr, opts.vcf, false, trioExprs, groupExprs)
+    sampleExprs = ivcf.getNamedExpressions(opts.sample_expr, opts.vcf, trioExprs, groupExprs)
 
   if opts.family_expr.len != 0:
     if opts.ped == "":
       quit "error must specify --ped to use with --family-expr"
-    familyExprs = ivcf.getNamedExpressions(opts.family_expr, opts.vcf, false, trioExprs, groupExprs, sampleExprs)
+    familyExprs = ivcf.getNamedExpressions(opts.family_expr, opts.vcf, trioExprs, groupExprs, sampleExprs)
 
-  var ev = newEvaluator(ivcf, samples, groups, iTbl, trioExprs, groupExprs, familyExprs, sampleExprs, opts.info, gnos, field_names=field_names, opts.skip_non_variable)
+  var ev = newEvaluator(ivcf, samples, groups, trioExprs, groupExprs, familyExprs, sampleExprs, opts.info, gnos, opts.skip_non_variable)
   ovcf.copy_header(ivcf.header)
 
   doAssert ovcf.write_header
@@ -131,7 +128,7 @@ proc expr_main*(dropfirst:bool=false) =
   var counter = ev.initCounter()
 
   # set pass only if they have only info expr, otherwise, there's no point.
-  if not opts.pass_only and ev.info_expression.ctx != nil and not ev.has_sample_expressions:
+  if not opts.pass_only and ev.has_info_expression and not ev.has_sample_expressions:
     opts.pass_only = true
 
   if opts.js != "":
@@ -181,13 +178,13 @@ proc expr_main*(dropfirst:bool=false) =
       any_pass.inc
       if ns.name != "": # if name is "", then they didn't have any sample expressions.
         var ssamples = join(ns.sampleList, ",")
-        if ns.val != float32.low or not no_include_all:
+        if not ns.family_id_only or not no_include_all:
           if variant.info.set(ns.name, ssamples) != Status.OK:
             quit "error setting field:" & ns.name
         else:
           any_pass.dec
 
-        if ns.val != float32.low:
+        if not ns.family_id_only:
           counter.inc(ns.sampleList, ns.name)
 
     if nerrors / i > 0.2 and i >= 1000:
