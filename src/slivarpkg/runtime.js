@@ -285,38 +285,48 @@ var $sl = (function() {
     globalThis.ImpactOrder = strictObject(cfg.impact_order);
     globalThis.VCF = cfg.vcf;
 
-    // a unit sets the globals named in u.names (kid, dad, mom; the group header;
-    // or fam) before an expression is evaluated, using a generated setter such as
-    // `globalThis["kid"] = v[0]; ...`, which is much faster than globalThis[name] = ...
-    var setters = {};
-    function setter(names) {
-      var key = names.join(",");
-      return setters[key] || (setters[key] = new Function("v",
-        names.map(function(n, k) { return "globalThis[" + JSON.stringify(n) + "] = v[" + k + "];"; }).join("\n")));
-    }
     function toSample(v) {  // a sample index, an array of them, or null for an empty group column
       if (v === null) { return globalThis.empty; }
       return Array.isArray(v) ? v.map(toSample) : S[v];
     }
     UNIT_KINDS.forEach(function(kind) {
       units[kind] = cfg.units[kind].map(function(u) {
-        return {set: setter(u.names), values: u.values.map(toSample), ids: u.ids, requireAlt: u.require_alt};
+        var values = u.values.map(toSample);
+        return {set: setter(u.names, values), values: values, ids: u.ids, requireAlt: u.require_alt};
       });
     });
   };
 
-  // ------------------------------------------------------------- expressions
-  function compile(expr) {
-    var src = expr.trim().replace(/;+\s*$/, "");
-    try { return new Function("return (" + src + "\n)"); } catch (e) {}
-    // not a single expression: evaluate it as a program and use its completion value.
-    try { new Function(expr); } catch (e) { throw "error compiling expression: '" + expr + "': " + e; }
-    return function() { return (0, eval)(expr); };
+  // a unit sets the globals named in u.names (kid, dad, mom; the group header;
+  // or fam) before an expression is evaluated, using a generated setter such as
+  // `globalThis["kid"] = v[0]; ...`, which made the 180-sample cohort benchmark
+  // ~10% faster than a loop over the names. Arrays (fam, plural group columns)
+  // are copied so that an expression that changes one doesn't affect the next.
+  var setters = Object.create(null);  // (no inherited keys: an alias may be named e.g. "constructor")
+  function setter(names, values) {
+    var lines = names.map(function(n, k) {
+      return "globalThis[" + JSON.stringify(n) + "] = v[" + k + "]" + (Array.isArray(values[k]) ? ".slice();" : ";");
+    });
+    var key = lines.join("\n");
+    return setters[key] || (setters[key] = new Function("v", key));
   }
 
+  // ------------------------------------------------------------- expressions
+  // returns a function, or null when expr is not a single expression. Then it is
+  // evaluated as a script and its completion value is used; nim checks the
+  // script syntax (javascript has no way to do that without running it).
+  function compile(expr) {
+    var src = expr.trim().replace(/;+\s*$/, "");
+    try { return new Function("return (" + src + "\n)"); } catch (e) { return null; }
+  }
+
+  // returns true if src is evaluated as a script (and its syntax must be checked).
   sl.addExpr = function(kind, name, src) {
     if (!(kind in exprs)) { throw "unknown expression kind:" + kind; }
-    exprs[kind].push({name: name, src: src, f: compile(src)});
+    var f = compile(src), script = f === null;
+    if (script) { f = function() { return (0, eval)(src); }; }
+    exprs[kind].push({name: name, src: src, f: f});
+    return script;
   };
 
   function errorString(e, ex) {
@@ -329,7 +339,8 @@ var $sl = (function() {
     sl.ERRS.length = 0;
     var ex = exprs.info[0];
     try {
-      return ex.f() ? RESULT_PASS : RESULT_FAIL;
+      // like slivar with duktape, only `true` passes (not other truthy values).
+      return ex.f() === true ? RESULT_PASS : RESULT_FAIL;
     } catch (e) {
       sl.ERRS.push(errorString(e, ex));
       return RESULT_ERROR;  // treated as a pass
@@ -353,7 +364,7 @@ var $sl = (function() {
           if (r !== null && ALTS[r[0]] <= 0 && ALTS[r[1]] <= 0 && ALTS[r[2]] <= 0) { continue; }
           unit.set(unit.values);
           try {
-            if (ex.f()) {
+            if (ex.f() === true) {
               OUT[o++] = u;
               for (var j = 0; j < unit.ids.length; j++) { ids.push(unit.ids[j]); }
             }

@@ -1,0 +1,6 @@
+##fileformat=VCFv4.2
+##contig=<ID=1,length=249250621>
+##INFO=<ID=AFS,Number=1,Type=Float,Description="scalar">
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	HG002	HG003	HG004
+1	100	.	A	C	50	PASS	AFS=0.5;UNDECL=3;U2=1,2	GT:XX:YY	0/1:5:1,2	0/0:6:3,4	0/0:7:5,6

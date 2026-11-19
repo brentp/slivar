@@ -202,10 +202,15 @@ run check_js_unknown_attribute $exe expr --pass-only -v tests/ashk-trio.vcf.gz -
 assert_exit_code 0
 assert_in_stderr "unknown attribute:nonexistent"
 
-run check_js_modern_syntax $exe expr --pass-only -v tests/ashk-trio.vcf.gz -p tests/ashk-trio.ped -o /dev/null \
-  --trio 'x:[kid, mom, dad].filter(s => s.het).length === 1 && kid.het' --info 'INFO?.AF ?? false'
+rm -f xx.vcf
+run check_js_modern_syntax $exe expr --pass-only -v tests/js-semantics.vcf -p tests/ashk-trio.ped -o xx.vcf \
+  --trio 'x:[kid, mom, dad].filter(s => s.het).length === 1 && kid.het' --info '(variant?.POS ?? 0) === 100'
 assert_exit_code 0
-assert_in_stderr "sample	x"
+assert_in_stderr "sample	x
+HG002	1"
+assert_equal 1 $(grep -vc '^#' xx.vcf)
+assert_equal 100 $(grep -v '^#' xx.vcf | cut -f 2)
+rm -f xx.vcf
 
 run check_js_multi_statement $exe expr --pass-only -v tests/ashk-trio.vcf.gz -o /dev/null \
   --info 'var a = 1; a = a + 1; variant.POS == 762589 && debug("multi", a)'
@@ -245,6 +250,36 @@ assert_in_stderr "w, 100, 7, 9, false"
 assert_in_stderr "w, 200, 7, 0.5, true"
 assert_in_stderr "ad, 100, 1,10,99"
 assert_in_stderr "ad, 200, 1,15,99"
+
+# a field that is not in the header gets an id (from htslib) past the end of the header ids.
+run check_undeclared_fields $exe expr -v tests/undeclared-fields.vcf -p tests/ashk-trio.ped -o /dev/null --pass-only \
+  --info 'debug("undecl", INFO.AFS, "UNDECL" in INFO) || true' --trio 'x:debug("kid", kid.het, "XX" in kid) && false'
+# (hts-nim reports htslib's undefined-tag status as a read error at the end, so the exit code is not checked)
+assert_in_stderr "INFO field 'UNDECL' is not declared in the VCF header"
+assert_in_stderr "FORMAT field 'XX' is not declared in the VCF header"
+assert_in_stderr "undecl, 0.5, false"
+assert_in_stderr "kid, true, false"
+
+# only `true` passes, not other truthy values.
+rm -f xx.vcf
+run check_js_truthy_does_not_pass $exe expr -v tests/js-semantics.vcf -o xx.vcf --pass-only --info 'INFO.AFS'
+assert_exit_code 0
+assert_equal 0 $(grep -vc '^#' xx.vcf)
+
+run check_js_script_syntax_error $exe expr -v tests/js-semantics.vcf -o /dev/null --info 'return true'
+assert_exit_code 1
+assert_in_stderr "error compiling expression"
+
+run check_js_alias_arrays_are_fresh $exe expr -v tests/js-semantics.vcf -p tests/ashk-trio.ped -o xx.vcf --pass-only \
+  --family-expr 'f:fam.pop(); fam.length === 2'
+assert_exit_code 0
+assert_equal 3 $(grep -vc '^#' xx.vcf)
+
+run check_alias_named_constructor $exe expr -v tests/js-semantics.vcf --alias tests/constructor.group -o xx.vcf --pass-only \
+  --group-expr 'g:constructor.id == "HG002" && b.id == "HG003"'
+assert_exit_code 0
+assert_equal 3 $(grep -vc '^#' xx.vcf)
+rm -f xx.vcf
 
 export SLIVAR_FORMAT_STRINGS=1
 run check_slivar_format_strings $exe expr --pass-only --sample-expr 'pid:"PID" in sample && sample.PID == "866319_G_A"' -v tests/ashk-trio.vcf.gz --ped tests/ashk-trio.ped

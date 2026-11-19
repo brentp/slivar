@@ -26,7 +26,7 @@ proc assertNewLabel(label: string, previous: seq[NamedExpression]) =
     if pe.name == label:
       quit &"[slivar] ERROR duplicate label '{pe.name}'. Use unique labels"
 
-proc getNamedExpressions*(ovcf:VCF, expressions:seq[string], invcf:string, asfloat:bool, previousExpressions: varargs[seq[NamedExpression]]): seq[NamedExpression] =
+proc getNamedExpressions*(ovcf:VCF, expressions:seq[string], invcf:string, previousExpressions: varargs[seq[NamedExpression]]): seq[NamedExpression] =
   ## parse (split on :) the expressions, return a sequence, and update the vcf header with a reasonable description.
   result = newSeq[NamedExpression]()
   for e in expressions:
@@ -39,12 +39,8 @@ proc getNamedExpressions*(ovcf:VCF, expressions:seq[string], invcf:string, asflo
       assertNewLabel(t[0], p)
 
     result.add(NamedExpression(name:t[0], expr:t[1]))
-    if asfloat:
-      if ovcf.header.add_info(t[0], "1", "Float", &"added by slivar with expression: '{t[1].clean}'") != Status.OK:
-        quit "error adding field to header"
-    else:
-      if ovcf.header.add_info(t[0], ".", "String", &"added by slivar with expression: '{t[1].clean}' from {invcf}") != Status.OK:
-        quit "error adding field to header"
+    if ovcf.header.add_info(t[0], ".", "String", &"added by slivar with expression: '{t[1].clean}' from {invcf}") != Status.OK:
+      quit "error adding field to header"
 
 proc isDigit(s:string): bool {.inline.} =
   for c in s:
@@ -83,9 +79,9 @@ iterator variants*(vcf:VCF, region:string): Variant =
 
 
 
-type exResult* = tuple[name:string, sampleList:seq[string], val:float32]
-  ## a match yielded by evaluate: the expression name and the matching sample ids.
-  ## val is float32.low for a family that matched without affected samples.
+type exResult* = tuple[name:string, sampleList:seq[string], family_id_only:bool]
+  ## A match yielded by evaluate. For a family without affected samples,
+  ## family_id_only is true and sampleList contains the family ID.
 
 type idpair* = tuple[name:string, info:bool, format:bool]
 
@@ -256,6 +252,8 @@ type Evaluator* = ref object
   n_slots: int                   # number of strings (slots) in str
   last_info_ids: seq[int]        # INFO / FORMAT ids set for the current variant,
   last_fmt_ids: seq[int]         # reset before the next one
+  n_ids: int                     # number of header ids the id-indexed buffers were sized for
+  warned_ids: seq[string]        # undeclared fields that were already reported
 
 proc slivarDebug(ctx: JSContextRef, function: JSObjectRef, thisObject: JSObjectRef, argumentCount: csize_t,
                  arguments: ptr UncheckedArray[JSValueRef], exception: ptr JSValueRef): JSValueRef {.cdecl.} =
@@ -308,10 +306,16 @@ proc id2names*(h:Header): seq[idpair] =
 proc js_add_expression(ev: Evaluator, kind, name, expr: string) =
   let ctx = ev.b.ctx
   let f = ctx.getProp(ev.b.sl, "addExpr").toObject(ctx)
+  var script: bool
   try:
-    discard ctx.call(f, [ctx.toJS(kind), ctx.toJS(name), ctx.toJS(expr)], ev.b.sl)
+    script = ctx.call(f, [ctx.toJS(kind), ctx.toJS(name), ctx.toJS(expr)], ev.b.sl).toBool(ctx)
   except JSError as e:
     raise newException(ValueError, e.msg & &"\nexpression was:'{expr}'")
+  if script:
+    # not a single expression, so it is evaluated as a script.
+    let err = ctx.checkSyntax(expr)
+    if err != "":
+      raise newException(ValueError, &"error compiling expression: {err}\nexpression was:'{expr}'")
 
 proc newEvaluator*(ivcf:VCF, samples: seq[Sample], groups: seq[Group],
                    trio_expressions: seq[NamedExpression],
@@ -476,6 +480,7 @@ proc newEvaluator*(ivcf:VCF, samples: seq[Sample], groups: seq[Group],
   # --- shared buffers
   let nvcf = max(1, ivcf.n_samples)
   let nids = max(1, field_names.len)
+  ev.n_ids = field_names.len
   ev.b.bind_buf(ev.meta, "META", 8)
   ev.b.bind_buf(ev.vnum, "VNUM", 16)
   ev.b.bind_buf(ev.alts, "ALTS", nvcf)
@@ -613,6 +618,17 @@ proc write_warning(variant:Variant, msg: string, nerrors: var int) {.inline.} =
   if nerrors == 10:
     stderr.write_line "[slivar] not reporting further errors."
 
+proc known_id(ev: var Evaluator, id: int, kind, name: string): bool {.inline.} =
+  ## htslib gives a field that is not declared in the header a new id when it
+  ## reads a record that uses it. That id is past the end of the id-indexed
+  ## buffers (and javascript has no name for it), so the field is skipped.
+  if likely(id >= 0 and id < ev.n_ids): return true
+  let key = kind & "/" & name
+  if key notin ev.warned_ids:
+    ev.warned_ids.add(key)
+    stderr.write_line &"[slivar] warning: {kind} field '{name}' is not declared in the VCF header; it is not available to expressions"
+  return false
+
 # set the value of INFO field `id` for the current variant.
 
 proc set_info(ev: Evaluator, id: int, kind: InfoKind, off: int, n = 1) {.inline.} =
@@ -668,6 +684,7 @@ proc set_infos*(ev:var Evaluator, variant:Variant, ints: var seq[int32], floats:
     if ev.info_white_list.len > 0 and field.name notin ev.info_white_list:
       continue
     let id = field.i
+    if not ev.known_id(id, "INFO", field.name): continue
     if field.vtype == BCF_TYPE.FLOAT:
       if info.get(field.name, floats) != Status.OK:
         quit "couldn't get field:" & field.name
@@ -799,6 +816,7 @@ proc set_format_fields*(ev:var Evaluator, v:Variant, gts: var Genotypes, alts: v
   for f in fmt.fields:
     if ev.format_white_list.len > 0 and f.name notin ev.format_white_list:
       continue
+    if not ev.known_id(f.i, "FORMAT", f.name): continue
     if not ev.set_format_field(f, fmt, gts, ints, floats, strs): continue
     ev.last_fmt_ids.add(f.i)
     if f.name == "AD":
@@ -836,7 +854,7 @@ iterator evaluate*(ev:var Evaluator, variant:Variant, nerrors:var int): exResult
 
   if not ev.has_info_expression and not ev.has_sample_expressions:
       # if there's no info expression, they might just want gnomad annotations.
-      yield ("", @[], 0.0'f32)
+      yield ("", @[], false)
   else:
     ## the most expensive part is pulling out the format fields so we only do
     ## that if the info expression passes.
@@ -850,7 +868,7 @@ iterator evaluate*(ev:var Evaluator, variant:Variant, nerrors:var int): exResult
     if info_res != irFail:
       if not ev.has_sample_expressions:
         # if there are no sample expressions, they may just be using gnotate with an info filter.
-        yield ("", @[], 0.0'f32)
+        yield ("", @[], false)
 
       elif ev.units[ukTrio].len > 0 or ev.units[ukGroup].len > 0 or ev.units[ukFamily].len > 0:
         ev.set_format_fields(variant, gts, alts, ints, floats, strs)
@@ -869,7 +887,7 @@ iterator evaluate*(ev:var Evaluator, variant:Variant, nerrors:var int): exResult
             for k in 0..<cnt:
               let u = ev.units[kind][ev.out_buf[o + k]]
               if kind == ukFamily and u.ids.len == 0:
-                yield (namedexpr.name, @[u.family_id], float32.low)
+                yield (namedexpr.name, @[u.family_id], true)
                 if nerrors < 10:
                   stderr.write_line &"[slivar] WARNING !!! using --family-expr without any affected samples. Adding family_id: '{u.family_id}' to the INFO list for '{namedexpr.name}'"
                   nerrors.inc
@@ -879,4 +897,4 @@ iterator evaluate*(ev:var Evaluator, variant:Variant, nerrors:var int): exResult
                 matching.add(u.ids)
             o += cnt
             if matching.len > 0:
-              yield (namedexpr.name, matching, -1'f32)
+              yield (namedexpr.name, matching, false)
